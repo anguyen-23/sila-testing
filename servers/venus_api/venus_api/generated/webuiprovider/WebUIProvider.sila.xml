@@ -1,0 +1,19 @@
+<Feature xmlns="http://www.sila-standard.org" Category="extended" FeatureVersion="1.0" MaturityLevel="Draft" Originator="calico.automation" SiLA2Version="1.1">
+  <Identifier>WebUIProvider</Identifier>
+  <DisplayName>Web UI Provider</DisplayName>
+  <Description>Provides a self-contained HTML page for device-specific UI rendering.
+        When this feature is present, clients may use the CustomUI property to
+        display a tailored interface instead of the generic dynamic view.</Description>
+  <Property>
+    <Identifier>CustomUI</Identifier>
+    <DisplayName>Custom UI</DisplayName>
+    <Description>A self-contained HTML page (with inline CSS and JavaScript) that
+            renders a device-specific user interface. Intended to be displayed
+            in a sandboxed iframe. Uses window.parent.postMessage() to request
+            command execution and property reads from the host application.</Description>
+    <Observable>No</Observable>
+    <DataType>
+      <Basic>String</Basic>
+    </DataType>
+  </Property>
+</Feature>

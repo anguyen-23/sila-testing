@@ -1,0 +1,315 @@
+syntax = "proto3";
+
+import "SiLAFramework.proto";
+
+package sila2.calico.automation.extended.venusmethodexecutor.v1;
+
+/* Wraps the Hamilton VENUS Web API (REST + SignalR) as a SiLA 2 Feature. Exposes method loading, execution with progress tracking, pause/resume/abort, device info, and run data retrieval. Uses Observable Properties for real-time state push via SSE to the React WebUI. */
+service VenusMethodExecutor {
+  /* 
+            Loads a VENUS method file. Calls PUT /execution/load and waits for
+            the executor to reach Initialized state via SignalR notifications.
+         */
+  rpc LoadMethod (sila2.calico.automation.extended.venusmethodexecutor.v1.LoadMethod_Parameters) returns (sila2.org.silastandard.CommandConfirmation) {}
+  /* Monitor the state of LoadMethod */
+  rpc LoadMethod_Info (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.org.silastandard.ExecutionInfo) {}
+  /* Retrieve intermediate responses of LoadMethod */
+  rpc LoadMethod_Intermediate (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.calico.automation.extended.venusmethodexecutor.v1.LoadMethod_IntermediateResponses) {}
+  /* Retrieve result of LoadMethod */
+  rpc LoadMethod_Result(sila2.org.silastandard.CommandExecutionUUID) returns (sila2.calico.automation.extended.venusmethodexecutor.v1.LoadMethod_Responses) {}
+  /* 
+            Starts execution of the currently loaded method. Calls POST /execution/start
+            and reports progress via SignalR OnProgressChanged events. Completes when
+            the executor reaches Terminated state.
+         */
+  rpc StartMethod (sila2.calico.automation.extended.venusmethodexecutor.v1.StartMethod_Parameters) returns (sila2.org.silastandard.CommandConfirmation) {}
+  /* Monitor the state of StartMethod */
+  rpc StartMethod_Info (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.org.silastandard.ExecutionInfo) {}
+  /* Retrieve intermediate responses of StartMethod */
+  rpc StartMethod_Intermediate (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.calico.automation.extended.venusmethodexecutor.v1.StartMethod_IntermediateResponses) {}
+  /* Retrieve result of StartMethod */
+  rpc StartMethod_Result(sila2.org.silastandard.CommandExecutionUUID) returns (sila2.calico.automation.extended.venusmethodexecutor.v1.StartMethod_Responses) {}
+  /* Pauses the currently running method execution. */
+  rpc PauseMethod (sila2.calico.automation.extended.venusmethodexecutor.v1.PauseMethod_Parameters) returns (sila2.calico.automation.extended.venusmethodexecutor.v1.PauseMethod_Responses) {}
+  /* Resumes a paused method execution. */
+  rpc ResumeMethod (sila2.calico.automation.extended.venusmethodexecutor.v1.ResumeMethod_Parameters) returns (sila2.calico.automation.extended.venusmethodexecutor.v1.ResumeMethod_Responses) {}
+  /* Aborts the currently running method execution. */
+  rpc AbortMethod (sila2.calico.automation.extended.venusmethodexecutor.v1.AbortMethod_Parameters) returns (sila2.calico.automation.extended.venusmethodexecutor.v1.AbortMethod_Responses) {}
+  /* Unloads the currently loaded method. */
+  rpc UnloadMethod (sila2.calico.automation.extended.venusmethodexecutor.v1.UnloadMethod_Parameters) returns (sila2.calico.automation.extended.venusmethodexecutor.v1.UnloadMethod_Responses) {}
+  /* Returns the list of runtime devices as a JSON string. */
+  rpc GetDevices (sila2.calico.automation.extended.venusmethodexecutor.v1.GetDevices_Parameters) returns (sila2.calico.automation.extended.venusmethodexecutor.v1.GetDevices_Responses) {}
+  /* Returns the deck layout for a specific device as a JSON string. */
+  rpc GetDeckLayout (sila2.calico.automation.extended.venusmethodexecutor.v1.GetDeckLayout_Parameters) returns (sila2.calico.automation.extended.venusmethodexecutor.v1.GetDeckLayout_Responses) {}
+  /* Returns the current run data as a JSON string. */
+  rpc GetCurrentRunData (sila2.calico.automation.extended.venusmethodexecutor.v1.GetCurrentRunData_Parameters) returns (sila2.calico.automation.extended.venusmethodexecutor.v1.GetCurrentRunData_Responses) {}
+  /* Returns the list of runtime data entries as a JSON string. */
+  rpc GetRuntimeData (sila2.calico.automation.extended.venusmethodexecutor.v1.GetRuntimeData_Parameters) returns (sila2.calico.automation.extended.venusmethodexecutor.v1.GetRuntimeData_Responses) {}
+  /* Returns detailed run data for a specific run as a JSON string. */
+  rpc GetDetailedRunData (sila2.calico.automation.extended.venusmethodexecutor.v1.GetDetailedRunData_Parameters) returns (sila2.calico.automation.extended.venusmethodexecutor.v1.GetDetailedRunData_Responses) {}
+  /* Returns devices used in the currently loaded method, including their numeric device IDs (needed for GetDeckLayout). Requires a method to be loaded. */
+  rpc GetRuntimeDevices (sila2.calico.automation.extended.venusmethodexecutor.v1.GetRuntimeDevices_Parameters) returns (sila2.calico.automation.extended.venusmethodexecutor.v1.GetRuntimeDevices_Responses) {}
+  /* Returns the fully-qualified file path of the currently loaded method. */
+  rpc GetLoadedMethod (sila2.calico.automation.extended.venusmethodexecutor.v1.GetLoadedMethod_Parameters) returns (sila2.calico.automation.extended.venusmethodexecutor.v1.GetLoadedMethod_Responses) {}
+  /* Returns the current run state from the VENUS executor as an integer enum value. */
+  rpc GetRunState (sila2.calico.automation.extended.venusmethodexecutor.v1.GetRunState_Parameters) returns (sila2.calico.automation.extended.venusmethodexecutor.v1.GetRunState_Responses) {}
+  /* Returns a list of VENUS method files (.med) found in the configured method directory. Scans the directory recursively for .med files. */
+  rpc GetMethodFiles (sila2.calico.automation.extended.venusmethodexecutor.v1.GetMethodFiles_Parameters) returns (sila2.calico.automation.extended.venusmethodexecutor.v1.GetMethodFiles_Responses) {}
+  /* Sets the directory path used by GetMethodFiles to search for VENUS method files. */
+  rpc SetMethodDirectory (sila2.calico.automation.extended.venusmethodexecutor.v1.SetMethodDirectory_Parameters) returns (sila2.calico.automation.extended.venusmethodexecutor.v1.SetMethodDirectory_Responses) {}
+  /* 
+            Last known executor status: Undefined, Initialized, Running, Paused, Aborted, or Terminated.
+         */
+  rpc Subscribe_RuntimeStatus (sila2.calico.automation.extended.venusmethodexecutor.v1.Subscribe_RuntimeStatus_Parameters) returns (stream sila2.calico.automation.extended.venusmethodexecutor.v1.Subscribe_RuntimeStatus_Responses) {}
+  /* Whether a VENUS method is currently loaded. */
+  rpc Subscribe_IsMethodLoaded (sila2.calico.automation.extended.venusmethodexecutor.v1.Subscribe_IsMethodLoaded_Parameters) returns (stream sila2.calico.automation.extended.venusmethodexecutor.v1.Subscribe_IsMethodLoaded_Responses) {}
+  /* The base URL of the Venus Web API. */
+  rpc Subscribe_BaseUrl (sila2.calico.automation.extended.venusmethodexecutor.v1.Subscribe_BaseUrl_Parameters) returns (stream sila2.calico.automation.extended.venusmethodexecutor.v1.Subscribe_BaseUrl_Responses) {}
+  /* Latest runtime trace message from SignalR notifications. */
+  rpc Subscribe_RuntimeTrace (sila2.calico.automation.extended.venusmethodexecutor.v1.Subscribe_RuntimeTrace_Parameters) returns (stream sila2.calico.automation.extended.venusmethodexecutor.v1.Subscribe_RuntimeTrace_Responses) {}
+  /* The directory path used to search for VENUS method files (.med). */
+  rpc Subscribe_MethodDirectory (sila2.calico.automation.extended.venusmethodexecutor.v1.Subscribe_MethodDirectory_Parameters) returns (stream sila2.calico.automation.extended.venusmethodexecutor.v1.Subscribe_MethodDirectory_Responses) {}
+  /* Full device status as a JSON string, pushed on every state change for SSE-driven WebUI updates. */
+  rpc Subscribe_DeviceStatus (sila2.calico.automation.extended.venusmethodexecutor.v1.Subscribe_DeviceStatus_Parameters) returns (stream sila2.calico.automation.extended.venusmethodexecutor.v1.Subscribe_DeviceStatus_Responses) {}
+  /* Recent server log entries (last 200 lines). */
+  rpc Get_ServerLog (sila2.calico.automation.extended.venusmethodexecutor.v1.Get_ServerLog_Parameters) returns (sila2.calico.automation.extended.venusmethodexecutor.v1.Get_ServerLog_Responses) {}
+  /* PNG icon representing this instrument, for display in client UIs. */
+  rpc Get_DisplayIcon (sila2.calico.automation.extended.venusmethodexecutor.v1.Get_DisplayIcon_Parameters) returns (sila2.calico.automation.extended.venusmethodexecutor.v1.Get_DisplayIcon_Responses) {}
+  /* Rich text description of device capabilities for LLM system prompts. */
+  rpc Get_DeviceDescription (sila2.calico.automation.extended.venusmethodexecutor.v1.Get_DeviceDescription_Parameters) returns (sila2.calico.automation.extended.venusmethodexecutor.v1.Get_DeviceDescription_Responses) {}
+}
+
+/* Parameters for LoadMethod */
+message LoadMethod_Parameters {
+  sila2.org.silastandard.String FilePath = 1;  /* Full path to the VENUS method file (.med) on the VENUS PC. */
+  sila2.org.silastandard.Boolean Simulation = 2;  /* Whether to run the method in VENUS simulation mode. */
+}
+
+/* Responses of LoadMethod */
+message LoadMethod_Responses {
+  sila2.org.silastandard.String LoadResult = 1;  /* JSON string with load result details. */
+}
+
+/* Intermediate responses of LoadMethod */
+message LoadMethod_IntermediateResponses {
+  sila2.org.silastandard.String StatusUpdate = 1;  /* Status updates during method loading. */
+}
+
+/* Parameters for StartMethod */
+message StartMethod_Parameters {
+}
+
+/* Responses of StartMethod */
+message StartMethod_Responses {
+  sila2.org.silastandard.String FinalStatus = 1;  /* Final execution status as a JSON string. */
+}
+
+/* Intermediate responses of StartMethod */
+message StartMethod_IntermediateResponses {
+  sila2.org.silastandard.String ProgressUpdate = 1;  /* JSON string with progress percentage, elapsed time, and remaining time. */
+}
+
+/* Parameters for PauseMethod */
+message PauseMethod_Parameters {
+}
+
+/* Responses of PauseMethod */
+message PauseMethod_Responses {
+}
+
+/* Parameters for ResumeMethod */
+message ResumeMethod_Parameters {
+}
+
+/* Responses of ResumeMethod */
+message ResumeMethod_Responses {
+}
+
+/* Parameters for AbortMethod */
+message AbortMethod_Parameters {
+}
+
+/* Responses of AbortMethod */
+message AbortMethod_Responses {
+}
+
+/* Parameters for UnloadMethod */
+message UnloadMethod_Parameters {
+}
+
+/* Responses of UnloadMethod */
+message UnloadMethod_Responses {
+}
+
+/* Parameters for GetDevices */
+message GetDevices_Parameters {
+}
+
+/* Responses of GetDevices */
+message GetDevices_Responses {
+  sila2.org.silastandard.String DevicesJson = 1;  /* JSON array of runtime device objects. */
+}
+
+/* Parameters for GetDeckLayout */
+message GetDeckLayout_Parameters {
+  sila2.org.silastandard.Integer DeviceId = 1;  /* The numeric ID of the device. */
+}
+
+/* Responses of GetDeckLayout */
+message GetDeckLayout_Responses {
+  sila2.org.silastandard.String DeckLayoutJson = 1;  /* JSON object with deck layout details. */
+}
+
+/* Parameters for GetCurrentRunData */
+message GetCurrentRunData_Parameters {
+}
+
+/* Responses of GetCurrentRunData */
+message GetCurrentRunData_Responses {
+  sila2.org.silastandard.String RunDataJson = 1;  /* JSON object with current run data. */
+}
+
+/* Parameters for GetRuntimeData */
+message GetRuntimeData_Parameters {
+}
+
+/* Responses of GetRuntimeData */
+message GetRuntimeData_Responses {
+  sila2.org.silastandard.String RuntimeDataJson = 1;  /* JSON array of runtime data entries. */
+}
+
+/* Parameters for GetDetailedRunData */
+message GetDetailedRunData_Parameters {
+  sila2.org.silastandard.String RunGuid = 1;  /* The GUID identifying the run. */
+}
+
+/* Responses of GetDetailedRunData */
+message GetDetailedRunData_Responses {
+  sila2.org.silastandard.String DetailedRunDataJson = 1;  /* JSON object with detailed run data. */
+}
+
+/* Parameters for GetRuntimeDevices */
+message GetRuntimeDevices_Parameters {
+}
+
+/* Responses of GetRuntimeDevices */
+message GetRuntimeDevices_Responses {
+  sila2.org.silastandard.String RuntimeDevicesJson = 1;  /* JSON array of runtime device objects with deviceId, deviceName, simulation, etc. */
+}
+
+/* Parameters for GetLoadedMethod */
+message GetLoadedMethod_Parameters {
+}
+
+/* Responses of GetLoadedMethod */
+message GetLoadedMethod_Responses {
+  sila2.org.silastandard.String MethodPath = 1;  /* Full path to the loaded method file, or empty if none is loaded. */
+}
+
+/* Parameters for GetRunState */
+message GetRunState_Parameters {
+}
+
+/* Responses of GetRunState */
+message GetRunState_Responses {
+  sila2.org.silastandard.Integer RunState = 1;  /* Integer value of the RunState enum from VENUS. */
+}
+
+/* Parameters for GetMethodFiles */
+message GetMethodFiles_Parameters {
+}
+
+/* Responses of GetMethodFiles */
+message GetMethodFiles_Responses {
+  sila2.org.silastandard.String MethodFilesJson = 1;  /* JSON array of method file paths found in the directory. */
+}
+
+/* Parameters for SetMethodDirectory */
+message SetMethodDirectory_Parameters {
+  sila2.org.silastandard.String Directory = 1;  /* Full path to the directory containing VENUS method files (.med). */
+}
+
+/* Responses of SetMethodDirectory */
+message SetMethodDirectory_Responses {
+}
+
+/* Parameters for RuntimeStatus */
+message Subscribe_RuntimeStatus_Parameters {
+}
+
+/* Responses of RuntimeStatus */
+message Subscribe_RuntimeStatus_Responses {
+  sila2.org.silastandard.String RuntimeStatus = 1;  /* Last known executor status: Undefined, Initialized, Running, Paused, Aborted, or Terminated. */
+}
+
+/* Parameters for IsMethodLoaded */
+message Subscribe_IsMethodLoaded_Parameters {
+}
+
+/* Responses of IsMethodLoaded */
+message Subscribe_IsMethodLoaded_Responses {
+  sila2.org.silastandard.Boolean IsMethodLoaded = 1;  /* Whether a VENUS method is currently loaded. */
+}
+
+/* Parameters for BaseUrl */
+message Subscribe_BaseUrl_Parameters {
+}
+
+/* Responses of BaseUrl */
+message Subscribe_BaseUrl_Responses {
+  sila2.org.silastandard.String BaseUrl = 1;  /* The base URL of the Venus Web API. */
+}
+
+/* Parameters for RuntimeTrace */
+message Subscribe_RuntimeTrace_Parameters {
+}
+
+/* Responses of RuntimeTrace */
+message Subscribe_RuntimeTrace_Responses {
+  sila2.org.silastandard.String RuntimeTrace = 1;  /* Latest runtime trace message from SignalR notifications. */
+}
+
+/* Parameters for MethodDirectory */
+message Subscribe_MethodDirectory_Parameters {
+}
+
+/* Responses of MethodDirectory */
+message Subscribe_MethodDirectory_Responses {
+  sila2.org.silastandard.String MethodDirectory = 1;  /* The directory path used to search for VENUS method files (.med). */
+}
+
+/* Parameters for DeviceStatus */
+message Subscribe_DeviceStatus_Parameters {
+}
+
+/* Responses of DeviceStatus */
+message Subscribe_DeviceStatus_Responses {
+  sila2.org.silastandard.String DeviceStatus = 1;  /* Full device status as a JSON string, pushed on every state change for SSE-driven WebUI updates. */
+}
+
+/* Parameters for ServerLog */
+message Get_ServerLog_Parameters {
+}
+
+/* Responses of ServerLog */
+message Get_ServerLog_Responses {
+  sila2.org.silastandard.String ServerLog = 1;  /* Recent server log entries (last 200 lines). */
+}
+
+/* Parameters for DisplayIcon */
+message Get_DisplayIcon_Parameters {
+}
+
+/* Responses of DisplayIcon */
+message Get_DisplayIcon_Responses {
+  sila2.org.silastandard.Binary DisplayIcon = 1;  /* PNG icon representing this instrument, for display in client UIs. */
+}
+
+/* Parameters for DeviceDescription */
+message Get_DeviceDescription_Parameters {
+}
+
+/* Responses of DeviceDescription */
+message Get_DeviceDescription_Responses {
+  sila2.org.silastandard.String DeviceDescription = 1;  /* Rich text description of device capabilities for LLM system prompts. */
+}

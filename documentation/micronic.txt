@@ -1,0 +1,26 @@
+1. layoutlist
+GET request returns the list of layouts supported by the software.
+2. currentlayout
+GET request returns the current active layout used by the software and PUT request changes the active layout.
+3. scanbox
+POST request initiates the rack scan and decode operation.
+4. scantube
+POST request initiates the single tube scan and decode operation.
+5. scanresult
+GET request returns the scan results of the most recent scan performed by the software.
+6. scanresultcsv
+GET request returns the scan result of the most recent scan performed by the software in csv format.
+7. retry
+PUT request the software to try decoding specified Tube with new Brightness, Contrast, Threshold. This command requires Tube position along with Brightness, Contrast and Threshold as arguments.
+8. rescan
+PUT request the software to rescan and decode specified Tube with new Brightness, Contrast,Threshold. This command requires Tube position along with Brightness, Contrast and Threshold as arguments.
+9. rackid
+GET request returns the rack ID of the rack. This command will request the software to get the rack ID from the source selected by the user in software.
+10. state
+GET request returns the current state of the software. Possible states of the software are 'idle' when the software is idle, 'scanning' when the software is scanning, and 'dataready' when the decode results are available.
+
+
+Note: The PUT HTTP requests must have "Content-Length" header
+
+
+http://10.11.63.32:2500/layoutlist

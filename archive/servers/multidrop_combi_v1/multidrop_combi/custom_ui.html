@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Multidrop Combi</title>
+<style>
+  :root {
+    --bg: #1e1e2e; --surface: #2a2a3e; --border: #3a3a5e;
+    --text: #e0e0e0; --muted: #888; --accent: #6c8eef;
+    --success: #4caf50; --warning: #ff9800; --danger: #ef5350;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+         background: var(--bg); color: var(--text); padding: 16px; font-size: 14px; }
+  h2 { font-size: 18px; margin-bottom: 12px; }
+  h3 { font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px;
+       margin: 16px 0 8px; }
+
+  .status-bar { display: flex; gap: 12px; align-items: center; padding: 10px 14px;
+                background: var(--surface); border-radius: 8px; margin-bottom: 16px; }
+  .status-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .dot-connected { background: var(--success); }
+  .dot-disconnected { background: var(--danger); }
+  .status-text { font-weight: 600; }
+  .status-info { color: var(--muted); font-size: 12px; margin-left: auto; }
+
+  .workflow { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+  .card-full { grid-column: 1 / -1; }
+
+  label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  input, select { width: 100%; padding: 6px 10px; background: var(--bg); color: var(--text);
+                  border: 1px solid var(--border); border-radius: 4px; font-size: 13px; }
+  input:focus, select:focus { outline: none; border-color: var(--accent); }
+
+  .btn { display: inline-block; padding: 8px 16px; border: none; border-radius: 6px;
+         font-size: 13px; font-weight: 600; cursor: pointer; transition: opacity 0.15s; }
+  .btn:hover { opacity: 0.85; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-success { background: var(--success); color: #fff; }
+  .btn-warning { background: var(--warning); color: #000; }
+  .btn-danger { background: var(--danger); color: #fff; }
+  .btn-outline { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+  .btn-outline:hover { color: var(--text); border-color: var(--text); }
+  .btn-sm { padding: 5px 12px; font-size: 12px; }
+  .btn-xs { padding: 3px 8px; font-size: 11px; }
+  .btn-group { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+
+  .inline-fields { display: flex; gap: 8px; align-items: flex-end; }
+  .inline-fields > div { flex: 1; }
+
+  .settings-row { display: flex; gap: 6px; align-items: flex-end; margin-top: 10px;
+                  padding-top: 10px; border-top: 1px solid var(--border); }
+  .settings-row > div { flex: 1; }
+  .settings-row .btn-group { margin-top: 0; flex-wrap: nowrap; }
+
+  .log { background: var(--bg); border: 1px solid var(--border); border-radius: 4px;
+         padding: 8px 10px; font-family: monospace; font-size: 12px; color: var(--muted);
+         max-height: 150px; overflow-y: auto; margin-top: 8px; }
+  .log-entry { margin-bottom: 2px; }
+  .log-ok { color: var(--success); }
+  .log-err { color: var(--danger); }
+  .log-info { color: var(--accent); }
+
+  .progress-bar { width: 100%; height: 6px; background: var(--border); border-radius: 3px;
+                  margin-top: 8px; overflow: hidden; display: none; }
+  .progress-fill { height: 100%; background: var(--accent); border-radius: 3px;
+                   transition: width 0.3s; width: 0%; }
+
+  .dispense-action { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border);
+                     display: flex; gap: 8px; align-items: center; }
+
+  /* ── Error modal ── */
+  .error-modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                         background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center; }
+  .error-modal-overlay.active { display: flex; }
+  .error-modal { background: var(--surface); border: 1px solid var(--danger); border-radius: 10px;
+                 padding: 20px 24px; max-width: 460px; width: 90%; }
+  .error-modal h3 { color: var(--danger); margin-bottom: 10px; font-size: 16px; }
+  .error-modal pre { background: var(--bg); border: 1px solid var(--border); border-radius: 4px;
+                     padding: 10px; font-size: 12px; white-space: pre-wrap; word-break: break-word;
+                     max-height: 200px; overflow-y: auto; margin-bottom: 14px; color: var(--text); }
+
+  /* ── Plate map ── */
+  .plate-map-wrap { margin-top: 10px; overflow-x: auto; }
+  .plate-map { display: inline-grid; gap: 1px; user-select: none; }
+  .plate-map .corner { /* empty top-left cell */ }
+  .plate-map .col-hdr {
+    text-align: center; font-size: 10px; font-weight: 700; color: var(--muted);
+    cursor: pointer; padding: 2px 0; border-radius: 3px 3px 0 0;
+    transition: background 0.1s;
+  }
+  .plate-map .col-hdr:hover { background: rgba(108,142,239,0.2); }
+  .plate-map .col-hdr.selected { background: var(--accent); color: #fff; }
+  .plate-map .row-hdr {
+    font-size: 10px; font-weight: 700; color: var(--muted);
+    display: flex; align-items: center; justify-content: center; padding: 0 3px;
+  }
+  .plate-map .well {
+    border-radius: 50%; background: var(--border); transition: background 0.1s;
+  }
+  .plate-map .well.has-vol { background: #3a5a3a; }
+  .plate-map .well.selected { background: var(--accent); }
+  .plate-map .well.selected.has-vol { background: #5a8aef; }
+
+  .vol-toolbar { display: flex; gap: 8px; align-items: flex-end; margin-top: 10px; flex-wrap: wrap; }
+  .vol-toolbar > div { min-width: 100px; }
+  .vol-toolbar .input-narrow { max-width: 120px; }
+
+  .col-vol-summary { margin-top: 8px; font-size: 12px; color: var(--muted);
+                     max-height: 80px; overflow-y: auto; }
+  .col-vol-summary table { width: 100%; border-collapse: collapse; }
+  .col-vol-summary th, .col-vol-summary td {
+    padding: 2px 8px; text-align: left; border-bottom: 1px solid var(--border);
+  }
+  .col-vol-summary th { color: var(--muted); font-weight: 600; }
+  .col-vol-summary td { color: var(--text); }
+  .col-vol-summary .vol-cell { font-family: monospace; }
+
+  .plate-legend { display: flex; gap: 16px; margin-top: 6px; font-size: 11px; color: var(--muted); }
+  .legend-swatch { display: inline-block; width: 10px; height: 10px; border-radius: 50%;
+                   vertical-align: middle; margin-right: 4px; }
+</style>
+</head>
+<body>
+
+<h2>Multidrop Combi Controller</h2>
+
+<!-- Status bar -->
+<div class="status-bar">
+  <div class="status-dot dot-disconnected" id="status-dot"></div>
+  <span class="status-text" id="status-text">Disconnected</span>
+  <span class="status-info" id="status-info"></span>
+</div>
+
+<div class="workflow">
+  <!-- Connection -->
+  <div class="card">
+    <h3>Connection</h3>
+    <label for="serial-port">Serial Port</label>
+    <input type="text" id="serial-port" value="COM3" placeholder="COM3">
+    <div class="btn-group">
+      <button class="btn btn-primary btn-sm" id="btn-connect" onclick="doConnect()">Connect</button>
+      <button class="btn btn-danger btn-sm action-btn" id="btn-disconnect" onclick="doCommand('Disconnect')" disabled>Disconnect</button>
+    </div>
+  </div>
+
+  <!-- Dispense Settings -->
+  <div class="card card-full">
+    <h3>Dispense Settings</h3>
+    <div class="inline-fields">
+      <div>
+        <label for="plate-type">Plate Type</label>
+        <select id="plate-type" onchange="onPlateTypeChange()">
+          <option value="0">0 - 96 Well Standard</option>
+          <option value="1">1 - 96 Well Deep</option>
+          <option value="2">2 - 96 Well Half Area</option>
+          <option value="3">3 - 96 Well Flat Bottom</option>
+          <option value="4">4 - 96 Well Round Bottom</option>
+          <option value="5">5 - 96 Well V-Bottom</option>
+          <option value="6">6 - 384 Well Standard</option>
+          <option value="7">7 - 384 Well Low Volume</option>
+          <option value="8">8 - 384 Well Flat Bottom</option>
+          <option value="9">9 - 384 Well Round Bottom</option>
+          <option value="10">10 - 1536 Well Standard</option>
+          <option value="11">11 - 1536 Well Low Volume</option>
+          <option value="12">12 - Custom Plate 1</option>
+          <option value="13">13 - Custom Plate 2</option>
+          <option value="14">14 - Custom Plate 3</option>
+          <option value="15">15 - Custom Plate 4</option>
+          <option value="16">16 - Custom Plate 5</option>
+          <option value="17">17 - Custom Plate 6</option>
+          <option value="18">18 - Custom Plate 7</option>
+          <option value="19">19 - Custom Plate 8</option>
+          <option value="20">20 - Custom Plate 9</option>
+          <option value="21">21 - Custom Plate 10</option>
+          <option value="22">22 - Custom Plate 11</option>
+          <option value="23">23 - Custom Plate 12</option>
+          <option value="24">24 - Custom Plate 13</option>
+          <option value="25">25 - Custom Plate 14</option>
+          <option value="26">26 - Custom Plate 15</option>
+          <option value="27">27 - Custom Plate 16</option>
+          <option value="28">28 - Custom Plate 17</option>
+          <option value="29">29 - Custom Plate 18</option>
+        </select>
+      </div>
+      <div>
+        <label for="cassette-type">Cassette Type</label>
+        <select id="cassette-type">
+          <option value="0">0 - Standard Cassette</option>
+          <option value="1">1 - Small Volume Cassette</option>
+          <option value="2">2 - Micro Cassette</option>
+          <option value="3">3 - Combo Cassette</option>
+        </select>
+      </div>
+      <div>
+        <label for="pump-speed">Pump Speed %</label>
+        <input type="number" id="pump-speed" value="50" min="1" max="100">
+      </div>
+      <div>
+        <label for="disp-height">Dispensing Height (1/100 mm)</label>
+        <input type="number" id="disp-height" value="0" min="0">
+      </div>
+    </div>
+
+    <!-- Plate map -->
+    <div class="plate-map-wrap">
+      <div class="plate-map" id="plate-map"></div>
+    </div>
+    <div class="plate-legend">
+      <span><span class="legend-swatch" style="background:var(--border)"></span>No volume</span>
+      <span><span class="legend-swatch" style="background:#3a5a3a"></span>Volume set</span>
+      <span><span class="legend-swatch" style="background:var(--accent)"></span>Selected</span>
+    </div>
+
+    <!-- Volume toolbar -->
+    <div class="vol-toolbar">
+      <div class="input-narrow">
+        <label for="vol-input">Volume (1/10 uL)</label>
+        <input type="number" id="vol-input" value="100" min="1">
+      </div>
+      <div>
+        <div class="btn-group" style="margin-top:0;">
+          <button class="btn btn-primary btn-sm" onclick="applyVolToSelected()">Apply to Selected</button>
+          <button class="btn btn-outline btn-sm" onclick="selectAllCols()">Select All</button>
+          <button class="btn btn-outline btn-sm" onclick="clearSelection()">Clear Selection</button>
+          <button class="btn btn-outline btn-sm" onclick="clearAllVolumes()">Clear All Volumes</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Column volume summary -->
+    <div class="col-vol-summary" id="col-vol-summary"></div>
+
+    <!-- Settings save/load -->
+    <div class="settings-row">
+      <div>
+        <label for="settings-list">Saved Settings</label>
+        <select id="settings-list">
+          <option value="">-- select --</option>
+        </select>
+      </div>
+      <div>
+        <label for="settings-name">Name</label>
+        <input type="text" id="settings-name" placeholder="My Settings">
+      </div>
+      <div>
+        <div class="btn-group">
+          <button class="btn btn-primary btn-sm" onclick="saveSettings()">Save</button>
+          <button class="btn btn-outline btn-sm" onclick="loadSettings()">Load</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteSettings()">Delete</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dispense action -->
+    <div class="dispense-action">
+      <button class="btn btn-success action-btn" id="btn-dispense" onclick="doDispense()" disabled>Dispense</button>
+      <span class="status-info" id="dispense-status"></span>
+    </div>
+    <div class="progress-bar" id="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+  </div>
+
+  <!-- Prime -->
+  <div class="card">
+    <h3>Prime</h3>
+    <div class="inline-fields">
+      <div>
+        <label for="prime-vol">Volume (1/10 uL)</label>
+        <input type="number" id="prime-vol" value="500" min="1">
+      </div>
+      <div>
+        <label for="prime-mode">Mode</label>
+        <select id="prime-mode">
+          <option value="0">All tubes</option>
+          <option value="1">Even tubes</option>
+          <option value="2">Odd tubes</option>
+          <option value="3">By cassette</option>
+        </select>
+      </div>
+    </div>
+    <div class="btn-group">
+      <button class="btn btn-success btn-sm action-btn" onclick="doCommand('Prime', {Volume: intVal('prime-vol'), Mode: intVal('prime-mode')})" disabled>Prime</button>
+    </div>
+  </div>
+
+  <!-- Empty -->
+  <div class="card">
+    <h3>Empty</h3>
+    <div class="inline-fields">
+      <div>
+        <label for="empty-vol">Volume (1/10 uL)</label>
+        <input type="number" id="empty-vol" value="500" min="1">
+      </div>
+      <div>
+        <label for="empty-mode">Mode</label>
+        <select id="empty-mode">
+          <option value="0">All tubes</option>
+          <option value="1">By cassette</option>
+        </select>
+      </div>
+    </div>
+    <div class="btn-group">
+      <button class="btn btn-warning btn-sm action-btn" onclick="doCommand('Empty', {Volume: intVal('empty-vol'), Mode: intVal('empty-mode')})" disabled>Empty</button>
+    </div>
+  </div>
+
+  <!-- Shake -->
+  <div class="card">
+    <h3>Shake</h3>
+    <div class="inline-fields">
+      <div>
+        <label for="shake-time">Time (1/100s)</label>
+        <input type="number" id="shake-time" value="500" min="1">
+      </div>
+      <div>
+        <label for="shake-dist">Distance (mm)</label>
+        <input type="number" id="shake-dist" value="2" min="1" max="5">
+      </div>
+      <div>
+        <label for="shake-speed">Speed (Hz)</label>
+        <input type="number" id="shake-speed" value="10" min="1" max="20">
+      </div>
+    </div>
+    <div class="btn-group">
+      <button class="btn btn-primary btn-sm action-btn" onclick="doCommand('Shake', {Time: intVal('shake-time'), Distance: intVal('shake-dist'), Speed: intVal('shake-speed')})" disabled>Shake</button>
+    </div>
+  </div>
+
+  <!-- Instrument -->
+  <div class="card">
+    <h3>Instrument</h3>
+    <div class="btn-group">
+      <button class="btn btn-warning btn-sm action-btn" onclick="doCommand('MoveOut')" disabled>Move Out</button>
+      <button class="btn btn-danger btn-sm action-btn" onclick="doCommand('Abort')" disabled>Abort</button>
+      <button class="btn btn-primary btn-sm action-btn" onclick="doCommand('AcknowledgeError')" disabled>Acknowledge Error</button>
+      <button class="btn btn-danger btn-sm action-btn" onclick="doCommand('Restart')" disabled>Restart</button>
+    </div>
+  </div>
+
+  <!-- Log -->
+  <div class="card card-full">
+    <h3>Activity Log</h3>
+    <div class="log" id="log"></div>
+  </div>
+
+  <!-- Server Log -->
+  <div class="card card-full">
+    <h3>Server Log <button class="btn btn-xs btn-outline" onclick="refreshLog()">Refresh</button></h3>
+    <pre id="server-log" style="max-height:300px;overflow:auto;font-size:11px;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:8px 10px;color:var(--muted);">Click Refresh to load...</pre>
+  </div>
+</div>
+
+<!-- Error Recovery Modal -->
+<div class="error-modal-overlay" id="error-modal">
+  <div class="error-modal">
+    <h3>Command Error</h3>
+    <pre id="error-modal-msg"></pre>
+    <div class="btn-group">
+      <button class="btn btn-primary" id="error-btn-retry">Retry</button>
+      <button class="btn btn-warning" id="error-btn-ignore">Ignore</button>
+      <button class="btn btn-danger" id="error-btn-abort">Abort</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const FEATURE_ID = "MultidropCombi";
+
+// Extract SiLA server host/port from iframe URL: /api/custom-ui/<host>/<port>
+const _urlParts = window.location.pathname.split('/');
+const SILA_HOST = _urlParts[3];
+const SILA_PORT = _urlParts[4];
+const API_BASE = `${window.location.origin}/api`;
+
+// Plate type -> grid dimensions { cols, rows }
+const PLATE_FORMATS = {
+  96:   { cols: 12, rows: 8 },
+  384:  { cols: 24, rows: 16 },
+  1536: { cols: 48, rows: 32 },
+};
+
+// Map plate type code -> well count
+function plateWellCount(code) {
+  const c = parseInt(code, 10);
+  if (c >= 10 && c <= 11) return 1536;
+  if (c >= 6 && c <= 9) return 384;
+  return 96;  // 0-5 and custom plates default to 96
+}
+
+// Row labels: A-H, A-P, or A-AF
+function rowLabel(idx) {
+  if (idx < 26) return String.fromCharCode(65 + idx);
+  return 'A' + String.fromCharCode(65 + idx - 26);
+}
+
+// ── Plate map state ──
+let selectedCols = new Set();  // set of 1-based column numbers
+let columnVolumes = {};        // { colNumber: volume } — column 0 not used here
+let currentFormat = PLATE_FORMATS[96];
+let lastClickedCol = null;     // for shift-click range selection
+
+function intVal(id) { return parseInt(document.getElementById(id).value, 10) || 0; }
+
+function log(msg, cls) {
+  const el = document.getElementById("log");
+  const ts = new Date().toLocaleTimeString();
+  el.innerHTML += `<div class="log-entry ${cls || ''}">[${ts}] ${msg}</div>`;
+  el.scrollTop = el.scrollHeight;
+}
+
+function setConnected(connected, info) {
+  const dot = document.getElementById("status-dot");
+  const text = document.getElementById("status-text");
+  const infoEl = document.getElementById("status-info");
+  dot.className = "status-dot " + (connected ? "dot-connected" : "dot-disconnected");
+  text.textContent = connected ? "Connected" : "Disconnected";
+  infoEl.textContent = info || "";
+  document.getElementById("btn-connect").disabled = connected;
+  // Enable/disable all action buttons based on connection state
+  document.querySelectorAll(".action-btn").forEach(btn => btn.disabled = !connected);
+}
+
+// ── Plate map rendering ──
+
+function onPlateTypeChange() {
+  const wells = plateWellCount(document.getElementById("plate-type").value);
+  const fmt = PLATE_FORMATS[wells];
+  if (fmt.cols === currentFormat.cols && fmt.rows === currentFormat.rows) return;
+  currentFormat = fmt;
+  // Prune any column volumes/selections beyond new column count
+  for (const col of Object.keys(columnVolumes)) {
+    if (parseInt(col) > fmt.cols) delete columnVolumes[col];
+  }
+  selectedCols = new Set([...selectedCols].filter(c => c <= fmt.cols));
+  lastClickedCol = null;
+  renderPlateMap();
+  renderVolumeSummary();
+}
+
+function renderPlateMap() {
+  const container = document.getElementById("plate-map");
+  const { cols, rows } = currentFormat;
+
+  // Determine well size based on plate format
+  let wellSize, gap;
+  if (cols <= 12)      { wellSize = 22; gap = 2; }
+  else if (cols <= 24) { wellSize = 16; gap = 1; }
+  else                 { wellSize = 10; gap = 1; }
+
+  container.style.gridTemplateColumns = `24px repeat(${cols}, ${wellSize}px)`;
+  container.style.gridTemplateRows = `20px repeat(${rows}, ${wellSize}px)`;
+  container.style.gap = `${gap}px`;
+  container.innerHTML = '';
+
+  // Corner cell
+  const corner = document.createElement('div');
+  corner.className = 'corner';
+  container.appendChild(corner);
+
+  // Column headers
+  for (let c = 1; c <= cols; c++) {
+    const hdr = document.createElement('div');
+    hdr.className = 'col-hdr' + (selectedCols.has(c) ? ' selected' : '');
+    hdr.textContent = c;
+    hdr.dataset.col = c;
+    hdr.addEventListener('click', (e) => onColHeaderClick(c, e));
+    container.appendChild(hdr);
+  }
+
+  // Rows
+  for (let r = 0; r < rows; r++) {
+    // Row header
+    const rh = document.createElement('div');
+    rh.className = 'row-hdr';
+    rh.textContent = rowLabel(r);
+    container.appendChild(rh);
+
+    // Wells
+    for (let c = 1; c <= cols; c++) {
+      const well = document.createElement('div');
+      const hasVol = columnVolumes[c] !== undefined;
+      const isSel = selectedCols.has(c);
+      well.className = 'well' + (hasVol ? ' has-vol' : '') + (isSel ? ' selected' : '');
+      well.style.width = wellSize + 'px';
+      well.style.height = wellSize + 'px';
+      if (hasVol && wellSize >= 16) {
+        well.title = `Col ${c}: ${columnVolumes[c]} (1/10 uL)`;
+      }
+      container.appendChild(well);
+    }
+  }
+}
+
+function onColHeaderClick(col, event) {
+  if (event.shiftKey && lastClickedCol !== null) {
+    // Range select from last clicked to this column
+    const from = Math.min(lastClickedCol, col);
+    const to = Math.max(lastClickedCol, col);
+    for (let c = from; c <= to; c++) selectedCols.add(c);
+  } else if (event.ctrlKey || event.metaKey) {
+    // Toggle single column
+    if (selectedCols.has(col)) selectedCols.delete(col);
+    else selectedCols.add(col);
+  } else {
+    // Single select (replace)
+    if (selectedCols.size === 1 && selectedCols.has(col)) {
+      selectedCols.clear();
+    } else {
+      selectedCols.clear();
+      selectedCols.add(col);
+    }
+  }
+  lastClickedCol = col;
+  renderPlateMap();
+}
+
+function selectAllCols() {
+  for (let c = 1; c <= currentFormat.cols; c++) selectedCols.add(c);
+  renderPlateMap();
+}
+
+function clearSelection() {
+  selectedCols.clear();
+  lastClickedCol = null;
+  renderPlateMap();
+}
+
+function applyVolToSelected() {
+  const vol = intVal('vol-input');
+  if (vol < 1) { log("Volume must be >= 1", "log-err"); return; }
+  if (selectedCols.size === 0) { log("Select columns on the plate map first", "log-err"); return; }
+  for (const c of selectedCols) {
+    columnVolumes[c] = vol;
+  }
+  log(`Set volume ${vol} (1/10 uL) on columns: ${[...selectedCols].sort((a,b)=>a-b).join(', ')}`, "log-ok");
+  renderPlateMap();
+  renderVolumeSummary();
+}
+
+function clearAllVolumes() {
+  columnVolumes = {};
+  renderPlateMap();
+  renderVolumeSummary();
+  log("All column volumes cleared", "log-info");
+}
+
+function renderVolumeSummary() {
+  const el = document.getElementById("col-vol-summary");
+  const entries = Object.entries(columnVolumes)
+    .map(([c, v]) => [parseInt(c), v])
+    .sort((a, b) => a[0] - b[0]);
+
+  if (entries.length === 0) {
+    el.innerHTML = '<span style="font-size:12px;color:var(--muted);">No column volumes set. Select columns and apply a volume, or all columns will use the instrument default.</span>';
+    return;
+  }
+
+  // Group consecutive columns with the same volume for compact display
+  const groups = [];
+  let i = 0;
+  while (i < entries.length) {
+    const vol = entries[i][1];
+    const start = entries[i][0];
+    let end = start;
+    while (i + 1 < entries.length && entries[i + 1][1] === vol && entries[i + 1][0] === end + 1) {
+      end = entries[++i][0];
+    }
+    groups.push({ start, end, vol });
+    i++;
+  }
+
+  let html = '<table><thead><tr><th>Columns</th><th>Volume (1/10 uL)</th></tr></thead><tbody>';
+  for (const g of groups) {
+    const label = g.start === g.end ? `${g.start}` : `${g.start}-${g.end}`;
+    html += `<tr><td>${label}</td><td class="vol-cell">${g.vol}</td></tr>`;
+  }
+  html += '</tbody></table>';
+  el.innerHTML = html;
+}
+
+// ── Direct API calls ──
+
+function sendToParent(type, payload) {
+  if (type === "execute-command") {
+    return fetch(`${API_BASE}/command/${SILA_HOST}/${SILA_PORT}/${payload.featureId}/${payload.commandId}`, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(payload.params || {}),
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.status === "error") throw new Error(`${data.error_type}: ${data.message}`);
+      return data;
+    });
+  } else if (type === "read-property") {
+    return fetch(`${API_BASE}/property/${SILA_HOST}/${SILA_PORT}/${payload.featureId}/${payload.propertyId}`)
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) throw new Error(data.error);
+      return data;
+    });
+  }
+  return Promise.reject(new Error(`Unknown message type: ${type}`));
+}
+
+// ── Error recovery modal ──
+
+function showErrorModal(message) {
+  return new Promise((resolve) => {
+    const overlay = document.getElementById("error-modal");
+    document.getElementById("error-modal-msg").textContent = message;
+    overlay.classList.add("active");
+
+    function cleanup(choice) {
+      overlay.classList.remove("active");
+      document.getElementById("error-btn-retry").removeEventListener("click", onRetry);
+      document.getElementById("error-btn-ignore").removeEventListener("click", onIgnore);
+      document.getElementById("error-btn-abort").removeEventListener("click", onAbort);
+      resolve(choice);
+    }
+    function onRetry() { cleanup("retry"); }
+    function onIgnore() { cleanup("ignore"); }
+    function onAbort() { cleanup("abort"); }
+
+    document.getElementById("error-btn-retry").addEventListener("click", onRetry);
+    document.getElementById("error-btn-ignore").addEventListener("click", onIgnore);
+    document.getElementById("error-btn-abort").addEventListener("click", onAbort);
+  });
+}
+
+// ── Server log viewer ──
+
+async function refreshLog() {
+  try {
+    const result = await sendToParent("read-property", {
+      featureId: FEATURE_ID, propertyId: "ServerLog"
+    });
+    document.getElementById("server-log").textContent = result.value || "(empty)";
+    const el = document.getElementById("server-log");
+    el.scrollTop = el.scrollHeight;
+  } catch (err) {
+    document.getElementById("server-log").textContent = "Failed to load: " + err.message;
+  }
+}
+
+// ── SiLA operations ──
+
+async function doConnect() {
+  const port = document.getElementById("serial-port").value;
+  log(`Connecting to ${port}...`, "log-info");
+  try {
+    const result = await sendToParent("execute-command", {
+      featureId: FEATURE_ID, commandId: "Connect", params: { SerialPort: port }
+    });
+    const r = result.responses || {};
+    setConnected(true, `${r.InstrumentName || ""} | FW ${r.FirmwareVersion || ""} | SN ${r.SerialNumber || ""}`);
+    log(`Connected: ${r.InstrumentName || "OK"}`, "log-ok");
+  } catch (err) {
+    log(`Connect failed: ${err.message}`, "log-err");
+  }
+}
+
+async function doCommand(cmdId, params) {
+  while (true) {
+    log(`${cmdId}...`, "log-info");
+    try {
+      const result = await sendToParent("execute-command", {
+        featureId: FEATURE_ID, commandId: cmdId, params: params || {}
+      });
+      const r = result.responses || {};
+      const msg = Object.keys(r).length ? JSON.stringify(r) : "OK";
+      log(`${cmdId}: ${msg}`, "log-ok");
+
+      if (cmdId === "Disconnect" || cmdId === "Restart") setConnected(false);
+      return result;
+    } catch (err) {
+      log(`${cmdId} failed: ${err.message}`, "log-err");
+      const choice = await showErrorModal(`${cmdId} failed:\n${err.message}`);
+      if (choice === "retry") continue;
+      if (choice === "ignore") return null;
+      throw err;  // abort — propagates to stop workflow
+    }
+  }
+}
+
+async function doDispense() {
+  const statusEl = document.getElementById("dispense-status");
+  const btn = document.getElementById("btn-dispense");
+  btn.disabled = true;
+  statusEl.textContent = "Applying settings...";
+
+  try {
+    log("Applying dispense settings...", "log-info");
+
+    // 1. Plate type
+    await sendToParent("execute-command", {
+      featureId: FEATURE_ID, commandId: "SetPlateType",
+      params: { PlateType: intVal("plate-type") }
+    });
+    log("SetPlateType: OK", "log-ok");
+
+    // 2. Cassette type
+    await sendToParent("execute-command", {
+      featureId: FEATURE_ID, commandId: "SetCassetteType",
+      params: { CassetteType: intVal("cassette-type") }
+    });
+    log("SetCassetteType: OK", "log-ok");
+
+    // 3. Column volumes from plate map
+    const volEntries = Object.entries(columnVolumes)
+      .map(([c, v]) => [parseInt(c), v])
+      .sort((a, b) => a[0] - b[0]);
+
+    if (volEntries.length === 0) {
+      // No per-column volumes — user might want instrument defaults
+      log("No column volumes set, using instrument defaults", "log-info");
+    } else {
+      // Check if all columns have the same volume — use column 0 shortcut
+      const uniqueVols = new Set(volEntries.map(e => e[1]));
+      if (uniqueVols.size === 1 && volEntries.length === currentFormat.cols) {
+        const vol = volEntries[0][1];
+        await sendToParent("execute-command", {
+          featureId: FEATURE_ID, commandId: "SetColumnVolume",
+          params: { Column: 0, Volume: vol }
+        });
+        log(`SetColumnVolume(all): ${vol} — OK`, "log-ok");
+      } else {
+        for (const [col, vol] of volEntries) {
+          await sendToParent("execute-command", {
+            featureId: FEATURE_ID, commandId: "SetColumnVolume",
+            params: { Column: col, Volume: vol }
+          });
+          log(`SetColumnVolume(${col}): ${vol} — OK`, "log-ok");
+        }
+      }
+    }
+
+    // 4. Pump speed
+    await sendToParent("execute-command", {
+      featureId: FEATURE_ID, commandId: "SetPumpSpeed",
+      params: { Speed: intVal("pump-speed") }
+    });
+    log("SetPumpSpeed: OK", "log-ok");
+
+    // 5. Dispensing height
+    await sendToParent("execute-command", {
+      featureId: FEATURE_ID, commandId: "SetDispensingHeight",
+      params: { Height: intVal("disp-height") }
+    });
+    log("SetDispensingHeight: OK", "log-ok");
+
+    // 6. Dispense
+    statusEl.textContent = "Dispensing...";
+    log("Dispense...", "log-info");
+    const result = await sendToParent("execute-command", {
+      featureId: FEATURE_ID, commandId: "Dispense", params: {}
+    });
+    const r = result.responses || {};
+    log(`Dispense: ${r.Status || "OK"}`, "log-ok");
+    statusEl.textContent = "";
+  } catch (err) {
+    log(`Dispense sequence failed: ${err.message}`, "log-err");
+    statusEl.textContent = "Failed";
+    setTimeout(() => { statusEl.textContent = ""; }, 3000);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ── Settings save/load/delete ──
+
+function getDispenseSettings() {
+  return {
+    plateType: intVal("plate-type"),
+    cassetteType: intVal("cassette-type"),
+    pumpSpeed: intVal("pump-speed"),
+    dispHeight: intVal("disp-height"),
+    columnVolumes: { ...columnVolumes },
+  };
+}
+
+function applyDispenseSettings(s) {
+  if (s.plateType !== undefined) {
+    document.getElementById("plate-type").value = s.plateType;
+    onPlateTypeChange();
+  }
+  if (s.cassetteType !== undefined) document.getElementById("cassette-type").value = s.cassetteType;
+  if (s.pumpSpeed !== undefined) document.getElementById("pump-speed").value = s.pumpSpeed;
+  if (s.dispHeight !== undefined) document.getElementById("disp-height").value = s.dispHeight;
+  if (s.columnVolumes) {
+    columnVolumes = {};
+    for (const [k, v] of Object.entries(s.columnVolumes)) {
+      columnVolumes[parseInt(k)] = v;
+    }
+  } else {
+    columnVolumes = {};
+  }
+  selectedCols.clear();
+  renderPlateMap();
+  renderVolumeSummary();
+}
+
+// ── Settings persistence (localStorage) ──
+
+const SETTINGS_KEY = "multidrop-combi-settings";
+
+function _getAllSettings() {
+  try { return JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}; }
+  catch { return {}; }
+}
+
+function _saveAllSettings(all) {
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(all));
+}
+
+function refreshSettingsList() {
+  const all = _getAllSettings();
+  const select = document.getElementById("settings-list");
+  const current = select.value;
+  select.innerHTML = '<option value="">-- select --</option>';
+  const names = Object.keys(all).sort();
+  for (const name of names) {
+    const opt = document.createElement("option");
+    opt.value = name;
+    opt.textContent = name;
+    select.appendChild(opt);
+  }
+  if (current && names.includes(current)) select.value = current;
+}
+
+function saveSettings() {
+  let name = document.getElementById("settings-name").value.trim();
+  if (!name) name = document.getElementById("settings-list").value;
+  if (!name) { log("Enter a settings name to save", "log-err"); return; }
+
+  const all = _getAllSettings();
+  all[name] = getDispenseSettings();
+  _saveAllSettings(all);
+  document.getElementById("settings-name").value = "";
+  log(`Settings saved: ${name}`, "log-ok");
+  refreshSettingsList();
+  document.getElementById("settings-list").value = name;
+}
+
+function loadSettings() {
+  const name = document.getElementById("settings-list").value;
+  if (!name) { log("Select a saved settings profile to load", "log-err"); return; }
+
+  const all = _getAllSettings();
+  if (all[name]) {
+    applyDispenseSettings(all[name]);
+    log(`Settings loaded: ${name}`, "log-ok");
+  } else {
+    log(`Settings not found: ${name}`, "log-err");
+  }
+}
+
+function deleteSettings() {
+  const name = document.getElementById("settings-list").value;
+  if (!name) { log("Select a saved settings profile to delete", "log-err"); return; }
+
+  const all = _getAllSettings();
+  delete all[name];
+  _saveAllSettings(all);
+  log(`Settings deleted: ${name}`, "log-ok");
+  refreshSettingsList();
+}
+
+// ── Init ──
+
+async function pollStatus() {
+  try {
+    const result = await sendToParent("read-property", {
+      featureId: FEATURE_ID, propertyId: "IsConnected"
+    });
+    if (result.value === true) {
+      try {
+        const name = await sendToParent("read-property", {
+          featureId: FEATURE_ID, propertyId: "InstrumentName"
+        });
+        const fw = await sendToParent("read-property", {
+          featureId: FEATURE_ID, propertyId: "FirmwareVersion"
+        });
+        setConnected(true, `${name.value} | FW ${fw.value}`);
+      } catch (_) {
+        setConnected(true);
+      }
+    } else {
+      setConnected(false);
+    }
+  } catch (_) {
+    setConnected(false);
+  }
+}
+
+renderPlateMap();
+renderVolumeSummary();
+pollStatus();
+refreshSettingsList();
+// Poll connection status periodically to detect mode switches or external disconnects
+setInterval(pollStatus, 5000);
+</script>
+</body>
+</html>

@@ -1,0 +1,1960 @@
+{
+  "name": "Multidrop Combi — Production Readiness Test Suite",
+  "description": "Comprehensive test checklist for validating the Multidrop Combi SiLA 2 server prior to production deployment. Covers communication, parameter validation, command sequencing, error recovery, and physical hardware tests. Tests can be run in Simulation mode (no hardware) or Real mode (requires instrument).",
+  "server": {
+    "default_host": "127.0.0.1",
+    "default_port": 50055,
+    "feature_id": "MultidropCombi",
+    "connection": {
+      "feature": "MultidropCombi",
+      "command": "Connect",
+      "sim_params": {"SerialPort": "SIM"},
+      "real_params": {"SerialPort": "$SERIAL_PORT"}
+    },
+    "variables": {"SERIAL_PORT": "COM3"}
+  },
+  "categories": [
+    {
+      "id": "comm",
+      "name": "Communication & Connection",
+      "description": "Serial port connection, buffer handling, reconnection robustness",
+      "tests": [
+        {
+          "id": "comm_connect_sim",
+          "name": "Connect in simulation mode",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Connect to the simulated instrument. Verifies Connect succeeds and returns simulated instrument info.",
+          "expected": "Connect succeeds, InstrumentName contains 'Simulated'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StartSimulationMode", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "Disconnect", "params": {}, "expect": "any"},
+              {"action": "wait", "ms": 500},
+              {"action": "command", "feature": "MultidropCombi", "command": "Connect", "params": {"SerialPort": "SIM"}, "expect": "success"},
+              {"action": "check_response", "field": "InstrumentName", "condition": "contains", "value": "Simulated"}
+            ]
+          }
+        },
+        {
+          "id": "comm_connect_real",
+          "name": "Connect to real instrument",
+          "type": "scripted",
+          "modes": ["real"],
+          "description": "Connect to the instrument via serial port. Verifies VER command succeeds and returns instrument name, firmware version, and serial number.",
+          "expected": "Connect succeeds, InstrumentName/FirmwareVersion/SerialNumber returned",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StopSimulationMode", "params": {}, "expect": "any"},
+              {"action": "command", "feature": "MultidropCombi", "command": "Disconnect", "params": {}, "expect": "any"},
+              {"action": "wait", "ms": 500},
+              {"action": "command", "feature": "MultidropCombi", "command": "Connect", "params": {"SerialPort": "$SERIAL_PORT"}, "expect": "success"},
+              {"action": "check_response", "field": "InstrumentName", "condition": "not_empty"}
+            ]
+          }
+        },
+        {
+          "id": "comm_connect_invalid_port",
+          "name": "Connect with invalid serial port",
+          "type": "scripted",
+          "modes": ["real"],
+          "description": "Attempt to connect with a non-existent serial port. Should return a CommunicationError, not crash.",
+          "expected": "CommunicationError returned gracefully",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StopSimulationMode", "params": {}, "expect": "any"},
+              {"action": "command", "feature": "MultidropCombi", "command": "Connect", "params": {"SerialPort": "COM99"}, "expect": "error", "error_type": "CommunicationError"}
+            ]
+          }
+        },
+        {
+          "id": "comm_disconnect_sim",
+          "name": "Disconnect cleanly (sim)",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Disconnect from the simulated instrument.",
+          "expected": "Disconnect succeeds",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "MultidropCombi", "command": "Disconnect", "params": {}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "comm_disconnect_real",
+          "name": "Disconnect cleanly (real)",
+          "type": "scripted",
+          "modes": ["real"],
+          "description": "Disconnect from the instrument. Verifies QIT is sent and port is closed.",
+          "expected": "Disconnect succeeds, IsConnected becomes false",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "MultidropCombi", "command": "Disconnect", "params": {}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "comm_reconnect_sim",
+          "name": "Reconnect after disconnect (sim)",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Disconnect then immediately reconnect in simulation mode.",
+          "expected": "Second connect succeeds",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "MultidropCombi", "command": "Disconnect", "params": {}, "expect": "any"},
+              {"action": "wait", "ms": 500},
+              {"action": "command", "feature": "MultidropCombi", "command": "Connect", "params": {"SerialPort": "SIM"}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "comm_reconnect_real",
+          "name": "Reconnect after disconnect (real)",
+          "type": "scripted",
+          "modes": ["real"],
+          "description": "Disconnect then immediately reconnect. Tests that stale serial buffer data is drained properly and VER succeeds on the second connection.",
+          "expected": "Second connect succeeds without status 3 errors",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "MultidropCombi", "command": "Disconnect", "params": {}, "expect": "any"},
+              {"action": "wait", "ms": 1000},
+              {"action": "command", "feature": "MultidropCombi", "command": "Connect", "params": {"SerialPort": "$SERIAL_PORT"}, "expect": "success"},
+              {"action": "check_response", "field": "InstrumentName", "condition": "not_empty"}
+            ]
+          }
+        },
+        {
+          "id": "comm_rapid_reconnect_sim",
+          "name": "Rapid disconnect/reconnect cycle x5 (sim)",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Rapidly disconnect and reconnect 5 times in succession in simulation mode.",
+          "expected": "All 5 reconnect cycles succeed",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "loop", "count": 5, "steps": [
+                {"action": "command", "feature": "MultidropCombi", "command": "Disconnect", "params": {}, "expect": "any"},
+                {"action": "wait", "ms": 200},
+                {"action": "command", "feature": "MultidropCombi", "command": "Connect", "params": {"SerialPort": "SIM"}, "expect": "success"}
+              ]}
+            ]
+          }
+        },
+        {
+          "id": "comm_rapid_reconnect_real",
+          "name": "Rapid disconnect/reconnect cycle x5 (real)",
+          "type": "scripted",
+          "modes": ["real"],
+          "description": "Rapidly disconnect and reconnect 5 times in succession. Stress-tests buffer drain logic and serial port handling.",
+          "expected": "All 5 reconnect cycles succeed",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "loop", "count": 5, "steps": [
+                {"action": "command", "feature": "MultidropCombi", "command": "Disconnect", "params": {}, "expect": "any"},
+                {"action": "wait", "ms": 500},
+                {"action": "command", "feature": "MultidropCombi", "command": "Connect", "params": {"SerialPort": "$SERIAL_PORT"}, "expect": "success"}
+              ]}
+            ]
+          }
+        },
+        {
+          "id": "comm_disconnect_when_disconnected",
+          "name": "Disconnect when already disconnected",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Call Disconnect when not connected. Should not error.",
+          "expected": "Disconnect completes without error",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "MultidropCombi", "command": "Disconnect", "params": {}, "expect": "any"},
+              {"action": "command", "feature": "MultidropCombi", "command": "Disconnect", "params": {}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "comm_command_while_disconnected",
+          "name": "Command while disconnected",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Send a command (SetPlateType) while not connected. Should return NotConnected error.",
+          "expected": "NotConnected error returned",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "MultidropCombi", "command": "Disconnect", "params": {}, "expect": "any"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetPlateType", "params": {"PlateType": 0}, "expect": "error", "error_type": "NotConnected"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "sim",
+      "name": "Simulation Mode Switching",
+      "description": "SimulationController mode switching and observable property updates",
+      "tests": [
+        {
+          "id": "sim_start",
+          "name": "Enter simulation mode",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Switch to simulation mode via SimulationController. Verify SimulationMode observable updates.",
+          "expected": "SimulationMode becomes true",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StartSimulationMode", "params": {}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "sim_stop",
+          "name": "Exit simulation mode",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Switch to real mode via SimulationController.",
+          "expected": "SimulationMode becomes false",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StopSimulationMode", "params": {}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "sim_mode_switch_disconnects",
+          "name": "Mode switch disconnects instrument",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Connect in simulation, then switch to real mode. Verify instrument is disconnected automatically.",
+          "expected": "After mode switch, IsConnected is false",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StartSimulationMode", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "Connect", "params": {"SerialPort": "SIM"}, "expect": "success"},
+              {"action": "command", "feature": "SimulationController", "command": "StopSimulationMode", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetPlateType", "params": {"PlateType": 0}, "expect": "error", "error_type": "NotConnected"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "validation",
+      "name": "Parameter Validation",
+      "description": "Verify all command parameters are validated against manual specs before reaching the instrument",
+      "tests": [
+        {
+          "id": "val_plate_type_valid_sim",
+          "name": "SetPlateType valid range 0-9 (sim)",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Set plate types 0 through 9 (factory-defined) in simulation mode. All should succeed.",
+          "expected": "All plate types 0-9 accepted",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "loop_values", "values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9], "steps": [
+                {"action": "command", "feature": "MultidropCombi", "command": "SetPlateType", "params": {"PlateType": "$VALUE"}, "expect": "success"}
+              ]}
+            ]
+          }
+        },
+        {
+          "id": "val_plate_type_valid_real",
+          "name": "SetPlateType valid range 0-9 (real)",
+          "type": "scripted",
+          "modes": ["real"],
+          "description": "Set plate types 0 through 9 (factory-defined) on real instrument. All should succeed.",
+          "expected": "All plate types 0-9 accepted",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "loop_values", "values": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9], "steps": [
+                {"action": "command", "feature": "MultidropCombi", "command": "SetPlateType", "params": {"PlateType": "$VALUE"}, "expect": "success"}
+              ]}
+            ]
+          }
+        },
+        {
+          "id": "val_plate_type_invalid",
+          "name": "SetPlateType out of range (30)",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Set plate type to 30 (out of range). Should be rejected by FDL constraint validation.",
+          "expected": "ValidationError",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetPlateType", "params": {"PlateType": 30}, "expect": "error"}
+            ]
+          }
+        },
+        {
+          "id": "val_cassette_valid_sim",
+          "name": "SetCassetteType factory types 0-1 (sim)",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Set cassette types 0 (Standard Tube) and 1 (Small Tube) in simulation. Types 2-3 are user-defined and may not be configured.",
+          "expected": "Cassette types 0-1 accepted",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "loop_values", "values": [0, 1], "steps": [
+                {"action": "command", "feature": "MultidropCombi", "command": "SetCassetteType", "params": {"CassetteType": "$VALUE"}, "expect": "success"}
+              ]}
+            ]
+          }
+        },
+        {
+          "id": "val_cassette_valid_real",
+          "name": "SetCassetteType factory types 0-1 (real)",
+          "type": "scripted",
+          "modes": ["real"],
+          "description": "Set cassette types 0 (Standard Tube) and 1 (Small Tube) on real instrument. Types 2-3 are user-defined and may not exist.",
+          "expected": "Cassette types 0-1 accepted",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "loop_values", "values": [0, 1], "steps": [
+                {"action": "command", "feature": "MultidropCombi", "command": "SetCassetteType", "params": {"CassetteType": "$VALUE"}, "expect": "success"}
+              ]}
+            ]
+          }
+        },
+        {
+          "id": "val_cassette_invalid",
+          "name": "SetCassetteType out of range (4)",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Set cassette type to 4 (out of range). Should be rejected.",
+          "expected": "ValidationError",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetCassetteType", "params": {"CassetteType": 4}, "expect": "error"}
+            ]
+          }
+        },
+        {
+          "id": "val_column_volume_zero_sim",
+          "name": "SetColumnVolume volume 0 — clear column (sim)",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Set column volume to 0 (do not dispense) in simulation. Should be accepted.",
+          "expected": "SCV 0 0 accepted",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetColumnVolume", "params": {"Column": 0, "Volume": 0}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "val_column_volume_zero_real",
+          "name": "SetColumnVolume volume 0 — clear column (real)",
+          "type": "scripted",
+          "modes": ["real"],
+          "description": "Set column volume to 0 (do not dispense) on real instrument. Should be accepted.",
+          "expected": "SCV 0 0 accepted",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetColumnVolume", "params": {"Column": 0, "Volume": 0}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "val_column_volume_max",
+          "name": "SetColumnVolume max volume (25000)",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Set column volume to 25000 (2500 uL max). Should be accepted.",
+          "expected": "Volume 25000 accepted",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetColumnVolume", "params": {"Column": 0, "Volume": 25000}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "val_column_volume_over",
+          "name": "SetColumnVolume over max (25001)",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Set column volume to 25001 (over max). Should be rejected by FDL constraint.",
+          "expected": "ValidationError",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetColumnVolume", "params": {"Column": 0, "Volume": 25001}, "expect": "error"}
+            ]
+          }
+        },
+        {
+          "id": "val_disp_height_valid_sim",
+          "name": "SetDispensingHeight valid 1700/17mm (sim)",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Set dispensing height to 1700 (17mm) in simulation. Should succeed.",
+          "expected": "Height 1700 accepted",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetDispensingHeight", "params": {"Height": 1700}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "val_disp_height_valid_real",
+          "name": "SetDispensingHeight valid 1700/17mm (real)",
+          "type": "scripted",
+          "modes": ["real"],
+          "description": "Set dispensing height to 1700 (17mm) on real instrument. Should succeed.",
+          "expected": "Height 1700 accepted",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetDispensingHeight", "params": {"Height": 1700}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "val_disp_height_low",
+          "name": "SetDispensingHeight below min (499)",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Set dispensing height to 499 (below 500 min). Should be rejected.",
+          "expected": "InstrumentError or ValidationError",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetDispensingHeight", "params": {"Height": 499}, "expect": "error"}
+            ]
+          }
+        },
+        {
+          "id": "val_disp_height_high",
+          "name": "SetDispensingHeight above max (5501)",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Set dispensing height to 5501 (above 5500 max). Should be rejected.",
+          "expected": "InstrumentError or ValidationError",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetDispensingHeight", "params": {"Height": 5501}, "expect": "error"}
+            ]
+          }
+        },
+        {
+          "id": "val_pump_speed_valid_sim",
+          "name": "SetPumpSpeed valid range 1, 50, 100 (sim)",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Set pump speed to 1%, 50%, and 100% in simulation. All should succeed.",
+          "expected": "All speeds accepted",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "loop_values", "values": [1, 50, 100], "steps": [
+                {"action": "command", "feature": "MultidropCombi", "command": "SetPumpSpeed", "params": {"Speed": "$VALUE"}, "expect": "success"}
+              ]}
+            ]
+          }
+        },
+        {
+          "id": "val_pump_speed_valid_real",
+          "name": "SetPumpSpeed valid range 1, 50, 100 (real)",
+          "type": "scripted",
+          "modes": ["real"],
+          "description": "Set pump speed to 1%, 50%, and 100% on real instrument. All should succeed.",
+          "expected": "All speeds accepted",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "loop_values", "values": [1, 50, 100], "steps": [
+                {"action": "command", "feature": "MultidropCombi", "command": "SetPumpSpeed", "params": {"Speed": "$VALUE"}, "expect": "success"}
+              ]}
+            ]
+          }
+        },
+        {
+          "id": "val_pump_speed_invalid",
+          "name": "SetPumpSpeed out of range (0, 101)",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Set pump speed to 0 and 101. Both should be rejected.",
+          "expected": "Both rejected with error",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetPumpSpeed", "params": {"Speed": 0}, "expect": "error"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetPumpSpeed", "params": {"Speed": 101}, "expect": "error"}
+            ]
+          }
+        },
+        {
+          "id": "val_shake_combo",
+          "name": "Shake invalid distance/speed combo",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Shake with distance=5mm at speed=20Hz. Per manual, max distance at 20Hz is 1mm. Should be rejected by FDL constraint or server validation.",
+          "expected": "ValidationError or InstrumentError",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "MultidropCombi", "command": "Shake", "params": {"Time": 100, "Distance": 5, "Speed": 20}, "expect": "error"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "sequencing",
+      "name": "Command Sequencing & Error States",
+      "description": "Verify correct behavior for command ordering, prerequisites, and error state handling",
+      "tests": [
+        {
+          "id": "seq_dispense_not_primed_sim",
+          "name": "Dispense without priming (sim)",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Attempt to dispense without priming first in simulation. Should return NotPrimed error.",
+          "expected": "NotPrimed error",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetPlateType", "params": {"PlateType": 0}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetColumnVolume", "params": {"Column": 0, "Volume": 500}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "Dispense", "params": {}, "expect": "error"}
+            ]
+          }
+        },
+        {
+          "id": "seq_dispense_not_primed_real",
+          "name": "Dispense without priming (real)",
+          "type": "scripted",
+          "modes": ["real"],
+          "description": "Attempt to dispense without priming first on real instrument. Instrument should return error 14 (pump not primed).",
+          "expected": "InstrumentError: Cannot dispense when pump not primed (error 14)",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetPlateType", "params": {"PlateType": 0}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetColumnVolume", "params": {"Column": 0, "Volume": 500}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "Dispense", "params": {}, "expect": "error"}
+            ]
+          }
+        },
+        {
+          "id": "seq_dispense_zero_volume_sim",
+          "name": "Dispense with all volumes = 0 (sim)",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Set all column volumes to 0, then attempt to dispense in simulation.",
+          "expected": "Error returned (no dispense volume set)",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetColumnVolume", "params": {"Column": 0, "Volume": 0}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "Dispense", "params": {}, "expect": "error"}
+            ]
+          }
+        },
+        {
+          "id": "seq_dispense_zero_volume_real",
+          "name": "Dispense with all volumes = 0 (real)",
+          "type": "scripted",
+          "modes": ["real"],
+          "description": "Set all column volumes to 0, then attempt to dispense. Instrument should return error 17.",
+          "expected": "InstrumentError: Dispense volume for all columns is 0 (error 17)",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetColumnVolume", "params": {"Column": 0, "Volume": 0}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "Dispense", "params": {}, "expect": "error"}
+            ]
+          }
+        },
+        {
+          "id": "seq_eak_clears_error_sim",
+          "name": "AcknowledgeError clears error state (sim)",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Trigger an error, then send AcknowledgeError, then verify a normal command works again in simulation.",
+          "expected": "After EAK, commands resume normal operation",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "MultidropCombi", "command": "Dispense", "params": {}, "expect": "error"},
+              {"action": "command", "feature": "MultidropCombi", "command": "AcknowledgeError", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetPlateType", "params": {"PlateType": 0}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "seq_eak_clears_error_real",
+          "name": "AcknowledgeError clears error state (real)",
+          "type": "scripted",
+          "modes": ["real"],
+          "description": "Trigger an error (e.g., dispense without prime), then send AcknowledgeError, then verify a normal command works again.",
+          "expected": "After EAK, commands resume normal operation",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "MultidropCombi", "command": "Dispense", "params": {}, "expect": "error"},
+              {"action": "command", "feature": "MultidropCombi", "command": "AcknowledgeError", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetPlateType", "params": {"PlateType": 0}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "seq_move_out_sim",
+          "name": "MoveOut command (sim)",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Send MoveOut (POU) command in simulation.",
+          "expected": "Command succeeds",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "MultidropCombi", "command": "MoveOut", "params": {}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "seq_move_out_real",
+          "name": "MoveOut command (real)",
+          "type": "scripted",
+          "modes": ["real"],
+          "description": "Send MoveOut (POU) command. Plate carrier should move to loading position.",
+          "expected": "Command succeeds, plate carrier moves out",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "MultidropCombi", "command": "MoveOut", "params": {}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "seq_restart_real",
+          "name": "Restart instrument (real)",
+          "type": "scripted",
+          "modes": ["real"],
+          "description": "Send Restart (RST) command. Instrument should reboot. Requires reconnect afterward.",
+          "expected": "Restart succeeds, subsequent connect succeeds",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "MultidropCombi", "command": "Restart", "params": {}, "expect": "any"},
+              {"action": "wait", "ms": 5000},
+              {"action": "command", "feature": "MultidropCombi", "command": "Connect", "params": {"SerialPort": "$SERIAL_PORT"}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "seq_abort_during_dispense",
+          "name": "Abort during dispense",
+          "type": "guided",
+          "modes": ["real"],
+          "description": "Set up and start a dispense, then abort it mid-operation.",
+          "expected": "Dispense stops, instrument returns to idle state, no error state persists",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetPlateType", "params": {"PlateType": 0}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetCassetteType", "params": {"CassetteType": 0}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetDispensingHeight", "params": {"Height": 1700}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetPumpSpeed", "params": {"Speed": 20}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetColumnVolume", "params": {"Column": 0, "Volume": 500}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "Prime", "params": {"Volume": 5000, "Mode": 0}, "expect": "success"},
+              {"action": "prompt", "message": "Place a plate on the deck. After clicking Continue, a dispense will start. Open the WebUI in another tab and click Abort while the dispense is running."},
+              {"action": "command", "feature": "MultidropCombi", "command": "Dispense", "params": {}, "expect": "any"},
+              {"action": "confirm", "message": "Did the dispense stop when you clicked Abort? Is the instrument back in idle state with no persistent error?", "pass_label": "Yes, stopped cleanly", "fail_label": "No, error persists or did not stop"}
+            ]
+          }
+        },
+        {
+          "id": "seq_abort_during_shake",
+          "name": "Abort during shake",
+          "type": "guided",
+          "modes": ["real"],
+          "description": "Start a long shake, then abort it mid-operation.",
+          "expected": "Shake stops, plate carrier returns to normal position",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "prompt", "message": "Place a plate on the deck. After clicking Continue, a 30-second shake will start. Open the WebUI in another tab and click Abort while shaking."},
+              {"action": "command", "feature": "MultidropCombi", "command": "Shake", "params": {"Time": 3000, "Distance": 2, "Speed": 5}, "expect": "any"},
+              {"action": "confirm", "message": "Did the shake stop when you clicked Abort? Has the plate carrier returned to its normal position?", "pass_label": "Yes, stopped cleanly", "fail_label": "No, still shaking or plate shifted"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "prime_empty",
+      "name": "Prime & Empty Operations",
+      "description": "Verify prime and empty commands with standard and continuous modes",
+      "tests": [
+        {
+          "id": "pe_prime_standard_sim",
+          "name": "Standard prime — fixed volume (sim)",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Prime in simulation mode with standard volume. Verifies command flow and IsPrimed state change.",
+          "expected": "Prime succeeds, IsPrimed becomes true",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetCassetteType", "params": {"CassetteType": 0}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "Prime", "params": {"Volume": 500, "Mode": 0}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "pe_prime_standard_real",
+          "name": "Standard prime — fixed volume (real)",
+          "type": "guided",
+          "modes": ["real"],
+          "description": "Prime the instrument with a standard volume (50 uL).",
+          "expected": "Pump runs for set volume, then stops. IsPrimed becomes true.",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetCassetteType", "params": {"CassetteType": 0}, "expect": "success"},
+              {"action": "prompt", "message": "Ensure the priming vessel is in place and the hoses are submerged in liquid"},
+              {"action": "command", "feature": "MultidropCombi", "command": "Prime", "params": {"Volume": 500, "Mode": 0}, "expect": "success"},
+              {"action": "confirm", "message": "Did the pump run and stop after dispensing the set volume?", "pass_label": "Yes, pump ran correctly", "fail_label": "No, pump did not behave as expected"}
+            ]
+          }
+        },
+        {
+          "id": "pe_prime_continuous_sim",
+          "name": "Continuous prime start/stop (sim)",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Start continuous prime in simulation, then stop it.",
+          "expected": "Start and stop both succeed",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "MultidropCombi", "command": "Prime", "params": {"Volume": 500, "Mode": 1}, "expect": "success"},
+              {"action": "wait", "ms": 1000},
+              {"action": "command", "feature": "MultidropCombi", "command": "Prime", "params": {"Volume": 500, "Mode": 0}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "pe_prime_continuous_real",
+          "name": "Continuous prime start/stop (real)",
+          "type": "guided",
+          "modes": ["real"],
+          "description": "Start continuous prime, verify the pump is running, then stop it.",
+          "expected": "Pump starts on continuous prime, stops on standard prime",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetCassetteType", "params": {"CassetteType": 0}, "expect": "success"},
+              {"action": "prompt", "message": "Ensure the priming vessel is in place and the hoses are submerged in liquid"},
+              {"action": "command", "feature": "MultidropCombi", "command": "Prime", "params": {"Volume": 500, "Mode": 1}, "expect": "success"},
+              {"action": "confirm", "message": "Is the pump running continuously?", "pass_label": "Yes, pump is running", "fail_label": "No, pump did not start"},
+              {"action": "command", "feature": "MultidropCombi", "command": "Prime", "params": {"Volume": 500, "Mode": 0}, "expect": "success"},
+              {"action": "confirm", "message": "Did the pump stop?", "pass_label": "Yes, pump stopped", "fail_label": "No, pump is still running"}
+            ]
+          }
+        },
+        {
+          "id": "pe_empty_standard_sim",
+          "name": "Standard empty — fixed volume (sim)",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Empty in simulation mode with standard volume.",
+          "expected": "Empty succeeds",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "MultidropCombi", "command": "Empty", "params": {"Volume": 500, "Mode": 0}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "pe_empty_standard_real",
+          "name": "Standard empty — fixed volume (real)",
+          "type": "guided",
+          "modes": ["real"],
+          "description": "Empty the hoses with a standard volume (50 uL).",
+          "expected": "Pump reverses for set volume, then stops",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "MultidropCombi", "command": "Prime", "params": {"Volume": 500, "Mode": 0}, "expect": "success"},
+              {"action": "prompt", "message": "Place an empty container to catch the emptied liquid"},
+              {"action": "command", "feature": "MultidropCombi", "command": "Empty", "params": {"Volume": 500, "Mode": 0}, "expect": "success"},
+              {"action": "confirm", "message": "Did the pump run in reverse and stop after the set volume?", "pass_label": "Yes", "fail_label": "No"}
+            ]
+          }
+        },
+        {
+          "id": "pe_empty_continuous_real",
+          "name": "Continuous empty start/stop (real)",
+          "type": "guided",
+          "modes": ["real"],
+          "description": "Prime first, then start continuous empty, verify the pump reverses, then stop it.",
+          "expected": "Pump starts reverse on continuous empty, stops on standard empty",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetCassetteType", "params": {"CassetteType": 0}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "Prime", "params": {"Volume": 500, "Mode": 0}, "expect": "success"},
+              {"action": "prompt", "message": "Place an empty container to catch the emptied liquid"},
+              {"action": "command", "feature": "MultidropCombi", "command": "Empty", "params": {"Volume": 500, "Mode": 1}, "expect": "success"},
+              {"action": "confirm", "message": "Is the pump running in reverse continuously?", "pass_label": "Yes, pump is emptying", "fail_label": "No, pump did not start"},
+              {"action": "command", "feature": "MultidropCombi", "command": "Empty", "params": {"Volume": 500, "Mode": 0}, "expect": "success"},
+              {"action": "confirm", "message": "Did the pump stop?", "pass_label": "Yes, pump stopped", "fail_label": "No, pump is still running"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "dispense",
+      "name": "Dispense Operations",
+      "description": "Full dispense workflow tests with various plate and volume configurations",
+      "tests": [
+        {
+          "id": "disp_full_workflow_sim",
+          "name": "Full dispense workflow (sim)",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Run a complete dispense workflow in simulation: set plate, cassette, height, columns, prime, dispense.",
+          "expected": "All steps succeed, dispense completes",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetPlateType", "params": {"PlateType": 0}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetCassetteType", "params": {"CassetteType": 0}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetDispensingHeight", "params": {"Height": 1700}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetPumpSpeed", "params": {"Speed": 50}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetColumnVolume", "params": {"Column": 0, "Volume": 0}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetColumnVolume", "params": {"Column": 1, "Volume": 500}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetColumnVolume", "params": {"Column": 2, "Volume": 500}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "Prime", "params": {"Volume": 500, "Mode": 0}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "Dispense", "params": {}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "disp_selective_columns_sim",
+          "name": "Selective column dispense (sim)",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Set specific columns (1, 3, 5) with volume and clear others. Verifies SCV 0 0 clears all, then specific columns are set.",
+          "expected": "Commands succeed, only selected columns have volume",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetPlateType", "params": {"PlateType": 0}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetCassetteType", "params": {"CassetteType": 0}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetColumnVolume", "params": {"Column": 0, "Volume": 0}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetColumnVolume", "params": {"Column": 1, "Volume": 500}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetColumnVolume", "params": {"Column": 3, "Volume": 500}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetColumnVolume", "params": {"Column": 5, "Volume": 500}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "Prime", "params": {"Volume": 500, "Mode": 0}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "Dispense", "params": {}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "disp_96well_all_cols_real",
+          "name": "96-well plate — all columns same volume (real)",
+          "type": "guided",
+          "modes": ["real"],
+          "description": "Dispense to a 96-well plate with all columns at 50 uL.",
+          "expected": "All 96 wells filled with ~50 uL each",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetPlateType", "params": {"PlateType": 0}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetCassetteType", "params": {"CassetteType": 0}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetDispensingHeight", "params": {"Height": 1700}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetPumpSpeed", "params": {"Speed": 50}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "Prime", "params": {"Volume": 5000, "Mode": 0}, "expect": "success"},
+              {"action": "prompt", "message": "Place an empty 96-well plate on the instrument deck"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetColumnVolume", "params": {"Column": 0, "Volume": 500}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "Dispense", "params": {}, "expect": "success"},
+              {"action": "confirm", "message": "Are all 96 wells filled evenly?", "pass_label": "Even fill", "fail_label": "Uneven or missing"}
+            ]
+          }
+        },
+        {
+          "id": "disp_96well_selective_real",
+          "name": "96-well plate — selective columns (real)",
+          "type": "guided",
+          "modes": ["real"],
+          "description": "Dispense to columns 1, 3, 5 only on a 96-well plate at 100 uL.",
+          "expected": "Only columns 1, 3, 5 are dispensed. Columns 2, 4, 6-12 are empty.",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetPlateType", "params": {"PlateType": 0}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetCassetteType", "params": {"CassetteType": 0}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetDispensingHeight", "params": {"Height": 1700}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "Prime", "params": {"Volume": 5000, "Mode": 0}, "expect": "success"},
+              {"action": "prompt", "message": "Place an empty 96-well plate on the instrument deck"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetColumnVolume", "params": {"Column": 0, "Volume": 0}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetColumnVolume", "params": {"Column": 1, "Volume": 1000}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetColumnVolume", "params": {"Column": 3, "Volume": 1000}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetColumnVolume", "params": {"Column": 5, "Volume": 1000}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "Dispense", "params": {}, "expect": "success"},
+              {"action": "confirm", "message": "Do ONLY columns 1, 3, 5 have liquid? Are columns 2, 4, 6-12 empty?", "pass_label": "Correct columns", "fail_label": "Wrong columns"}
+            ]
+          }
+        },
+        {
+          "id": "disp_384well_real",
+          "name": "384-well plate dispense (real)",
+          "type": "guided",
+          "modes": ["real"],
+          "description": "Dispense to a 384-well plate with small tube cassette at 10 uL.",
+          "expected": "All 384 wells filled. Intermediate responses show column/row progress.",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetPlateType", "params": {"PlateType": 5}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetCassetteType", "params": {"CassetteType": 1}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetDispensingHeight", "params": {"Height": 1200}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "Prime", "params": {"Volume": 5000, "Mode": 0}, "expect": "success"},
+              {"action": "prompt", "message": "Install the small tube cassette and place an empty 384-well plate on the deck"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetColumnVolume", "params": {"Column": 0, "Volume": 100}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "Dispense", "params": {}, "expect": "success"},
+              {"action": "confirm", "message": "Are all 384 wells filled?", "pass_label": "All filled", "fail_label": "Missing or uneven"}
+            ]
+          }
+        },
+        {
+          "id": "disp_variable_volumes_real",
+          "name": "Variable volumes per column (real)",
+          "type": "guided",
+          "modes": ["real"],
+          "description": "Dispense with different volumes per column (20, 50, 100 uL) to verify visual gradient.",
+          "expected": "Column 1 < Column 2 < Column 3 in fill level",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetPlateType", "params": {"PlateType": 0}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetCassetteType", "params": {"CassetteType": 0}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetDispensingHeight", "params": {"Height": 1700}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "Prime", "params": {"Volume": 5000, "Mode": 0}, "expect": "success"},
+              {"action": "prompt", "message": "Place an empty 96-well plate on the instrument deck"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetColumnVolume", "params": {"Column": 0, "Volume": 0}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetColumnVolume", "params": {"Column": 1, "Volume": 200}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetColumnVolume", "params": {"Column": 2, "Volume": 500}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetColumnVolume", "params": {"Column": 3, "Volume": 1000}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "Dispense", "params": {}, "expect": "success"},
+              {"action": "confirm", "message": "Do the fill levels increase visually from column 1 to column 3? (20 < 50 < 100 uL)", "pass_label": "Gradient visible", "fail_label": "No visible difference"}
+            ]
+          }
+        },
+        {
+          "id": "disp_height_effect_real",
+          "name": "Dispensing height variation (real)",
+          "type": "guided",
+          "modes": ["real"],
+          "description": "Dispense at three different heights and compare splash/accuracy.",
+          "expected": "Lower height = less splash, more accurate. Very high height may cause more splash.",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetPlateType", "params": {"PlateType": 0}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetCassetteType", "params": {"CassetteType": 0}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetPumpSpeed", "params": {"Speed": 50}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetColumnVolume", "params": {"Column": 0, "Volume": 500}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "Prime", "params": {"Volume": 5000, "Mode": 0}, "expect": "success"},
+
+              {"action": "command", "feature": "MultidropCombi", "command": "SetDispensingHeight", "params": {"Height": 1700}, "expect": "success"},
+              {"action": "prompt", "message": "Place an empty 96-well plate on the deck. Dispensing at STANDARD height (17mm)."},
+              {"action": "command", "feature": "MultidropCombi", "command": "Dispense", "params": {}, "expect": "success"},
+              {"action": "confirm", "message": "Note the fill quality at 17mm. Was dispensing accurate with minimal splash?", "pass_label": "Good fill", "fail_label": "Poor fill"},
+
+              {"action": "command", "feature": "MultidropCombi", "command": "SetDispensingHeight", "params": {"Height": 1000}, "expect": "success"},
+              {"action": "prompt", "message": "Place a NEW empty 96-well plate on the deck. Dispensing at LOW height (10mm)."},
+              {"action": "command", "feature": "MultidropCombi", "command": "Dispense", "params": {}, "expect": "success"},
+              {"action": "confirm", "message": "At 10mm height, was dispensing more accurate with less splash compared to 17mm?", "pass_label": "Yes, better accuracy", "fail_label": "No improvement or worse"},
+
+              {"action": "command", "feature": "MultidropCombi", "command": "SetDispensingHeight", "params": {"Height": 4000}, "expect": "success"},
+              {"action": "prompt", "message": "Place a NEW empty 96-well plate on the deck. Dispensing at HIGH height (40mm)."},
+              {"action": "command", "feature": "MultidropCombi", "command": "Dispense", "params": {}, "expect": "success"},
+              {"action": "confirm", "message": "At 40mm height, was there more splash/less accuracy compared to the lower heights?", "pass_label": "Yes, more splash as expected", "fail_label": "No difference"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "lock",
+      "name": "LockController",
+      "description": "Server locking for exclusive access control",
+      "tests": [
+        {
+          "id": "lock_lock_unlock",
+          "name": "Lock and unlock server",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Lock the server with a token, then unlock it.",
+          "expected": "Lock succeeds, unlock succeeds",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "LockController", "command": "LockServer", "params": {"LockIdentifier": "test-token-123", "Timeout": 30}, "expect": "success"},
+              {"action": "command", "feature": "LockController", "command": "UnlockServer", "params": {"LockIdentifier": "test-token-123"}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "lock_already_locked",
+          "name": "Lock when already locked",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Lock the server, then try to lock again with a different token.",
+          "expected": "Second lock attempt returns ServerAlreadyLocked error",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "LockController", "command": "LockServer", "params": {"LockIdentifier": "token-A", "Timeout": 30}, "expect": "success"},
+              {"action": "command", "feature": "LockController", "command": "LockServer", "params": {"LockIdentifier": "token-B", "Timeout": 30}, "expect": "error", "error_type": "ServerAlreadyLocked"},
+              {"action": "command", "feature": "LockController", "command": "UnlockServer", "params": {"LockIdentifier": "token-A"}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "lock_wrong_token",
+          "name": "Unlock with wrong token",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Lock the server, then try to unlock with a different token.",
+          "expected": "InvalidLockIdentifier error",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "LockController", "command": "LockServer", "params": {"LockIdentifier": "correct-token", "Timeout": 30}, "expect": "success"},
+              {"action": "command", "feature": "LockController", "command": "UnlockServer", "params": {"LockIdentifier": "wrong-token"}, "expect": "error", "error_type": "InvalidLockIdentifier"},
+              {"action": "command", "feature": "LockController", "command": "UnlockServer", "params": {"LockIdentifier": "correct-token"}, "expect": "success"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "physical",
+      "name": "Physical & Hardware Tests",
+      "description": "Tests requiring physical interaction with the instrument. The test runner automates setup and commands while prompting the user for physical actions.",
+      "tests": [
+        {
+          "id": "phys_prime_vessel_removed",
+          "name": "Remove priming vessel during prime",
+          "type": "guided",
+          "modes": ["real"],
+          "description": "Start a continuous prime, then remove the priming vessel to trigger an error.",
+          "expected": "Instrument reports error 15 (Missing prime vessel). Server translates to InstrumentError.",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetCassetteType", "params": {"CassetteType": 0}, "expect": "success"},
+              {"action": "prompt", "message": "Ensure the priming vessel is in place. After clicking Continue, a continuous prime will start. While the pump is running, REMOVE the priming vessel from its slot."},
+              {"action": "command", "feature": "MultidropCombi", "command": "Prime", "params": {"Volume": 500, "Mode": 1}, "expect": "any"},
+              {"action": "confirm", "message": "Did the instrument report an error (error 15 — Missing prime vessel)?", "pass_label": "Yes, error 15 reported", "fail_label": "No error or different error"}
+            ]
+          }
+        },
+        {
+          "id": "phys_rotor_shield",
+          "name": "Remove rotor shield during dispense",
+          "type": "guided",
+          "modes": ["real"],
+          "description": "Start a dispense, then remove the rotor shield to trigger an error.",
+          "expected": "Instrument reports error 16 (Rotor shield not in place). Dispense stops.",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetPlateType", "params": {"PlateType": 0}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetCassetteType", "params": {"CassetteType": 0}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetDispensingHeight", "params": {"Height": 1700}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetPumpSpeed", "params": {"Speed": 20}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetColumnVolume", "params": {"Column": 0, "Volume": 500}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "Prime", "params": {"Volume": 5000, "Mode": 0}, "expect": "success"},
+              {"action": "prompt", "message": "Place a plate on the deck. After clicking Continue, a dispense will start. While dispensing, SLIDE THE ROTOR COVER out of place."},
+              {"action": "command", "feature": "MultidropCombi", "command": "Dispense", "params": {}, "expect": "any"},
+              {"action": "confirm", "message": "Did the instrument report error 16 (Rotor shield not in place) and stop dispensing?", "pass_label": "Yes, error 16 reported", "fail_label": "No error or different error"}
+            ]
+          }
+        },
+        {
+          "id": "phys_stop_button",
+          "name": "Press STOP on instrument keypad",
+          "type": "guided",
+          "modes": ["real"],
+          "description": "Start a long shake, then press the physical STOP button on the instrument.",
+          "expected": "Operation stops. The server detects the abort and updates status accordingly.",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "prompt", "message": "After clicking Continue, a 30-second shake will start. While shaking, press the STOP button on the instrument's physical keypad."},
+              {"action": "command", "feature": "MultidropCombi", "command": "Shake", "params": {"Time": 3000, "Distance": 2, "Speed": 5}, "expect": "any"},
+              {"action": "confirm", "message": "Did the shake stop when you pressed STOP? Did the server handle the abort gracefully (no persistent error state)?", "pass_label": "Yes, handled gracefully", "fail_label": "No, error state persists"}
+            ]
+          }
+        },
+        {
+          "id": "phys_cable_disconnect",
+          "name": "USB cable disconnect during operation",
+          "type": "guided",
+          "modes": ["real"],
+          "description": "Start a continuous prime, disconnect the USB cable, then reconnect.",
+          "expected": "Server detects communication timeout, reports CommunicationError. After reconnecting cable, Connect succeeds.",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetCassetteType", "params": {"CassetteType": 0}, "expect": "success"},
+              {"action": "prompt", "message": "After clicking Continue, a continuous prime will start. While the pump is running, UNPLUG THE USB CABLE."},
+              {"action": "command", "feature": "MultidropCombi", "command": "Prime", "params": {"Volume": 500, "Mode": 1}, "expect": "any"},
+              {"action": "confirm", "message": "Did the server report a CommunicationError (timeout)?", "pass_label": "Yes, CommunicationError", "fail_label": "No error or different error"},
+              {"action": "prompt", "message": "Plug the USB cable back in and wait a few seconds for the OS to recognize the device."},
+              {"action": "command", "feature": "MultidropCombi", "command": "Connect", "params": {"SerialPort": "$SERIAL_PORT"}, "expect": "success"},
+              {"action": "confirm", "message": "Did the reconnect succeed?", "pass_label": "Yes, reconnected", "fail_label": "No, reconnect failed"}
+            ]
+          }
+        },
+        {
+          "id": "phys_power_cycle",
+          "name": "Power cycle instrument during remote control",
+          "type": "guided",
+          "modes": ["real"],
+          "description": "Connect, power off the instrument, observe the error, then power on and reconnect.",
+          "expected": "Next command fails with CommunicationError (timeout). After power-on, Connect succeeds.",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "prompt", "message": "TURN OFF the instrument power switch now."},
+              {"action": "command", "feature": "MultidropCombi", "command": "GetVersion", "params": {}, "expect": "error"},
+              {"action": "confirm", "message": "Did the command fail with a CommunicationError (timeout)?", "pass_label": "Yes, CommunicationError", "fail_label": "No error or different error"},
+              {"action": "prompt", "message": "TURN ON the instrument and wait for it to fully initialize (~15 seconds)."},
+              {"action": "command", "feature": "MultidropCombi", "command": "Connect", "params": {"SerialPort": "$SERIAL_PORT"}, "expect": "success"},
+              {"action": "confirm", "message": "Did the reconnect succeed after power cycle?", "pass_label": "Yes, reconnected", "fail_label": "No, reconnect failed"}
+            ]
+          }
+        },
+        {
+          "id": "phys_cassette_swap",
+          "name": "Swap cassette types",
+          "type": "guided",
+          "modes": ["real"],
+          "description": "Test dispensing with standard cassette, swap to small tube, then dispense again.",
+          "expected": "Correct cassette type setting works. Wrong cassette type may produce error 43.",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "prompt", "message": "Ensure the STANDARD TUBE cassette is installed."},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetCassetteType", "params": {"CassetteType": 0}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetPlateType", "params": {"PlateType": 0}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetDispensingHeight", "params": {"Height": 1700}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetColumnVolume", "params": {"Column": 0, "Volume": 500}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "Prime", "params": {"Volume": 5000, "Mode": 0}, "expect": "success"},
+              {"action": "prompt", "message": "Place a plate on the deck."},
+              {"action": "command", "feature": "MultidropCombi", "command": "Dispense", "params": {}, "expect": "success"},
+              {"action": "confirm", "message": "Did the dispense with standard tube cassette succeed?", "pass_label": "Yes", "fail_label": "No"},
+              {"action": "prompt", "message": "Physically SWAP to the SMALL TUBE cassette now."},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetCassetteType", "params": {"CassetteType": 1}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "Prime", "params": {"Volume": 5000, "Mode": 0}, "expect": "success"},
+              {"action": "prompt", "message": "Place a new plate on the deck."},
+              {"action": "command", "feature": "MultidropCombi", "command": "Dispense", "params": {}, "expect": "success"},
+              {"action": "confirm", "message": "Did the dispense with small tube cassette succeed?", "pass_label": "Yes", "fail_label": "No"}
+            ]
+          }
+        },
+        {
+          "id": "phys_shake_plate_retention",
+          "name": "Shake — plate retention",
+          "type": "guided",
+          "modes": ["real"],
+          "description": "Shake at low and high speeds to verify plate retention.",
+          "expected": "Plate remains securely clamped during all shake operations",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "prompt", "message": "Place a plate on the carrier and ensure it is properly seated."},
+              {"action": "command", "feature": "MultidropCombi", "command": "Shake", "params": {"Time": 500, "Distance": 3, "Speed": 5}, "expect": "success"},
+              {"action": "confirm", "message": "At low speed (5 Hz), did the plate stay secure?", "pass_label": "Yes, plate secure", "fail_label": "No, plate shifted"},
+              {"action": "command", "feature": "MultidropCombi", "command": "Shake", "params": {"Time": 500, "Distance": 1, "Speed": 15}, "expect": "success"},
+              {"action": "confirm", "message": "At high speed (15 Hz), did the plate stay secure?", "pass_label": "Yes, plate secure", "fail_label": "No, plate shifted"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "webui",
+      "name": "WebUI Integration",
+      "description": "Tests for the React WebUI, SSE streaming, and user interface correctness",
+      "tests": [
+        {
+          "id": "ui_sse_connection_sim",
+          "name": "SSE connection indicator (sim)",
+          "type": "guided",
+          "modes": ["simulation"],
+          "description": "Verify the SSE LIVE/OFF badge by running commands and observing the WebUI.",
+          "expected": "Badge shows LIVE, observable properties update in real-time",
+          "script": {
+            "steps": [
+              {"action": "prompt", "message": "Open the Multidrop Combi WebUI in your browser. Verify that the 'SSE LIVE' badge is visible (green)."},
+              {"action": "confirm", "message": "Is the SSE LIVE badge visible and green?", "pass_label": "Yes, LIVE badge visible", "fail_label": "No badge or shows OFF"},
+              {"action": "ensure_connected"},
+              {"action": "confirm", "message": "Did the WebUI update to show the instrument as connected?", "pass_label": "Yes, status updated", "fail_label": "No update visible"},
+              {"action": "command", "feature": "MultidropCombi", "command": "Disconnect", "params": {}, "expect": "success"},
+              {"action": "confirm", "message": "Did the WebUI reset to show the instrument as disconnected?", "pass_label": "Yes, status reset", "fail_label": "No update visible"}
+            ]
+          }
+        },
+        {
+          "id": "ui_sse_connection_real",
+          "name": "SSE connection indicator (real)",
+          "type": "guided",
+          "modes": ["real"],
+          "description": "Verify the SSE LIVE/OFF badge with real instrument connection.",
+          "expected": "Badge accurately reflects SSE connection state",
+          "script": {
+            "steps": [
+              {"action": "prompt", "message": "Open the Multidrop Combi WebUI in your browser. Verify the 'SSE LIVE' badge is visible (green)."},
+              {"action": "confirm", "message": "Is the SSE LIVE badge visible and green?", "pass_label": "Yes, LIVE badge visible", "fail_label": "No badge or shows OFF"},
+              {"action": "ensure_connected"},
+              {"action": "confirm", "message": "Did the WebUI update to show the instrument as connected with real-time status?", "pass_label": "Yes, live updates visible", "fail_label": "No update visible"}
+            ]
+          }
+        },
+        {
+          "id": "ui_observable_updates_sim",
+          "name": "Observable property updates (sim)",
+          "type": "guided",
+          "modes": ["simulation"],
+          "description": "Run commands and verify that observable properties update in the WebUI within 1 second.",
+          "expected": "All status changes appear within 1 second in the WebUI",
+          "script": {
+            "steps": [
+              {"action": "prompt", "message": "Open the Multidrop Combi WebUI in your browser and watch for status updates as commands run."},
+              {"action": "ensure_connected"},
+              {"action": "confirm", "message": "Did the WebUI show IsConnected = true within 1 second?", "pass_label": "Yes, updated quickly", "fail_label": "No or slow update"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetPlateType", "params": {"PlateType": 1}, "expect": "success"},
+              {"action": "confirm", "message": "Did the WebUI show PlateType = 384-well within 1 second?", "pass_label": "Yes, updated quickly", "fail_label": "No or slow update"},
+              {"action": "command", "feature": "MultidropCombi", "command": "Prime", "params": {"Volume": 500, "Mode": 0}, "expect": "success"},
+              {"action": "confirm", "message": "Did the WebUI show IsPrimed = true within 1 second?", "pass_label": "Yes, updated quickly", "fail_label": "No or slow update"},
+              {"action": "command", "feature": "MultidropCombi", "command": "Disconnect", "params": {}, "expect": "success"},
+              {"action": "confirm", "message": "Did all status fields reset within 1 second after disconnect?", "pass_label": "Yes, all reset", "fail_label": "No or partial reset"}
+            ]
+          }
+        },
+        {
+          "id": "ui_observable_updates_real",
+          "name": "Observable property updates (real)",
+          "type": "guided",
+          "modes": ["real"],
+          "description": "Run commands on real instrument and verify WebUI updates within 1 second.",
+          "expected": "All status changes appear within 1 second in the WebUI",
+          "script": {
+            "steps": [
+              {"action": "prompt", "message": "Open the Multidrop Combi WebUI in your browser and watch for status updates as commands run."},
+              {"action": "ensure_connected"},
+              {"action": "confirm", "message": "Did the WebUI show IsConnected = true within 1 second?", "pass_label": "Yes, updated quickly", "fail_label": "No or slow update"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetPlateType", "params": {"PlateType": 1}, "expect": "success"},
+              {"action": "confirm", "message": "Did the WebUI show PlateType = 384-well within 1 second?", "pass_label": "Yes, updated quickly", "fail_label": "No or slow update"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetCassetteType", "params": {"CassetteType": 0}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "Prime", "params": {"Volume": 500, "Mode": 0}, "expect": "success"},
+              {"action": "confirm", "message": "Did the WebUI show IsPrimed = true within 1 second?", "pass_label": "Yes, updated quickly", "fail_label": "No or slow update"},
+              {"action": "command", "feature": "MultidropCombi", "command": "Disconnect", "params": {}, "expect": "success"},
+              {"action": "confirm", "message": "Did all status fields reset within 1 second after disconnect?", "pass_label": "Yes, all reset", "fail_label": "No or partial reset"}
+            ]
+          }
+        },
+        {
+          "id": "ui_unit_conversion",
+          "name": "Unit conversion correctness",
+          "type": "guided",
+          "modes": ["real"],
+          "description": "Set values via commands and verify the server logs show correct unit conversions.",
+          "expected": "Server log values = UI values x conversion factor",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetColumnVolume", "params": {"Column": 0, "Volume": 500}, "expect": "success"},
+              {"action": "confirm", "message": "Check the server log: does the SetColumnVolume call show Volume=500 (representing 50 uL in 1/10 uL units)?", "pass_label": "Yes, 500 logged", "fail_label": "Wrong value logged"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetDispensingHeight", "params": {"Height": 1700}, "expect": "success"},
+              {"action": "confirm", "message": "Check the server log: does SetDispensingHeight show Height=1700 (representing 17mm in 1/100 mm units)?", "pass_label": "Yes, 1700 logged", "fail_label": "Wrong value logged"},
+              {"action": "command", "feature": "MultidropCombi", "command": "Shake", "params": {"Time": 500, "Distance": 2, "Speed": 5}, "expect": "success"},
+              {"action": "confirm", "message": "Check the server log: does Shake show Time=500 (representing 5 seconds in 1/100 s units)?", "pass_label": "Yes, 500 logged", "fail_label": "Wrong value logged"}
+            ]
+          }
+        },
+        {
+          "id": "ui_error_modal",
+          "name": "Error modal retry/ignore/abort",
+          "type": "guided",
+          "modes": ["simulation", "real"],
+          "description": "Trigger an error in the WebUI and test the recovery modal buttons.",
+          "expected": "Each button works as described. Retry retries the failed step, Ignore skips it, Abort stops everything.",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "prompt", "message": "In the Multidrop Combi WebUI, set the dispensing height field to an invalid value (clear the field or enter 0), then click Dispense. When the error modal appears, click 'Retry'."},
+              {"action": "confirm", "message": "Did the Retry button retry the failed operation?", "pass_label": "Yes, retried", "fail_label": "No, did not retry"},
+              {"action": "prompt", "message": "Trigger the same error again. This time click 'Ignore' in the error modal."},
+              {"action": "confirm", "message": "Did Ignore skip the failed step and continue?", "pass_label": "Yes, skipped and continued", "fail_label": "No, did not skip"},
+              {"action": "prompt", "message": "Trigger the same error one more time. This time click 'Abort' in the error modal."},
+              {"action": "confirm", "message": "Did Abort stop the entire workflow?", "pass_label": "Yes, workflow stopped", "fail_label": "No, workflow continued"}
+            ]
+          }
+        },
+        {
+          "id": "ui_settings_save_load",
+          "name": "Settings save/load persistence",
+          "type": "guided",
+          "modes": ["simulation", "real"],
+          "description": "Save settings in the WebUI, change them, then load and verify persistence.",
+          "expected": "Settings persist across page loads via localStorage",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetPlateType", "params": {"PlateType": 0}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetCassetteType", "params": {"CassetteType": 0}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetPumpSpeed", "params": {"Speed": 75}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetDispensingHeight", "params": {"Height": 2000}, "expect": "success"},
+              {"action": "prompt", "message": "In the WebUI, enter a profile name (e.g., 'test-profile') and click Save."},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetPlateType", "params": {"PlateType": 1}, "expect": "success"},
+              {"action": "command", "feature": "MultidropCombi", "command": "SetPumpSpeed", "params": {"Speed": 25}, "expect": "success"},
+              {"action": "prompt", "message": "Select the saved profile ('test-profile') and click Load."},
+              {"action": "confirm", "message": "Were the settings restored to the original values (96-well, Standard cassette, speed 75, height 20mm)?", "pass_label": "Yes, all restored", "fail_label": "No, settings differ"},
+              {"action": "prompt", "message": "Close the browser tab and reopen the WebUI."},
+              {"action": "confirm", "message": "Is the saved profile still available in the profile list?", "pass_label": "Yes, still available", "fail_label": "No, profile lost"}
+            ]
+          }
+        },
+        {
+          "id": "ui_sim_real_badge",
+          "name": "SIM/REAL badge accuracy",
+          "type": "guided",
+          "modes": ["simulation", "real"],
+          "description": "Toggle simulation mode and verify the badge updates in the WebUI.",
+          "expected": "Badge accurately reflects current mode after each switch",
+          "script": {
+            "steps": [
+              {"action": "prompt", "message": "Open the Multidrop Combi WebUI. The server should be in simulation mode. Verify the 'SIM' badge is visible (blue)."},
+              {"action": "confirm", "message": "Is the SIM badge visible and blue?", "pass_label": "Yes, SIM badge visible", "fail_label": "No badge or wrong badge"},
+              {"action": "command", "feature": "SimulationController", "command": "StopSimulationMode", "params": {}, "expect": "success"},
+              {"action": "confirm", "message": "Did the badge change to 'REAL' (orange/red)?", "pass_label": "Yes, REAL badge visible", "fail_label": "No change or wrong badge"},
+              {"action": "command", "feature": "SimulationController", "command": "StartSimulationMode", "params": {}, "expect": "success"},
+              {"action": "confirm", "message": "Did the badge change back to 'SIM' (blue)?", "pass_label": "Yes, SIM badge returned", "fail_label": "No change or wrong badge"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "logging",
+      "name": "Structured Logging",
+      "description": "ServerLogProvider feature: structured log queries with filters",
+      "tests": [
+        {
+          "id": "log_get_logs_no_filter",
+          "name": "GetLogs with no filters returns entries",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Query logs with no filters. Server should have logged startup entries.",
+          "expected": "Non-empty array of log entries returned",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ServerLogProvider", "command": "GetLogs", "params": {"StartTime": "", "EndTime": "", "MinSeverity": "", "Feature": "", "MaxEntries": 10}, "expect": "success"},
+              {"action": "check_response", "field": "LogEntries", "condition": "not_empty"}
+            ]
+          }
+        },
+        {
+          "id": "log_get_logs_severity_filter",
+          "name": "GetLogs with MinSeverity=ERROR",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Query logs filtered to ERROR and above. All returned entries should be ERROR or CRITICAL.",
+          "expected": "All entries have level ERROR or CRITICAL (or empty if none)",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ServerLogProvider", "command": "GetLogs", "params": {"StartTime": "", "EndTime": "", "MinSeverity": "ERROR", "Feature": "", "MaxEntries": 100}, "expect": "success"},
+              {"action": "check_response", "field": "LogEntries", "condition": "not_empty"}
+            ]
+          }
+        },
+        {
+          "id": "log_get_logs_feature_filter",
+          "name": "GetLogs with Feature=Server",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Query logs filtered to the Server feature. All returned entries should have feature 'Server'.",
+          "expected": "All entries have feature 'Server'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ServerLogProvider", "command": "GetLogs", "params": {"StartTime": "", "EndTime": "", "MinSeverity": "", "Feature": "Server", "MaxEntries": 10}, "expect": "success"},
+              {"action": "check_response", "field": "LogEntries", "condition": "not_empty"}
+            ]
+          }
+        },
+        {
+          "id": "log_get_logs_max_entries",
+          "name": "GetLogs with MaxEntries=5 returns at most 5",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Query with MaxEntries=5 and verify no more than 5 entries are returned.",
+          "expected": "At most 5 entries returned",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ServerLogProvider", "command": "GetLogs", "params": {"StartTime": "", "EndTime": "", "MinSeverity": "", "Feature": "", "MaxEntries": 5}, "expect": "success"},
+              {"action": "check_response", "field": "LogEntries", "condition": "not_empty"}
+            ]
+          }
+        },
+        {
+          "id": "log_get_features",
+          "name": "GetLogFeatures returns feature list",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "GetLogFeatures should return a list containing at least 'Server' (from startup logs).",
+          "expected": "List of feature names including 'Server'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ServerLogProvider", "command": "GetLogFeatures", "params": {}, "expect": "success"},
+              {"action": "check_response", "field": "Features", "condition": "not_empty"}
+            ]
+          }
+        },
+        {
+          "id": "log_stats",
+          "name": "LogStats property returns valid JSON",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Read the LogStats property and verify it contains expected fields.",
+          "expected": "JSON with total_entries, counts_by_level, oldest_timestamp, newest_timestamp, db_size_bytes",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ServerLogProvider", "command": "GetLogs", "params": {"StartTime": "", "EndTime": "", "MinSeverity": "", "Feature": "", "MaxEntries": 1}, "expect": "success"},
+              {"action": "check_response", "field": "LogEntries", "condition": "not_empty"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "script_exec",
+      "name": "Script Runner — Execution",
+      "description": "Core script execution: output capture, exit codes, error handling, and the device helper preamble",
+      "tests": [
+        {
+          "id": "exec_hello",
+          "name": "Simple print output",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Run a one-liner that prints 'hello' and verify it appears in FullOutput with exit code 0.",
+          "expected": "FullOutput contains 'hello', ExitCode == 0",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_hello", "ScriptCode": "print('hello')"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "hello"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "exec_multiline",
+          "name": "Multi-line output",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Run a script with multiple print statements and verify all lines appear in FullOutput.",
+          "expected": "FullOutput contains 'line_one', 'line_two', and 'line_three'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_multi", "ScriptCode": "print('line_one')\nprint('line_two')\nprint('line_three')"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "line_one"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "line_two"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "line_three"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "exec_computation",
+          "name": "Computation and formatted output",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Run a script that does arithmetic and string formatting, verify computed result in output.",
+          "expected": "FullOutput contains 'result=42'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_compute", "ScriptCode": "x = 6 * 7\nprint(f'result={x}')"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "result=42"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "exec_stdlib_import",
+          "name": "Standard library imports",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Verify scripts can import standard library modules (json, math, datetime).",
+          "expected": "FullOutput contains 'imports_ok'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_imports", "ScriptCode": "import json, math, datetime\nprint('imports_ok')\nprint(json.dumps({'pi': round(math.pi, 2)}))"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "imports_ok"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "3.14"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "exec_loop",
+          "name": "Loop output",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Run a script with a for loop and verify output from each iteration.",
+          "expected": "FullOutput contains 'iter_0' through 'iter_4'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_loop", "ScriptCode": "for i in range(5):\n    print(f'iter_{i}')"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "iter_0"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "iter_4"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "exec_syntax_error",
+          "name": "Syntax error produces non-zero exit code",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Run code with a syntax error. Should complete (not crash the server) with non-zero exit code and traceback in output.",
+          "expected": "ExitCode != 0, FullOutput contains 'SyntaxError'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_syntax", "ScriptCode": "this is not valid python!!!"}, "expect": "success"},
+              {"action": "check_response", "field": "ExitCode", "condition": "not_equals", "value": 0},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "SyntaxError"}
+            ]
+          }
+        },
+        {
+          "id": "exec_runtime_error",
+          "name": "Runtime exception produces non-zero exit code",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Run code that raises a runtime exception. Should produce non-zero exit code with traceback.",
+          "expected": "ExitCode != 0, FullOutput contains 'ZeroDivisionError'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_runtime", "ScriptCode": "print('before')\nx = 1 / 0\nprint('after')"}, "expect": "success"},
+              {"action": "check_response", "field": "ExitCode", "condition": "not_equals", "value": 0},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "before"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "ZeroDivisionError"},
+              {"action": "check_response", "field": "FullOutput", "condition": "not_contains", "value": "after"}
+            ]
+          }
+        },
+        {
+          "id": "exec_empty_script",
+          "name": "Empty script succeeds with exit code 0",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Run an empty (whitespace-only) script. Should succeed without error.",
+          "expected": "ExitCode == 0",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_empty", "ScriptCode": "# nothing here\n"}, "expect": "success"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "exec_preamble_banner",
+          "name": "FullOutput contains ScriptRunner banner",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Verify that ScriptRunner injects its own [ScriptRunner] Started and Finished banners into the output.",
+          "expected": "FullOutput contains '[ScriptRunner] Started' and '[ScriptRunner] Finished'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_banner", "ScriptCode": "pass"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "[ScriptRunner] Started"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "[ScriptRunner] Finished: exit_code=0"}
+            ]
+          }
+        },
+        {
+          "id": "exec_consecutive",
+          "name": "Consecutive script executions",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Run two scripts back-to-back. Verify each produces independent output (no bleed-over).",
+          "expected": "First output contains 'first_run', second contains 'second_run' and not 'first_run'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_run1", "ScriptCode": "print('first_run')"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "first_run"},
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_run2", "ScriptCode": "print('second_run')"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "second_run"},
+              {"action": "check_response", "field": "FullOutput", "condition": "not_contains", "value": "first_run"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "script_device",
+      "name": "Script Runner — Device Helper",
+      "description": "Verify the injected `device` helper object works: introspection, print, sleep",
+      "tests": [
+        {
+          "id": "dev_available",
+          "name": "device object is available",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Verify the `device` object exists and is a DeviceHelper instance.",
+          "expected": "FullOutput contains 'DeviceHelper'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_devobj", "ScriptCode": "print(type(device).__name__)\nprint(repr(device))"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "DeviceHelper"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "dev_print",
+          "name": "device.print() writes to output",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Verify device.print() sends text to the captured output stream.",
+          "expected": "FullOutput contains 'device_says_hi'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_devprint", "ScriptCode": "device.print('device_says_hi')"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "device_says_hi"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "dev_features",
+          "name": "device.features lists server features",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Verify device.features returns a list that includes MultidropCombi and ScriptRunner.",
+          "expected": "FullOutput contains 'MultidropCombi' and 'ScriptRunner'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_devfeat", "ScriptCode": "feats = device.features\nfor f in feats:\n    print(f)"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "MultidropCombi"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "ScriptRunner"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "dev_commands_list",
+          "name": "device.commands() lists feature commands",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Verify device.commands('ScriptRunner') returns known command names.",
+          "expected": "FullOutput contains 'RunScript' and 'ListScripts'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_devcmds", "ScriptCode": "cmds = device.commands('ScriptRunner')\nfor c in cmds:\n    print(c)"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "RunScript"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "ListScripts"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "dev_properties_list",
+          "name": "device.properties() lists feature properties",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Verify device.properties('ScriptRunner') returns IsRunning.",
+          "expected": "FullOutput contains 'IsRunning'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_devprops", "ScriptCode": "props = device.properties('ScriptRunner')\nfor p in props:\n    print(p)"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "IsRunning"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "dev_read_property",
+          "name": "device.property() reads a SiLA property",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Use device.property() to read the DisplayIcon property (binary). Should not crash.",
+          "expected": "FullOutput contains 'bytes' (icon is binary data), ExitCode == 0",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_devprop", "ScriptCode": "val = device.property('MultidropCombi', 'DeviceDescription')\nprint(f'type={type(val).__name__}')\nprint(f'len={len(val)}')"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "type=str"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "dev_command_sim",
+          "name": "device.command() calls SiLA command (simulation)",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Use device.command() to call Connect in simulation mode and verify the response.",
+          "expected": "FullOutput contains 'Simulated'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StartSimulationMode", "params": {}, "expect": "any"},
+              {"action": "command", "feature": "MultidropCombi", "command": "Disconnect", "params": {}, "expect": "any"},
+              {"action": "wait", "ms": 300},
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_devcmd", "ScriptCode": "import json\nresult = device.command('MultidropCombi', 'Connect', SerialPort='SIM')\nprint(json.dumps(result))"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "Simulated"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "script_persist",
+      "name": "Script Runner — Persistence",
+      "description": "Save, load, list, delete, and overwrite scripts stored on the server",
+      "tests": [
+        {
+          "id": "persist_crud",
+          "name": "Full CRUD round-trip",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Save a script, verify it appears in list, load it back, then delete it and verify it's gone.",
+          "expected": "Save/list/load/delete all succeed, code matches after load, gone after delete",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "SaveScript", "params": {"ScriptName": "test_crud_abc", "ScriptCode": "print('crud_marker')"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "ListScripts", "params": {}, "expect": "success"},
+              {"action": "check_response", "field": "Scripts", "condition": "contains", "value": "test_crud_abc"},
+              {"action": "command", "feature": "ScriptRunner", "command": "LoadScript", "params": {"ScriptName": "test_crud_abc"}, "expect": "success"},
+              {"action": "check_response", "field": "ScriptCode", "condition": "contains", "value": "crud_marker"},
+              {"action": "command", "feature": "ScriptRunner", "command": "DeleteScript", "params": {"ScriptName": "test_crud_abc"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "LoadScript", "params": {"ScriptName": "test_crud_abc"}, "expect": "error", "error_type": "ScriptNotFound"}
+            ]
+          }
+        },
+        {
+          "id": "persist_overwrite",
+          "name": "Save overwrites existing script",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Save a script, then save again with the same name but different code. Load should return the new code.",
+          "expected": "Second save overwrites first, loaded code contains 'version_two'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "SaveScript", "params": {"ScriptName": "test_overwrite", "ScriptCode": "print('version_one')"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "SaveScript", "params": {"ScriptName": "test_overwrite", "ScriptCode": "print('version_two')"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "LoadScript", "params": {"ScriptName": "test_overwrite"}, "expect": "success"},
+              {"action": "check_response", "field": "ScriptCode", "condition": "contains", "value": "version_two"},
+              {"action": "check_response", "field": "ScriptCode", "condition": "not_contains", "value": "version_one"},
+              {"action": "command", "feature": "ScriptRunner", "command": "DeleteScript", "params": {"ScriptName": "test_overwrite"}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "persist_multiple",
+          "name": "Save and list multiple scripts",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Save three scripts and verify ListScripts returns all of them.",
+          "expected": "List contains all three script names",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "SaveScript", "params": {"ScriptName": "test_multi_a", "ScriptCode": "pass"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "SaveScript", "params": {"ScriptName": "test_multi_b", "ScriptCode": "pass"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "SaveScript", "params": {"ScriptName": "test_multi_c", "ScriptCode": "pass"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "ListScripts", "params": {}, "expect": "success"},
+              {"action": "check_response", "field": "Scripts", "condition": "contains", "value": "test_multi_a"},
+              {"action": "check_response", "field": "Scripts", "condition": "contains", "value": "test_multi_b"},
+              {"action": "check_response", "field": "Scripts", "condition": "contains", "value": "test_multi_c"},
+              {"action": "command", "feature": "ScriptRunner", "command": "DeleteScript", "params": {"ScriptName": "test_multi_a"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "DeleteScript", "params": {"ScriptName": "test_multi_b"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "DeleteScript", "params": {"ScriptName": "test_multi_c"}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "persist_save_then_run",
+          "name": "Save a script then run it by loading",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Save a script, load it back, then execute the loaded code via RunScript.",
+          "expected": "RunScript output contains 'saved_and_ran'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "SaveScript", "params": {"ScriptName": "test_save_run", "ScriptCode": "print('saved_and_ran')"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "LoadScript", "params": {"ScriptName": "test_save_run"}, "expect": "success"},
+              {"action": "check_response", "field": "ScriptCode", "condition": "contains", "value": "saved_and_ran"},
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "test_save_run", "ScriptCode": "print('saved_and_ran')"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "saved_and_ran"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0},
+              {"action": "command", "feature": "ScriptRunner", "command": "DeleteScript", "params": {"ScriptName": "test_save_run"}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "persist_load_not_found",
+          "name": "LoadScript with nonexistent name",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Attempt to load a script that doesn't exist. Should return ScriptNotFound error.",
+          "expected": "ScriptNotFound error",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "LoadScript", "params": {"ScriptName": "nonexistent_script_xyz"}, "expect": "error", "error_type": "ScriptNotFound"}
+            ]
+          }
+        },
+        {
+          "id": "persist_delete_not_found",
+          "name": "DeleteScript with nonexistent name",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Attempt to delete a script that doesn't exist. Should return ScriptNotFound error.",
+          "expected": "ScriptNotFound error",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "DeleteScript", "params": {"ScriptName": "nonexistent_script_xyz"}, "expect": "error", "error_type": "ScriptNotFound"}
+            ]
+          }
+        },
+        {
+          "id": "persist_delete_idempotent",
+          "name": "Double-delete returns ScriptNotFound",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Save a script, delete it, then try to delete again. Second delete should fail with ScriptNotFound.",
+          "expected": "First delete succeeds, second returns ScriptNotFound",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "SaveScript", "params": {"ScriptName": "test_dbldelete", "ScriptCode": "pass"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "DeleteScript", "params": {"ScriptName": "test_dbldelete"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "DeleteScript", "params": {"ScriptName": "test_dbldelete"}, "expect": "error", "error_type": "ScriptNotFound"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "script_errors",
+      "name": "Script Runner — Error Handling",
+      "description": "Error conditions: StopScript when idle, AlreadyRunning guard, and graceful failures",
+      "tests": [
+        {
+          "id": "err_stop_idle",
+          "name": "StopScript when no script running",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Attempt to stop a script when none is running. Should return ScriptError.",
+          "expected": "ScriptError returned",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "StopScript", "params": {}, "expect": "error", "error_type": "ScriptError"}
+            ]
+          }
+        },
+        {
+          "id": "err_name_error",
+          "name": "NameError (undefined variable)",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Run a script referencing an undefined variable. Should produce NameError in output.",
+          "expected": "ExitCode != 0, FullOutput contains 'NameError'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_name_err", "ScriptCode": "print(undefined_variable)"}, "expect": "success"},
+              {"action": "check_response", "field": "ExitCode", "condition": "not_equals", "value": 0},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "NameError"}
+            ]
+          }
+        },
+        {
+          "id": "err_type_error",
+          "name": "TypeError (wrong argument type)",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Run a script that causes a TypeError. Should produce TypeError in output.",
+          "expected": "ExitCode != 0, FullOutput contains 'TypeError'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_type_err", "ScriptCode": "x = 'hello' + 42"}, "expect": "success"},
+              {"action": "check_response", "field": "ExitCode", "condition": "not_equals", "value": 0},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "TypeError"}
+            ]
+          }
+        },
+        {
+          "id": "err_partial_output",
+          "name": "Output captured before exception",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Verify output printed before an exception is still captured in FullOutput.",
+          "expected": "FullOutput contains 'before_crash' but not 'after_crash'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_partial", "ScriptCode": "print('before_crash')\nraise RuntimeError('boom')\nprint('after_crash')"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "before_crash"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "RuntimeError"},
+              {"action": "check_response", "field": "FullOutput", "condition": "not_contains", "value": "after_crash"},
+              {"action": "check_response", "field": "ExitCode", "condition": "not_equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "err_sys_exit",
+          "name": "sys.exit() produces matching exit code",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Verify that calling sys.exit(2) in a script sets ExitCode to 2.",
+          "expected": "ExitCode == 2",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_exit", "ScriptCode": "import sys\nprint('exiting')\nsys.exit(2)"}, "expect": "success"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 2},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "exiting"}
+            ]
+          }
+        },
+        {
+          "id": "err_clean_after_error",
+          "name": "Server stable after script error",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "After a failed script, verify the server is still responsive by running a successful script.",
+          "expected": "First fails, second succeeds with ExitCode 0",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_err", "ScriptCode": "raise Exception('intentional')"}, "expect": "success"},
+              {"action": "check_response", "field": "ExitCode", "condition": "not_equals", "value": 0},
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_ok", "ScriptCode": "print('recovered')"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "recovered"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

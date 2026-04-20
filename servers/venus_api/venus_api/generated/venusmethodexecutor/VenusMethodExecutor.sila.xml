@@ -1,0 +1,420 @@
+<Feature xmlns="http://www.sila-standard.org" Category="extended" FeatureVersion="1.0" MaturityLevel="Draft" Originator="calico.automation" SiLA2Version="1.1">
+  <Identifier>VenusMethodExecutor</Identifier>
+  <DisplayName>Venus Method Executor</DisplayName>
+  <Description>Wraps the Hamilton VENUS Web API (REST + SignalR) as a SiLA 2 Feature.
+        Exposes method loading, execution with progress tracking, pause/resume/abort,
+        device info, and run data retrieval. Uses Observable Properties for
+        real-time state push via SSE to the React WebUI.</Description>
+  <!-- ============================================================ -->
+  <!-- OBSERVABLE COMMANDS                                           -->
+  <!-- ============================================================ -->
+  <Command>
+    <Identifier>LoadMethod</Identifier>
+    <DisplayName>Load Method</DisplayName>
+    <Description>Loads a VENUS method file. Calls PUT /execution/load and waits for
+            the executor to reach Initialized state via SignalR notifications.</Description>
+    <Observable>Yes</Observable>
+    <Parameter>
+      <Identifier>FilePath</Identifier>
+      <DisplayName>File Path</DisplayName>
+      <Description>Full path to the VENUS method file (.med) on the VENUS PC.</Description>
+      <DataType>
+        <Basic>String</Basic>
+      </DataType>
+    </Parameter>
+    <Parameter>
+      <Identifier>Simulation</Identifier>
+      <DisplayName>Simulation</DisplayName>
+      <Description>Whether to run the method in VENUS simulation mode.</Description>
+      <DataType>
+        <Basic>Boolean</Basic>
+      </DataType>
+    </Parameter>
+    <Response>
+      <Identifier>LoadResult</Identifier>
+      <DisplayName>Load Result</DisplayName>
+      <Description>JSON string with load result details.</Description>
+      <DataType>
+        <Basic>String</Basic>
+      </DataType>
+    </Response>
+    <IntermediateResponse>
+      <Identifier>StatusUpdate</Identifier>
+      <DisplayName>Status Update</DisplayName>
+      <Description>Status updates during method loading.</Description>
+      <DataType>
+        <Basic>String</Basic>
+      </DataType>
+    </IntermediateResponse>
+    <DefinedExecutionErrors>
+      <Identifier>ConnectionError</Identifier>
+      <Identifier>InvalidState</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <Command>
+    <Identifier>StartMethod</Identifier>
+    <DisplayName>Start Method</DisplayName>
+    <Description>Starts execution of the currently loaded method. Calls POST /execution/start
+            and reports progress via SignalR OnProgressChanged events. Completes when
+            the executor reaches Terminated state.</Description>
+    <Observable>Yes</Observable>
+    <Response>
+      <Identifier>FinalStatus</Identifier>
+      <DisplayName>Final Status</DisplayName>
+      <Description>Final execution status as a JSON string.</Description>
+      <DataType>
+        <Basic>String</Basic>
+      </DataType>
+    </Response>
+    <IntermediateResponse>
+      <Identifier>ProgressUpdate</Identifier>
+      <DisplayName>Progress Update</DisplayName>
+      <Description>JSON string with progress percentage, elapsed time, and remaining time.</Description>
+      <DataType>
+        <Basic>String</Basic>
+      </DataType>
+    </IntermediateResponse>
+    <DefinedExecutionErrors>
+      <Identifier>ConnectionError</Identifier>
+      <Identifier>MethodNotLoaded</Identifier>
+      <Identifier>InvalidState</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <!-- ============================================================ -->
+  <!-- UNOBSERVABLE COMMANDS                                         -->
+  <!-- ============================================================ -->
+  <Command>
+    <Identifier>PauseMethod</Identifier>
+    <DisplayName>Pause Method</DisplayName>
+    <Description>Pauses the currently running method execution.</Description>
+    <Observable>No</Observable>
+    <DefinedExecutionErrors>
+      <Identifier>ConnectionError</Identifier>
+      <Identifier>MethodNotLoaded</Identifier>
+      <Identifier>InvalidState</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <Command>
+    <Identifier>ResumeMethod</Identifier>
+    <DisplayName>Resume Method</DisplayName>
+    <Description>Resumes a paused method execution.</Description>
+    <Observable>No</Observable>
+    <DefinedExecutionErrors>
+      <Identifier>ConnectionError</Identifier>
+      <Identifier>MethodNotLoaded</Identifier>
+      <Identifier>InvalidState</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <Command>
+    <Identifier>AbortMethod</Identifier>
+    <DisplayName>Abort Method</DisplayName>
+    <Description>Aborts the currently running method execution.</Description>
+    <Observable>No</Observable>
+    <DefinedExecutionErrors>
+      <Identifier>ConnectionError</Identifier>
+      <Identifier>MethodNotLoaded</Identifier>
+      <Identifier>InvalidState</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <Command>
+    <Identifier>UnloadMethod</Identifier>
+    <DisplayName>Unload Method</DisplayName>
+    <Description>Unloads the currently loaded method.</Description>
+    <Observable>No</Observable>
+    <DefinedExecutionErrors>
+      <Identifier>ConnectionError</Identifier>
+      <Identifier>InvalidState</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <Command>
+    <Identifier>GetDevices</Identifier>
+    <DisplayName>Get Devices</DisplayName>
+    <Description>Returns the list of runtime devices as a JSON string.</Description>
+    <Observable>No</Observable>
+    <Response>
+      <Identifier>DevicesJson</Identifier>
+      <DisplayName>Devices JSON</DisplayName>
+      <Description>JSON array of runtime device objects.</Description>
+      <DataType>
+        <Basic>String</Basic>
+      </DataType>
+    </Response>
+    <DefinedExecutionErrors>
+      <Identifier>ConnectionError</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <Command>
+    <Identifier>GetDeckLayout</Identifier>
+    <DisplayName>Get Deck Layout</DisplayName>
+    <Description>Returns the deck layout for a specific device as a JSON string.</Description>
+    <Observable>No</Observable>
+    <Parameter>
+      <Identifier>DeviceId</Identifier>
+      <DisplayName>Device ID</DisplayName>
+      <Description>The numeric ID of the device.</Description>
+      <DataType>
+        <Basic>Integer</Basic>
+      </DataType>
+    </Parameter>
+    <Response>
+      <Identifier>DeckLayoutJson</Identifier>
+      <DisplayName>Deck Layout JSON</DisplayName>
+      <Description>JSON object with deck layout details.</Description>
+      <DataType>
+        <Basic>String</Basic>
+      </DataType>
+    </Response>
+    <DefinedExecutionErrors>
+      <Identifier>ConnectionError</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <Command>
+    <Identifier>GetCurrentRunData</Identifier>
+    <DisplayName>Get Current Run Data</DisplayName>
+    <Description>Returns the current run data as a JSON string.</Description>
+    <Observable>No</Observable>
+    <Response>
+      <Identifier>RunDataJson</Identifier>
+      <DisplayName>Run Data JSON</DisplayName>
+      <Description>JSON object with current run data.</Description>
+      <DataType>
+        <Basic>String</Basic>
+      </DataType>
+    </Response>
+    <DefinedExecutionErrors>
+      <Identifier>ConnectionError</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <Command>
+    <Identifier>GetRuntimeData</Identifier>
+    <DisplayName>Get Runtime Data</DisplayName>
+    <Description>Returns the list of runtime data entries as a JSON string.</Description>
+    <Observable>No</Observable>
+    <Response>
+      <Identifier>RuntimeDataJson</Identifier>
+      <DisplayName>Runtime Data JSON</DisplayName>
+      <Description>JSON array of runtime data entries.</Description>
+      <DataType>
+        <Basic>String</Basic>
+      </DataType>
+    </Response>
+    <DefinedExecutionErrors>
+      <Identifier>ConnectionError</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <Command>
+    <Identifier>GetDetailedRunData</Identifier>
+    <DisplayName>Get Detailed Run Data</DisplayName>
+    <Description>Returns detailed run data for a specific run as a JSON string.</Description>
+    <Observable>No</Observable>
+    <Parameter>
+      <Identifier>RunGuid</Identifier>
+      <DisplayName>Run GUID</DisplayName>
+      <Description>The GUID identifying the run.</Description>
+      <DataType>
+        <Basic>String</Basic>
+      </DataType>
+    </Parameter>
+    <Response>
+      <Identifier>DetailedRunDataJson</Identifier>
+      <DisplayName>Detailed Run Data JSON</DisplayName>
+      <Description>JSON object with detailed run data.</Description>
+      <DataType>
+        <Basic>String</Basic>
+      </DataType>
+    </Response>
+    <DefinedExecutionErrors>
+      <Identifier>ConnectionError</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <Command>
+    <Identifier>GetRuntimeDevices</Identifier>
+    <DisplayName>Get Runtime Devices</DisplayName>
+    <Description>Returns devices used in the currently loaded method, including their
+            numeric device IDs (needed for GetDeckLayout). Requires a method to be loaded.</Description>
+    <Observable>No</Observable>
+    <Response>
+      <Identifier>RuntimeDevicesJson</Identifier>
+      <DisplayName>Runtime Devices JSON</DisplayName>
+      <Description>JSON array of runtime device objects with deviceId, deviceName, simulation, etc.</Description>
+      <DataType>
+        <Basic>String</Basic>
+      </DataType>
+    </Response>
+    <DefinedExecutionErrors>
+      <Identifier>ConnectionError</Identifier>
+      <Identifier>MethodNotLoaded</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <Command>
+    <Identifier>GetLoadedMethod</Identifier>
+    <DisplayName>Get Loaded Method</DisplayName>
+    <Description>Returns the fully-qualified file path of the currently loaded method.</Description>
+    <Observable>No</Observable>
+    <Response>
+      <Identifier>MethodPath</Identifier>
+      <DisplayName>Method Path</DisplayName>
+      <Description>Full path to the loaded method file, or empty if none is loaded.</Description>
+      <DataType>
+        <Basic>String</Basic>
+      </DataType>
+    </Response>
+    <DefinedExecutionErrors>
+      <Identifier>ConnectionError</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <Command>
+    <Identifier>GetRunState</Identifier>
+    <DisplayName>Get Run State</DisplayName>
+    <Description>Returns the current run state from the VENUS executor as an integer enum value.</Description>
+    <Observable>No</Observable>
+    <Response>
+      <Identifier>RunState</Identifier>
+      <DisplayName>Run State</DisplayName>
+      <Description>Integer value of the RunState enum from VENUS.</Description>
+      <DataType>
+        <Basic>Integer</Basic>
+      </DataType>
+    </Response>
+    <DefinedExecutionErrors>
+      <Identifier>ConnectionError</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <Command>
+    <Identifier>GetMethodFiles</Identifier>
+    <DisplayName>Get Method Files</DisplayName>
+    <Description>Returns a list of VENUS method files (.med) found in the configured method
+            directory. Scans the directory recursively for .med files.</Description>
+    <Observable>No</Observable>
+    <Response>
+      <Identifier>MethodFilesJson</Identifier>
+      <DisplayName>Method Files JSON</DisplayName>
+      <Description>JSON array of method file paths found in the directory.</Description>
+      <DataType>
+        <Basic>String</Basic>
+      </DataType>
+    </Response>
+    <DefinedExecutionErrors>
+      <Identifier>InvalidState</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <Command>
+    <Identifier>SetMethodDirectory</Identifier>
+    <DisplayName>Set Method Directory</DisplayName>
+    <Description>Sets the directory path used by GetMethodFiles to search for VENUS method files.</Description>
+    <Observable>No</Observable>
+    <Parameter>
+      <Identifier>Directory</Identifier>
+      <DisplayName>Directory</DisplayName>
+      <Description>Full path to the directory containing VENUS method files (.med).</Description>
+      <DataType>
+        <Basic>String</Basic>
+      </DataType>
+    </Parameter>
+    <DefinedExecutionErrors>
+      <Identifier>InvalidState</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <!-- ============================================================ -->
+  <!-- PROPERTIES                                                    -->
+  <!-- ============================================================ -->
+  <Property>
+    <Identifier>RuntimeStatus</Identifier>
+    <DisplayName>Runtime Status</DisplayName>
+    <Description>Last known executor status: Undefined, Initialized, Running, Paused, Aborted, or Terminated.</Description>
+    <Observable>Yes</Observable>
+    <DataType>
+      <Basic>String</Basic>
+    </DataType>
+  </Property>
+  <Property>
+    <Identifier>IsMethodLoaded</Identifier>
+    <DisplayName>Is Method Loaded</DisplayName>
+    <Description>Whether a VENUS method is currently loaded.</Description>
+    <Observable>Yes</Observable>
+    <DataType>
+      <Basic>Boolean</Basic>
+    </DataType>
+  </Property>
+  <Property>
+    <Identifier>BaseUrl</Identifier>
+    <DisplayName>Base URL</DisplayName>
+    <Description>The base URL of the Venus Web API.</Description>
+    <Observable>Yes</Observable>
+    <DataType>
+      <Basic>String</Basic>
+    </DataType>
+  </Property>
+  <Property>
+    <Identifier>RuntimeTrace</Identifier>
+    <DisplayName>Runtime Trace</DisplayName>
+    <Description>Latest runtime trace message from SignalR notifications.</Description>
+    <Observable>Yes</Observable>
+    <DataType>
+      <Basic>String</Basic>
+    </DataType>
+  </Property>
+  <Property>
+    <Identifier>MethodDirectory</Identifier>
+    <DisplayName>Method Directory</DisplayName>
+    <Description>The directory path used to search for VENUS method files (.med).</Description>
+    <Observable>Yes</Observable>
+    <DataType>
+      <Basic>String</Basic>
+    </DataType>
+  </Property>
+  <Property>
+    <Identifier>DeviceStatus</Identifier>
+    <DisplayName>Device Status</DisplayName>
+    <Description>Full device status as a JSON string, pushed on every state change for SSE-driven WebUI updates.</Description>
+    <Observable>Yes</Observable>
+    <DataType>
+      <Basic>String</Basic>
+    </DataType>
+  </Property>
+  <Property>
+    <Identifier>ServerLog</Identifier>
+    <DisplayName>Server Log</DisplayName>
+    <Description>Recent server log entries (last 200 lines).</Description>
+    <Observable>No</Observable>
+    <DataType>
+      <Basic>String</Basic>
+    </DataType>
+  </Property>
+  <Property>
+    <Identifier>DisplayIcon</Identifier>
+    <DisplayName>Display Icon</DisplayName>
+    <Description>PNG icon representing this instrument, for display in client UIs.</Description>
+    <Observable>No</Observable>
+    <DataType>
+      <Basic>Binary</Basic>
+    </DataType>
+  </Property>
+  <Property>
+    <Identifier>DeviceDescription</Identifier>
+    <DisplayName>Device Description</DisplayName>
+    <Description>Rich text description of device capabilities for LLM system prompts.</Description>
+    <Observable>No</Observable>
+    <DataType>
+      <Basic>String</Basic>
+    </DataType>
+  </Property>
+  <!-- ============================================================ -->
+  <!-- DEFINED EXECUTION ERRORS                                      -->
+  <!-- ============================================================ -->
+  <DefinedExecutionError>
+    <Identifier>ConnectionError</Identifier>
+    <DisplayName>Connection Error</DisplayName>
+    <Description>Cannot reach the Venus Web API at the configured base URL.</Description>
+  </DefinedExecutionError>
+  <DefinedExecutionError>
+    <Identifier>MethodNotLoaded</Identifier>
+    <DisplayName>Method Not Loaded</DisplayName>
+    <Description>The requested operation requires a method to be loaded first.</Description>
+  </DefinedExecutionError>
+  <DefinedExecutionError>
+    <Identifier>InvalidState</Identifier>
+    <DisplayName>Invalid State</DisplayName>
+    <Description>The requested operation is not valid in the current executor state.</Description>
+  </DefinedExecutionError>
+</Feature>

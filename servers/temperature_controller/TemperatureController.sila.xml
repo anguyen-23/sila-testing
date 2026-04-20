@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Feature xmlns="http://www.sila-standard.org"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         SiLA2Version="1.1"
+         FeatureVersion="1.0"
+         Originator="calico.automation"
+         Category="extended"
+         MaturityLevel="Draft">
+
+    <Identifier>TemperatureController</Identifier>
+    <DisplayName>Temperature Controller</DisplayName>
+    <Description>
+        Controls a simulated heating/cooling device (e.g., a hot plate or incubator).
+        Demonstrates observable commands with progress tracking, observable properties
+        with live updates, defined execution errors, and simulation mode branching.
+        This is a learning feature, not intended for production use.
+    </Description>
+
+    <!-- ============================================================ -->
+    <!-- COMMANDS                                                      -->
+    <!-- ============================================================ -->
+
+    <!-- Observable Command: ramp to a target temperature over time -->
+    <Command>
+        <Identifier>SetTemperature</Identifier>
+        <DisplayName>Set Temperature</DisplayName>
+        <Description>
+            Ramps the device to the specified target temperature. This is an
+            observable command so the client can monitor progress, estimated
+            remaining time, and receive intermediate temperature readings
+            as the device ramps.
+        </Description>
+        <Observable>Yes</Observable>
+        <Parameter>
+            <Identifier>TargetTemperature</Identifier>
+            <DisplayName>Target Temperature</DisplayName>
+            <Description>The desired temperature setpoint in degrees Celsius.</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>Real</Basic></DataType>
+                    <Constraints>
+                        <Unit>
+                            <Label>degC</Label>
+                            <Factor>1</Factor>
+                            <Offset>273.15</Offset>
+                            <UnitComponent>
+                                <SIUnit>Kelvin</SIUnit>
+                                <Exponent>1</Exponent>
+                            </UnitComponent>
+                        </Unit>
+                        <MinimalInclusive>-20</MinimalInclusive>
+                        <MaximalInclusive>200</MaximalInclusive>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>RampRate</Identifier>
+            <DisplayName>Ramp Rate</DisplayName>
+            <Description>
+                How fast to change temperature, in degrees Celsius per second.
+                Use a small value (e.g., 0.5) for a slow observable ramp.
+            </Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>Real</Basic></DataType>
+                    <Constraints>
+                        <MinimalExclusive>0</MinimalExclusive>
+                        <MaximalInclusive>50</MaximalInclusive>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <Response>
+            <Identifier>FinalTemperature</Identifier>
+            <DisplayName>Final Temperature</DisplayName>
+            <Description>The actual temperature reached at the end of the ramp.</Description>
+            <DataType><Basic>Real</Basic></DataType>
+        </Response>
+        <IntermediateResponse>
+            <Identifier>CurrentTemperature</Identifier>
+            <DisplayName>Current Temperature</DisplayName>
+            <Description>The current temperature during the ramp, reported periodically.</Description>
+            <DataType><Basic>Real</Basic></DataType>
+        </IntermediateResponse>
+        <DefinedExecutionErrors>
+            <Identifier>OverTemperature</Identifier>
+            <Identifier>HeaterFault</Identifier>
+        </DefinedExecutionErrors>
+    </Command>
+
+    <!-- Unobservable Command: immediately stop heating/cooling -->
+    <Command>
+        <Identifier>StopTemperatureControl</Identifier>
+        <DisplayName>Stop Temperature Control</DisplayName>
+        <Description>
+            Immediately stops any active heating or cooling. The device will
+            drift toward ambient temperature. This is an unobservable command
+            (simple request/response).
+        </Description>
+        <Observable>No</Observable>
+        <Response>
+            <Identifier>TemperatureAtStop</Identifier>
+            <DisplayName>Temperature At Stop</DisplayName>
+            <Description>The temperature reading at the moment control was stopped.</Description>
+            <DataType><Basic>Real</Basic></DataType>
+        </Response>
+    </Command>
+
+    <!-- Unobservable Command: get a status summary -->
+    <Command>
+        <Identifier>GetDeviceStatus</Identifier>
+        <DisplayName>Get Device Status</DisplayName>
+        <Description>
+            Returns a human-readable status string describing the current state
+            of the temperature controller (e.g., "Idle at 22.5 degC",
+            "Ramping to 80.0 degC", "Fault: Heater disconnected").
+        </Description>
+        <Observable>No</Observable>
+        <Response>
+            <Identifier>StatusMessage</Identifier>
+            <DisplayName>Status Message</DisplayName>
+            <Description>A human-readable status string.</Description>
+            <DataType><Basic>String</Basic></DataType>
+        </Response>
+    </Command>
+
+    <!-- ============================================================ -->
+    <!-- PROPERTIES                                                    -->
+    <!-- ============================================================ -->
+
+    <!-- Observable Property: current temperature (live updates) -->
+    <Property>
+        <Identifier>CurrentTemperature</Identifier>
+        <DisplayName>Current Temperature</DisplayName>
+        <Description>
+            The current temperature of the device in degrees Celsius. This is
+            observable, so clients can subscribe and receive live updates.
+        </Description>
+        <Observable>Yes</Observable>
+        <DataType><Basic>Real</Basic></DataType>
+    </Property>
+
+    <!-- Unobservable Property: the active setpoint -->
+    <Property>
+        <Identifier>TargetTemperature</Identifier>
+        <DisplayName>Target Temperature</DisplayName>
+        <Description>
+            The current target temperature setpoint in degrees Celsius, or NaN
+            if no setpoint is active.
+        </Description>
+        <Observable>No</Observable>
+        <DataType><Basic>Real</Basic></DataType>
+    </Property>
+
+    <!-- Unobservable Property: is the device actively controlling temperature? -->
+    <Property>
+        <Identifier>IsControlling</Identifier>
+        <DisplayName>Is Controlling</DisplayName>
+        <Description>
+            Whether the device is actively controlling temperature (ramping or
+            holding at a setpoint). False when idle or stopped.
+        </Description>
+        <Observable>No</Observable>
+        <DataType><Basic>Boolean</Basic></DataType>
+    </Property>
+
+    <!-- ============================================================ -->
+    <!-- DEFINED EXECUTION ERRORS                                      -->
+    <!-- ============================================================ -->
+
+    <DefinedExecutionError>
+        <Identifier>OverTemperature</Identifier>
+        <DisplayName>Over Temperature</DisplayName>
+        <Description>
+            The device has exceeded its safe operating temperature limit.
+            This is a safety error that halts all heating.
+        </Description>
+    </DefinedExecutionError>
+
+    <DefinedExecutionError>
+        <Identifier>HeaterFault</Identifier>
+        <DisplayName>Heater Fault</DisplayName>
+        <Description>
+            A hardware fault was detected in the heater (e.g., open circuit,
+            sensor disconnected). In simulation mode, this can be triggered
+            deliberately for testing error handling.
+        </Description>
+    </DefinedExecutionError>
+
+</Feature>

@@ -1,0 +1,102 @@
+---
+# Per-server Windows deployment (runs once per server in the sila_servers list)
+# Variables sila_package, sila_port, sila_extra_args are set by the caller loop.
+
+- name: "{{ sila_package }}: Create install directory"
+  win_file:
+    path: "{{ sila_install_dir_windows }}\\{{ sila_package }}"
+    state: directory
+
+- name: "{{ sila_package }}: Sync sila_server_common package"
+  win_copy:
+    src: "{{ sila_repo_path }}/packages/sila_server_common/"
+    dest: "{{ sila_install_dir_windows }}\\{{ sila_package }}\\sila_server_common\\"
+
+- name: "{{ sila_package }}: Sync server package from control node"
+  win_copy:
+    src: "{{ sila_repo_path }}/servers/{{ sila_package }}/"
+    dest: "{{ sila_install_dir_windows }}\\{{ sila_package }}\\"
+
+- name: "{{ sila_package }}: Sync requirements.txt"
+  win_copy:
+    src: "{{ sila_repo_path }}/requirements.txt"
+    dest: "{{ sila_install_dir_windows }}\\{{ sila_package }}\\requirements.txt"
+
+- name: "{{ sila_package }}: Create virtual environment"
+  win_command: >
+    {{ python_executable_windows }} -m venv
+    {{ sila_install_dir_windows }}\{{ sila_package }}\{{ sila_venv_dir }}
+  args:
+    creates: "{{ sila_install_dir_windows }}\\{{ sila_package }}\\{{ sila_venv_dir }}\\Scripts\\python.exe"
+
+- name: "{{ sila_package }}: Install dependencies"
+  win_command: >
+    {{ sila_install_dir_windows }}\{{ sila_package }}\{{ sila_venv_dir }}\Scripts\pip.exe
+    install -r requirements.txt
+  args:
+    chdir: "{{ sila_install_dir_windows }}\\{{ sila_package }}"
+
+- name: "{{ sila_package }}: Install sila_server_common in editable mode"
+  win_command: >
+    {{ sila_install_dir_windows }}\{{ sila_package }}\{{ sila_venv_dir }}\Scripts\pip.exe
+    install -e sila_server_common
+  args:
+    chdir: "{{ sila_install_dir_windows }}\\{{ sila_package }}"
+
+- name: "{{ sila_package }}: Install server package in editable mode"
+  win_command: >
+    {{ sila_install_dir_windows }}\{{ sila_package }}\{{ sila_venv_dir }}\Scripts\pip.exe
+    install -e .
+  args:
+    chdir: "{{ sila_install_dir_windows }}\\{{ sila_package }}"
+
+- name: "{{ sila_package }}: Create run script"
+  win_template:
+    src: run-server.bat.j2
+    dest: "{{ sila_install_dir_windows }}\\{{ sila_package }}\\run-server.bat"
+
+- name: "{{ sila_package }}: Check if nssm exists"
+  win_stat:
+    path: "{{ nssm_path }}"
+  register: nssm_check
+
+- name: "{{ sila_package }}: Warn if nssm not found"
+  debug:
+    msg: >
+      nssm not found at {{ nssm_path }}.
+      Install via: winget install nssm
+  when: not nssm_check.stat.exists
+
+- name: "{{ sila_package }}: Install service via nssm"
+  win_command: >
+    {{ nssm_path }} install {{ sila_service_prefix }}-{{ sila_package }}
+    {{ sila_install_dir_windows }}\{{ sila_package }}\run-server.bat
+  register: nssm_install
+  failed_when: nssm_install.rc not in [0, 5]
+  when: nssm_check.stat.exists
+  # rc=5 means service already exists
+
+- name: "{{ sila_package }}: Set service description"
+  win_command: >
+    {{ nssm_path }} set {{ sila_service_prefix }}-{{ sila_package }}
+    Description "SiLA 2 {{ sila_package }} server (port {{ sila_port }})"
+  when: nssm_check.stat.exists and nssm_install.rc == 0
+
+- name: "{{ sila_package }}: Set service to auto-start"
+  win_command: >
+    {{ nssm_path }} set {{ sila_service_prefix }}-{{ sila_package }}
+    Start SERVICE_AUTO_START
+  when: nssm_check.stat.exists
+
+- name: "{{ sila_package }}: Stop the service"
+  win_command: >
+    {{ nssm_path }} stop {{ sila_service_prefix }}-{{ sila_package }}
+  when: nssm_check.stat.exists
+  failed_when: false
+
+- name: "{{ sila_package }}: Start the service"
+  win_command: >
+    {{ nssm_path }} start {{ sila_service_prefix }}-{{ sila_package }}
+  when: nssm_check.stat.exists
+  register: sila_start
+  failed_when: sila_start.rc not in [0, 5]

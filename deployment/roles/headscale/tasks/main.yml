@@ -1,0 +1,110 @@
+---
+# Install and configure Headscale on a Linux host (WSL2 or native).
+# Requires: sudo/become
+
+- name: Check if Headscale is installed
+  command: headscale version
+  register: hs_version
+  failed_when: false
+  changed_when: false
+
+- name: Download Headscale .deb package
+  get_url:
+    url: "{{ headscale_base_url }}/v{{ headscale_version }}/headscale_{{ headscale_version }}_linux_{{ headscale_arch }}.deb"
+    dest: "/tmp/headscale.deb"
+  when: hs_version.rc != 0 or headscale_version not in (hs_version.stdout | default(''))
+
+- name: Install Headscale .deb
+  apt:
+    deb: /tmp/headscale.deb
+  become: true
+  when: hs_version.rc != 0 or headscale_version not in (hs_version.stdout | default(''))
+
+- name: Create Headscale directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  become: true
+  loop:
+    - "{{ headscale_config_dir }}"
+    - "{{ headscale_data_dir }}"
+    - "{{ headscale_run_dir }}"
+
+- name: Deploy Headscale config
+  template:
+    src: config.yaml.j2
+    dest: "{{ headscale_config_dir }}/config.yaml"
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  notify: restart headscale
+
+- name: Check if systemd is available
+  command: systemctl --version
+  register: systemd_check
+  failed_when: false
+  changed_when: false
+
+# --- systemd path (native Linux or WSL2 with systemd) ---
+
+- name: Enable and start Headscale service (systemd)
+  systemd:
+    name: headscale
+    enabled: true
+    state: started
+    daemon_reload: true
+  become: true
+  when: systemd_check.rc == 0
+
+# --- fallback for WSL2 without systemd ---
+
+- name: Check if Headscale is already running (no systemd)
+  shell: pgrep -f "headscale serve" || true
+  register: hs_pgrep
+  changed_when: false
+  when: systemd_check.rc != 0
+
+- name: Start Headscale in background (no systemd)
+  shell: >
+    nohup headscale serve > /var/log/headscale.log 2>&1 &
+  become: true
+  when: systemd_check.rc != 0 and hs_pgrep.stdout == ""
+
+- name: Wait for Headscale to be ready
+  uri:
+    url: "http://127.0.0.1:{{ headscale_listen_port }}/health"
+    status_code: [200]
+  register: hs_health
+  retries: 10
+  delay: 2
+  until: hs_health.status == 200
+
+- name: Create Headscale user
+  command: headscale users create {{ headscale_user }}
+  become: true
+  register: hs_user_create
+  failed_when: hs_user_create.rc != 0 and 'already exists' not in (hs_user_create.stderr | default(''))
+  changed_when: "'already exists' not in (hs_user_create.stderr | default(''))"
+
+- name: Create pre-auth key
+  command: headscale preauthkeys create --user {{ headscale_user }} --reusable --expiration 720h
+  become: true
+  register: hs_preauthkey
+  changed_when: true
+
+- name: Display pre-auth key
+  debug:
+    msg: >
+      Headscale pre-auth key created.
+      Store this in your vault as vault_tailscale_auth_key:
+      {{ hs_preauthkey.stdout_lines | last }}
+
+- name: Display Headscale server URL
+  debug:
+    msg: >
+      Headscale is running at: {{ headscale_server_url }}
+      Set headscale_server_url in inventory/group_vars/all.yml to this value.

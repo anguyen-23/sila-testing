@@ -1,0 +1,23 @@
+[project]
+name = "micronic_tube_scanner"
+version = "1.0.0"
+requires-python = ">=3.10"
+dependencies = [
+    "sila2",
+    "typer",
+    "requests",
+    "websockets",
+]
+
+[build-system]
+requires = ["setuptools>=61.0.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["micronic_tube_scanner*"]
+
+[tool.setuptools.package-data]
+"micronic_tube_scanner.generated" = [
+    "*/*.sila.xml",
+    "*/*.proto",
+]

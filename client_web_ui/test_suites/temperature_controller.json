@@ -1,0 +1,956 @@
+{
+  "name": "Temperature Controller — Production Readiness Test Suite",
+  "description": "Comprehensive test checklist for validating the Temperature Controller SiLA 2 server prior to production deployment. Covers temperature control, parameter validation, simulation mode switching, and standard features. Tests can be run in Simulation mode (no hardware) or Real mode (requires instrument).",
+  "server": {
+    "default_host": "127.0.0.1",
+    "default_port": 50052,
+    "feature_id": "TemperatureController",
+    "connection": null,
+    "variables": {}
+  },
+  "categories": [
+    {
+      "id": "sim",
+      "name": "Simulation Mode Switching",
+      "description": "SimulationController mode switching and state reset behavior",
+      "tests": [
+        {
+          "id": "sim_start",
+          "name": "Enter simulation mode",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Start simulation mode and verify IsSimulation property becomes true.",
+          "expected": "StartSimulationMode succeeds, IsSimulation = true",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StartSimulationMode", "params": {}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "sim_stop",
+          "name": "Exit simulation mode",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Stop simulation mode and verify IsSimulation property becomes false.",
+          "expected": "StopSimulationMode succeeds, IsSimulation = false",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StopSimulationMode", "params": {}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "sim_switch_resets_state",
+          "name": "Mode switch resets device state",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Start sim, run a temperature control, switch modes, verify state resets.",
+          "expected": "After mode switch, GetDeviceStatus shows reset state",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StartSimulationMode", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "TemperatureController", "command": "SetTemperature", "params": {"TargetTemperature": 37.0, "RampRate": 5.0}, "expect": "success"},
+              {"action": "command", "feature": "SimulationController", "command": "StopSimulationMode", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "SimulationController", "command": "StartSimulationMode", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "TemperatureController", "command": "GetDeviceStatus", "params": {}, "expect": "success"},
+              {"action": "check_response", "field": "StatusMessage", "condition": "not_empty"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "temp",
+      "name": "Temperature Control",
+      "description": "Core temperature control commands and status queries",
+      "tests": [
+        {
+          "id": "temp_set_sim",
+          "name": "SetTemperature in simulation mode",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Set target temperature to 37°C with 5°C/min ramp in simulation mode.",
+          "expected": "SetTemperature succeeds, FinalTemperature returned",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StartSimulationMode", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "TemperatureController", "command": "SetTemperature", "params": {"TargetTemperature": 37.0, "RampRate": 5.0}, "expect": "success"},
+              {"action": "check_response", "field": "FinalTemperature", "condition": "not_empty"}
+            ]
+          }
+        },
+        {
+          "id": "temp_set_real",
+          "name": "SetTemperature in real mode",
+          "type": "scripted",
+          "modes": ["real"],
+          "description": "Set target temperature to 37°C with 5°C/min ramp in real mode.",
+          "expected": "SetTemperature succeeds, FinalTemperature returned",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StopSimulationMode", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "TemperatureController", "command": "SetTemperature", "params": {"TargetTemperature": 37.0, "RampRate": 5.0}, "expect": "success"},
+              {"action": "check_response", "field": "FinalTemperature", "condition": "not_empty"}
+            ]
+          }
+        },
+        {
+          "id": "temp_get_status",
+          "name": "GetDeviceStatus returns status message",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Query device status and verify StatusMessage is returned.",
+          "expected": "StatusMessage not empty",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "TemperatureController", "command": "GetDeviceStatus", "params": {}, "expect": "success"},
+              {"action": "check_response", "field": "StatusMessage", "condition": "not_empty"}
+            ]
+          }
+        },
+        {
+          "id": "temp_stop",
+          "name": "StopTemperatureControl interrupts control",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Start temperature control, then stop it and verify TemperatureAtStop is returned.",
+          "expected": "StopTemperatureControl succeeds, TemperatureAtStop returned",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StartSimulationMode", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "TemperatureController", "command": "SetTemperature", "params": {"TargetTemperature": 37.0, "RampRate": 5.0}, "expect": "success"},
+              {"action": "command", "feature": "TemperatureController", "command": "StopTemperatureControl", "params": {}, "expect": "success"},
+              {"action": "check_response", "field": "TemperatureAtStop", "condition": "not_empty"}
+            ]
+          }
+        },
+        {
+          "id": "temp_slow_ramp",
+          "name": "Slow ramp rate (1°C/min)",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Set temperature to 50°C with slow ramp rate of 1°C/min.",
+          "expected": "SetTemperature succeeds with slow ramp",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StartSimulationMode", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "TemperatureController", "command": "SetTemperature", "params": {"TargetTemperature": 50.0, "RampRate": 1.0}, "expect": "success"},
+              {"action": "check_response", "field": "FinalTemperature", "condition": "not_empty"}
+            ]
+          }
+        },
+        {
+          "id": "temp_idle_status",
+          "name": "Status query when idle",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Query status when no temperature control is active.",
+          "expected": "StatusMessage returned successfully",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StartSimulationMode", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "TemperatureController", "command": "GetDeviceStatus", "params": {}, "expect": "success"},
+              {"action": "check_response", "field": "StatusMessage", "condition": "not_empty"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "validation",
+      "name": "Parameter Validation",
+      "description": "Test parameter boundary conditions and invalid inputs",
+      "tests": [
+        {
+          "id": "val_temp_min",
+          "name": "Minimum temperature (-20°C)",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Set temperature to minimum allowed value (-20°C).",
+          "expected": "SetTemperature succeeds at -20°C",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StartSimulationMode", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "TemperatureController", "command": "SetTemperature", "params": {"TargetTemperature": -20.0, "RampRate": 5.0}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "val_temp_max",
+          "name": "Maximum temperature (200°C)",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Set temperature to maximum allowed value (200°C).",
+          "expected": "SetTemperature succeeds at 200°C",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StartSimulationMode", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "TemperatureController", "command": "SetTemperature", "params": {"TargetTemperature": 200.0, "RampRate": 5.0}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "val_temp_over",
+          "name": "Over-temperature (201°C)",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Attempt to set temperature above maximum (201°C).",
+          "expected": "Error returned for over-temperature",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StartSimulationMode", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "TemperatureController", "command": "SetTemperature", "params": {"TargetTemperature": 201.0, "RampRate": 5.0}, "expect": "error"}
+            ]
+          }
+        },
+        {
+          "id": "val_temp_under",
+          "name": "Under-temperature (-21°C)",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Attempt to set temperature below minimum (-21°C).",
+          "expected": "Error returned for under-temperature",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StartSimulationMode", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "TemperatureController", "command": "SetTemperature", "params": {"TargetTemperature": -21.0, "RampRate": 5.0}, "expect": "error"}
+            ]
+          }
+        },
+        {
+          "id": "val_ramp_zero",
+          "name": "Zero ramp rate",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Attempt to set ramp rate to zero (minimum is >0).",
+          "expected": "Error returned for zero ramp rate",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StartSimulationMode", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "TemperatureController", "command": "SetTemperature", "params": {"TargetTemperature": 37.0, "RampRate": 0.0}, "expect": "error"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "webui",
+      "name": "WebUI Integration",
+      "description": "Tests for the React WebUI, SSE streaming, and user interface correctness",
+      "tests": [
+        {
+          "id": "ui_sse_badge",
+          "name": "SSE LIVE badge visible",
+          "type": "guided",
+          "modes": ["simulation", "real"],
+          "description": "Verify the SSE LIVE badge appears in the WebUI.",
+          "expected": "Badge shows LIVE (green)",
+          "script": {
+            "steps": [
+              {"action": "prompt", "message": "Open the Temperature Controller WebUI in your browser. Verify that the 'SSE LIVE' badge is visible (green)."},
+              {"action": "confirm", "message": "Is the SSE LIVE badge visible and green?", "pass_label": "Yes, LIVE badge visible", "fail_label": "No badge or shows OFF"}
+            ]
+          }
+        },
+        {
+          "id": "ui_temp_ramp",
+          "name": "Temperature ramp visible in WebUI",
+          "type": "guided",
+          "modes": ["simulation"],
+          "description": "Run SetTemperature and verify the temperature ramp is visible in the WebUI.",
+          "expected": "Temperature updates visible in real-time",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StartSimulationMode", "params": {}, "expect": "success"},
+              {"action": "prompt", "message": "Open the Temperature Controller WebUI and watch the temperature display."},
+              {"action": "command", "feature": "TemperatureController", "command": "SetTemperature", "params": {"TargetTemperature": 50.0, "RampRate": 5.0}, "expect": "success"},
+              {"action": "confirm", "message": "Did you see the temperature ramping up in the WebUI?", "pass_label": "Yes, ramp visible", "fail_label": "No update visible"}
+            ]
+          }
+        },
+        {
+          "id": "ui_sim_real_badge",
+          "name": "SIM/REAL badge accuracy",
+          "type": "guided",
+          "modes": ["simulation", "real"],
+          "description": "Toggle simulation mode and verify the badge updates in the WebUI.",
+          "expected": "Badge accurately reflects current mode after each switch",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StartSimulationMode", "params": {}, "expect": "success"},
+              {"action": "prompt", "message": "Open the Temperature Controller WebUI. Verify the 'SIM' badge is visible (blue)."},
+              {"action": "confirm", "message": "Is the SIM badge visible and blue?", "pass_label": "Yes, SIM badge visible", "fail_label": "No badge or wrong badge"},
+              {"action": "command", "feature": "SimulationController", "command": "StopSimulationMode", "params": {}, "expect": "success"},
+              {"action": "confirm", "message": "Did the badge change to 'REAL' (orange/red)?", "pass_label": "Yes, REAL badge visible", "fail_label": "No change or wrong badge"},
+              {"action": "command", "feature": "SimulationController", "command": "StartSimulationMode", "params": {}, "expect": "success"},
+              {"action": "confirm", "message": "Did the badge change back to 'SIM' (blue)?", "pass_label": "Yes, SIM badge returned", "fail_label": "No change or wrong badge"}
+            ]
+          }
+        },
+        {
+          "id": "ui_stop_control",
+          "name": "StopTemperatureControl UI updates",
+          "type": "guided",
+          "modes": ["simulation"],
+          "description": "Run SetTemperature then StopTemperatureControl and verify UI updates.",
+          "expected": "UI shows control stopped",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StartSimulationMode", "params": {}, "expect": "success"},
+              {"action": "prompt", "message": "Open the Temperature Controller WebUI and watch the status display."},
+              {"action": "command", "feature": "TemperatureController", "command": "SetTemperature", "params": {"TargetTemperature": 50.0, "RampRate": 5.0}, "expect": "success"},
+              {"action": "command", "feature": "TemperatureController", "command": "StopTemperatureControl", "params": {}, "expect": "success"},
+              {"action": "confirm", "message": "Did the WebUI update to show that temperature control stopped?", "pass_label": "Yes, status updated", "fail_label": "No update visible"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "lock",
+      "name": "LockController",
+      "description": "Server locking functionality and error handling",
+      "tests": [
+        {
+          "id": "lock_lock_unlock",
+          "name": "Lock and unlock server",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Lock the server with a token, then unlock it.",
+          "expected": "Lock succeeds, unlock succeeds",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "LockController", "command": "LockServer", "params": {"LockIdentifier": "test-token-123", "Timeout": 30}, "expect": "success"},
+              {"action": "command", "feature": "LockController", "command": "UnlockServer", "params": {"LockIdentifier": "test-token-123"}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "lock_already_locked",
+          "name": "Lock when already locked",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Lock the server, then try to lock again with a different token.",
+          "expected": "Second lock attempt returns ServerAlreadyLocked error",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "LockController", "command": "LockServer", "params": {"LockIdentifier": "token-A", "Timeout": 30}, "expect": "success"},
+              {"action": "command", "feature": "LockController", "command": "LockServer", "params": {"LockIdentifier": "token-B", "Timeout": 30}, "expect": "error", "error_type": "ServerAlreadyLocked"},
+              {"action": "command", "feature": "LockController", "command": "UnlockServer", "params": {"LockIdentifier": "token-A"}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "lock_wrong_token",
+          "name": "Unlock with wrong token",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Lock the server, then try to unlock with a different token.",
+          "expected": "InvalidLockIdentifier error",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "LockController", "command": "LockServer", "params": {"LockIdentifier": "correct-token", "Timeout": 30}, "expect": "success"},
+              {"action": "command", "feature": "LockController", "command": "UnlockServer", "params": {"LockIdentifier": "wrong-token"}, "expect": "error", "error_type": "InvalidLockIdentifier"},
+              {"action": "command", "feature": "LockController", "command": "UnlockServer", "params": {"LockIdentifier": "correct-token"}, "expect": "success"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "logging",
+      "name": "Structured Logging",
+      "description": "ServerLogProvider feature: structured log queries with filters",
+      "tests": [
+        {
+          "id": "log_get_logs_no_filter",
+          "name": "GetLogs with no filters returns entries",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Query logs with no filters. Server should have logged startup entries.",
+          "expected": "Non-empty array of log entries returned",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ServerLogProvider", "command": "GetLogs", "params": {"StartTime": "", "EndTime": "", "MinSeverity": "", "Feature": "", "MaxEntries": 10}, "expect": "success"},
+              {"action": "check_response", "field": "LogEntries", "condition": "not_empty"}
+            ]
+          }
+        },
+        {
+          "id": "log_get_logs_severity_filter",
+          "name": "GetLogs with MinSeverity=ERROR",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Query logs filtered to ERROR and above. All returned entries should be ERROR or CRITICAL.",
+          "expected": "All entries have level ERROR or CRITICAL (or empty if none)",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ServerLogProvider", "command": "GetLogs", "params": {"StartTime": "", "EndTime": "", "MinSeverity": "ERROR", "Feature": "", "MaxEntries": 100}, "expect": "success"},
+              {"action": "check_response", "field": "LogEntries", "condition": "not_empty"}
+            ]
+          }
+        },
+        {
+          "id": "log_get_logs_feature_filter",
+          "name": "GetLogs with Feature=Server",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Query logs filtered to the Server feature. All returned entries should have feature 'Server'.",
+          "expected": "All entries have feature 'Server'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ServerLogProvider", "command": "GetLogs", "params": {"StartTime": "", "EndTime": "", "MinSeverity": "", "Feature": "Server", "MaxEntries": 10}, "expect": "success"},
+              {"action": "check_response", "field": "LogEntries", "condition": "not_empty"}
+            ]
+          }
+        },
+        {
+          "id": "log_get_logs_max_entries",
+          "name": "GetLogs with MaxEntries=5 returns at most 5",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Query with MaxEntries=5 and verify no more than 5 entries are returned.",
+          "expected": "At most 5 entries returned",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ServerLogProvider", "command": "GetLogs", "params": {"StartTime": "", "EndTime": "", "MinSeverity": "", "Feature": "", "MaxEntries": 5}, "expect": "success"},
+              {"action": "check_response", "field": "LogEntries", "condition": "not_empty"}
+            ]
+          }
+        },
+        {
+          "id": "log_get_features",
+          "name": "GetLogFeatures returns feature list",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "GetLogFeatures should return a list containing at least 'Server' (from startup logs).",
+          "expected": "List of feature names including 'Server'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ServerLogProvider", "command": "GetLogFeatures", "params": {}, "expect": "success"},
+              {"action": "check_response", "field": "Features", "condition": "not_empty"}
+            ]
+          }
+        },
+        {
+          "id": "log_stats",
+          "name": "LogStats property returns valid JSON",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Read the LogStats property and verify it contains expected fields.",
+          "expected": "JSON with total_entries, counts_by_level, oldest_timestamp, newest_timestamp, db_size_bytes",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ServerLogProvider", "command": "GetLogs", "params": {"StartTime": "", "EndTime": "", "MinSeverity": "", "Feature": "", "MaxEntries": 1}, "expect": "success"},
+              {"action": "check_response", "field": "LogEntries", "condition": "not_empty"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "script_exec",
+      "name": "Script Runner — Execution",
+      "description": "Core script execution: output capture, exit codes, error handling, and the device helper preamble",
+      "tests": [
+        {
+          "id": "exec_hello",
+          "name": "Simple print output",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Run a one-liner that prints 'hello' and verify it appears in FullOutput with exit code 0.",
+          "expected": "FullOutput contains 'hello', ExitCode == 0",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_hello", "ScriptCode": "print('hello')"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "hello"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "exec_multiline",
+          "name": "Multi-line output",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Run a script with multiple print statements and verify all lines appear in FullOutput.",
+          "expected": "FullOutput contains 'line_one', 'line_two', and 'line_three'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_multi", "ScriptCode": "print('line_one')\nprint('line_two')\nprint('line_three')"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "line_one"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "line_two"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "line_three"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "exec_computation",
+          "name": "Computation and formatted output",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Run a script that does arithmetic and string formatting, verify computed result in output.",
+          "expected": "FullOutput contains 'result=42'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_compute", "ScriptCode": "x = 6 * 7\nprint(f'result={x}')"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "result=42"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "exec_stdlib_import",
+          "name": "Standard library imports",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Verify scripts can import standard library modules (json, math, datetime).",
+          "expected": "FullOutput contains 'imports_ok'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_imports", "ScriptCode": "import json, math, datetime\nprint('imports_ok')\nprint(json.dumps({'pi': round(math.pi, 2)}))"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "imports_ok"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "3.14"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "exec_loop",
+          "name": "Loop output",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Run a script with a for loop and verify output from each iteration.",
+          "expected": "FullOutput contains 'iter_0' through 'iter_4'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_loop", "ScriptCode": "for i in range(5):\n    print(f'iter_{i}')"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "iter_0"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "iter_4"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "exec_syntax_error",
+          "name": "Syntax error produces non-zero exit code",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Run code with a syntax error. Should complete (not crash the server) with non-zero exit code and traceback in output.",
+          "expected": "ExitCode != 0, FullOutput contains 'SyntaxError'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_syntax", "ScriptCode": "this is not valid python!!!"}, "expect": "success"},
+              {"action": "check_response", "field": "ExitCode", "condition": "not_equals", "value": 0},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "SyntaxError"}
+            ]
+          }
+        },
+        {
+          "id": "exec_runtime_error",
+          "name": "Runtime exception produces non-zero exit code",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Run code that raises a runtime exception. Should produce non-zero exit code with traceback.",
+          "expected": "ExitCode != 0, FullOutput contains 'ZeroDivisionError'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_runtime", "ScriptCode": "print('before')\nx = 1 / 0\nprint('after')"}, "expect": "success"},
+              {"action": "check_response", "field": "ExitCode", "condition": "not_equals", "value": 0},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "before"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "ZeroDivisionError"},
+              {"action": "check_response", "field": "FullOutput", "condition": "not_contains", "value": "after"}
+            ]
+          }
+        },
+        {
+          "id": "exec_empty_script",
+          "name": "Empty script succeeds with exit code 0",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Run an empty (whitespace-only) script. Should succeed without error.",
+          "expected": "ExitCode == 0",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_empty", "ScriptCode": "# nothing here\n"}, "expect": "success"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "exec_preamble_banner",
+          "name": "FullOutput contains ScriptRunner banner",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Verify that ScriptRunner injects its own [ScriptRunner] Started and Finished banners into the output.",
+          "expected": "FullOutput contains '[ScriptRunner] Started' and '[ScriptRunner] Finished'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_banner", "ScriptCode": "pass"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "[ScriptRunner] Started"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "[ScriptRunner] Finished: exit_code=0"}
+            ]
+          }
+        },
+        {
+          "id": "exec_consecutive",
+          "name": "Consecutive script executions",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Run two scripts back-to-back. Verify each produces independent output (no bleed-over).",
+          "expected": "First output contains 'first_run', second contains 'second_run' and not 'first_run'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_run1", "ScriptCode": "print('first_run')"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "first_run"},
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_run2", "ScriptCode": "print('second_run')"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "second_run"},
+              {"action": "check_response", "field": "FullOutput", "condition": "not_contains", "value": "first_run"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "script_device",
+      "name": "Script Runner — Device Helper",
+      "description": "Verify the injected `device` helper object works: introspection, print, sleep",
+      "tests": [
+        {
+          "id": "dev_available",
+          "name": "device object is available",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Verify the `device` object exists and is a DeviceHelper instance.",
+          "expected": "FullOutput contains 'DeviceHelper'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_devobj", "ScriptCode": "print(type(device).__name__)\nprint(repr(device))"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "DeviceHelper"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "dev_print",
+          "name": "device.print() writes to output",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Verify device.print() sends text to the captured output stream.",
+          "expected": "FullOutput contains 'device_says_hi'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_devprint", "ScriptCode": "device.print('device_says_hi')"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "device_says_hi"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "dev_features",
+          "name": "device.features lists server features",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Verify device.features returns a list that includes TemperatureController and ScriptRunner.",
+          "expected": "FullOutput contains 'TemperatureController' and 'ScriptRunner'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_devfeat", "ScriptCode": "feats = device.features\nfor f in feats:\n    print(f)"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "TemperatureController"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "ScriptRunner"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "dev_commands_list",
+          "name": "device.commands() lists feature commands",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Verify device.commands('ScriptRunner') returns known command names.",
+          "expected": "FullOutput contains 'RunScript' and 'ListScripts'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_devcmds", "ScriptCode": "cmds = device.commands('ScriptRunner')\nfor c in cmds:\n    print(c)"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "RunScript"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "ListScripts"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "dev_properties_list",
+          "name": "device.properties() lists feature properties",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Verify device.properties('ScriptRunner') returns IsRunning.",
+          "expected": "FullOutput contains 'IsRunning'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_devprops", "ScriptCode": "props = device.properties('ScriptRunner')\nfor p in props:\n    print(p)"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "IsRunning"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "dev_read_property",
+          "name": "device.property() reads a SiLA property",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Use device.property() to read the DeviceDescription property. Should not crash.",
+          "expected": "FullOutput contains 'type=str', ExitCode == 0",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_devprop", "ScriptCode": "val = device.property('TemperatureController', 'DeviceDescription')\nprint(f'type={type(val).__name__}')\nprint(f'len={len(val)}')"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "type=str"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "dev_command_sim",
+          "name": "device.command() calls SiLA command (simulation)",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Use device.command() to call GetDeviceStatus and verify the response.",
+          "expected": "ExitCode == 0",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StartSimulationMode", "params": {}, "expect": "any"},
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_devcmd", "ScriptCode": "import json\nresult = device.command('TemperatureController', 'GetDeviceStatus')\nprint(json.dumps(result))"}, "expect": "success"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "script_persist",
+      "name": "Script Runner — Persistence",
+      "description": "Save, load, list, delete, and overwrite scripts stored on the server",
+      "tests": [
+        {
+          "id": "persist_crud",
+          "name": "Full CRUD round-trip",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Save a script, verify it appears in list, load it back, then delete it and verify it's gone.",
+          "expected": "Save/list/load/delete all succeed, code matches after load, gone after delete",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "SaveScript", "params": {"ScriptName": "test_crud_abc", "ScriptCode": "print('crud_marker')"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "ListScripts", "params": {}, "expect": "success"},
+              {"action": "check_response", "field": "Scripts", "condition": "contains", "value": "test_crud_abc"},
+              {"action": "command", "feature": "ScriptRunner", "command": "LoadScript", "params": {"ScriptName": "test_crud_abc"}, "expect": "success"},
+              {"action": "check_response", "field": "ScriptCode", "condition": "contains", "value": "crud_marker"},
+              {"action": "command", "feature": "ScriptRunner", "command": "DeleteScript", "params": {"ScriptName": "test_crud_abc"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "LoadScript", "params": {"ScriptName": "test_crud_abc"}, "expect": "error", "error_type": "ScriptNotFound"}
+            ]
+          }
+        },
+        {
+          "id": "persist_overwrite",
+          "name": "Save overwrites existing script",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Save a script, then save again with the same name but different code. Load should return the new code.",
+          "expected": "Second save overwrites first, loaded code contains 'version_two'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "SaveScript", "params": {"ScriptName": "test_overwrite", "ScriptCode": "print('version_one')"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "SaveScript", "params": {"ScriptName": "test_overwrite", "ScriptCode": "print('version_two')"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "LoadScript", "params": {"ScriptName": "test_overwrite"}, "expect": "success"},
+              {"action": "check_response", "field": "ScriptCode", "condition": "contains", "value": "version_two"},
+              {"action": "check_response", "field": "ScriptCode", "condition": "not_contains", "value": "version_one"},
+              {"action": "command", "feature": "ScriptRunner", "command": "DeleteScript", "params": {"ScriptName": "test_overwrite"}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "persist_multiple",
+          "name": "Save and list multiple scripts",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Save three scripts and verify ListScripts returns all of them.",
+          "expected": "List contains all three script names",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "SaveScript", "params": {"ScriptName": "test_multi_a", "ScriptCode": "pass"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "SaveScript", "params": {"ScriptName": "test_multi_b", "ScriptCode": "pass"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "SaveScript", "params": {"ScriptName": "test_multi_c", "ScriptCode": "pass"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "ListScripts", "params": {}, "expect": "success"},
+              {"action": "check_response", "field": "Scripts", "condition": "contains", "value": "test_multi_a"},
+              {"action": "check_response", "field": "Scripts", "condition": "contains", "value": "test_multi_b"},
+              {"action": "check_response", "field": "Scripts", "condition": "contains", "value": "test_multi_c"},
+              {"action": "command", "feature": "ScriptRunner", "command": "DeleteScript", "params": {"ScriptName": "test_multi_a"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "DeleteScript", "params": {"ScriptName": "test_multi_b"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "DeleteScript", "params": {"ScriptName": "test_multi_c"}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "persist_save_then_run",
+          "name": "Save a script then run it by loading",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Save a script, load it back, then execute the loaded code via RunScript.",
+          "expected": "RunScript output contains 'saved_and_ran'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "SaveScript", "params": {"ScriptName": "test_save_run", "ScriptCode": "print('saved_and_ran')"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "LoadScript", "params": {"ScriptName": "test_save_run"}, "expect": "success"},
+              {"action": "check_response", "field": "ScriptCode", "condition": "contains", "value": "saved_and_ran"},
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "test_save_run", "ScriptCode": "print('saved_and_ran')"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "saved_and_ran"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0},
+              {"action": "command", "feature": "ScriptRunner", "command": "DeleteScript", "params": {"ScriptName": "test_save_run"}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "persist_load_not_found",
+          "name": "LoadScript with nonexistent name",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Attempt to load a script that doesn't exist. Should return ScriptNotFound error.",
+          "expected": "ScriptNotFound error",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "LoadScript", "params": {"ScriptName": "nonexistent_script_xyz"}, "expect": "error", "error_type": "ScriptNotFound"}
+            ]
+          }
+        },
+        {
+          "id": "persist_delete_not_found",
+          "name": "DeleteScript with nonexistent name",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Attempt to delete a script that doesn't exist. Should return ScriptNotFound error.",
+          "expected": "ScriptNotFound error",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "DeleteScript", "params": {"ScriptName": "nonexistent_script_xyz"}, "expect": "error", "error_type": "ScriptNotFound"}
+            ]
+          }
+        },
+        {
+          "id": "persist_delete_idempotent",
+          "name": "Double-delete returns ScriptNotFound",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Save a script, delete it, then try to delete again. Second delete should fail with ScriptNotFound.",
+          "expected": "First delete succeeds, second returns ScriptNotFound",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "SaveScript", "params": {"ScriptName": "test_dbldelete", "ScriptCode": "pass"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "DeleteScript", "params": {"ScriptName": "test_dbldelete"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "DeleteScript", "params": {"ScriptName": "test_dbldelete"}, "expect": "error", "error_type": "ScriptNotFound"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "script_errors",
+      "name": "Script Runner — Error Handling",
+      "description": "Error conditions: StopScript when idle, AlreadyRunning guard, and graceful failures",
+      "tests": [
+        {
+          "id": "err_stop_idle",
+          "name": "StopScript when no script running",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Attempt to stop a script when none is running. Should return ScriptError.",
+          "expected": "ScriptError returned",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "StopScript", "params": {}, "expect": "error", "error_type": "ScriptError"}
+            ]
+          }
+        },
+        {
+          "id": "err_name_error",
+          "name": "NameError (undefined variable)",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Run a script referencing an undefined variable. Should produce NameError in output.",
+          "expected": "ExitCode != 0, FullOutput contains 'NameError'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_name_err", "ScriptCode": "print(undefined_variable)"}, "expect": "success"},
+              {"action": "check_response", "field": "ExitCode", "condition": "not_equals", "value": 0},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "NameError"}
+            ]
+          }
+        },
+        {
+          "id": "err_type_error",
+          "name": "TypeError (wrong argument type)",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Run a script that causes a TypeError. Should produce TypeError in output.",
+          "expected": "ExitCode != 0, FullOutput contains 'TypeError'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_type_err", "ScriptCode": "x = 'hello' + 42"}, "expect": "success"},
+              {"action": "check_response", "field": "ExitCode", "condition": "not_equals", "value": 0},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "TypeError"}
+            ]
+          }
+        },
+        {
+          "id": "err_partial_output",
+          "name": "Output captured before exception",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Verify output printed before an exception is still captured in FullOutput.",
+          "expected": "FullOutput contains 'before_crash' but not 'after_crash'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_partial", "ScriptCode": "print('before_crash')\nraise RuntimeError('boom')\nprint('after_crash')"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "before_crash"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "RuntimeError"},
+              {"action": "check_response", "field": "FullOutput", "condition": "not_contains", "value": "after_crash"},
+              {"action": "check_response", "field": "ExitCode", "condition": "not_equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "err_sys_exit",
+          "name": "sys.exit() produces matching exit code",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Verify that calling sys.exit(2) in a script sets ExitCode to 2.",
+          "expected": "ExitCode == 2",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_exit", "ScriptCode": "import sys\nprint('exiting')\nsys.exit(2)"}, "expect": "success"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 2},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "exiting"}
+            ]
+          }
+        },
+        {
+          "id": "err_clean_after_error",
+          "name": "Server stable after script error",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "After a failed script, verify the server is still responsive by running a successful script.",
+          "expected": "First fails, second succeeds with ExitCode 0",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_err", "ScriptCode": "raise Exception('intentional')"}, "expect": "success"},
+              {"action": "check_response", "field": "ExitCode", "condition": "not_equals", "value": 0},
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_ok", "ScriptCode": "print('recovered')"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "recovered"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

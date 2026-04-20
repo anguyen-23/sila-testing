@@ -1,0 +1,1125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Multidrop Combi</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  :root {
+    --bg: #1e1e2e; --surface: #2a2a3e; --border: #3a3a5e;
+    --text: #e0e0e0; --muted: #888; --accent: #6c8eef;
+    --success: #4caf50; --warning: #ff9800; --danger: #ef5350;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+         background: var(--bg); color: var(--text); padding: 16px; font-size: 14px; }
+  h2 { font-size: 18px; margin-bottom: 12px; }
+  h3 { font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px;
+       margin: 16px 0 8px; }
+
+  .status-bar { display: flex; gap: 12px; align-items: center; padding: 10px 14px;
+                background: var(--surface); border-radius: 8px; margin-bottom: 16px; }
+  .status-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  .dot-connected { background: var(--success); }
+  .dot-disconnected { background: var(--danger); }
+  .dot-sim { background: var(--warning); }
+  .status-text { font-weight: 600; }
+  .status-info { color: var(--muted); font-size: 12px; margin-left: auto; }
+
+  .workflow { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+  .card-full { grid-column: 1 / -1; }
+
+  label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  input, select { width: 100%; padding: 6px 10px; background: var(--bg); color: var(--text);
+                  border: 1px solid var(--border); border-radius: 4px; font-size: 13px; }
+  input:focus, select:focus { outline: none; border-color: var(--accent); }
+
+  .btn { display: inline-block; padding: 8px 16px; border: none; border-radius: 6px;
+         font-size: 13px; font-weight: 600; cursor: pointer; transition: opacity 0.15s; }
+  .btn:hover { opacity: 0.85; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-success { background: var(--success); color: #fff; }
+  .btn-warning { background: var(--warning); color: #000; }
+  .btn-danger { background: var(--danger); color: #fff; }
+  .btn-outline { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+  .btn-outline:hover { color: var(--text); border-color: var(--text); }
+  .btn-sm { padding: 5px 12px; font-size: 12px; }
+  .btn-xs { padding: 3px 8px; font-size: 11px; }
+  .btn-group { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+
+  .inline-fields { display: flex; gap: 8px; align-items: flex-end; }
+  .inline-fields > div { flex: 1; }
+
+  .settings-row { display: flex; gap: 6px; align-items: flex-end; margin-top: 10px;
+                  padding-top: 10px; border-top: 1px solid var(--border); }
+  .settings-row > div { flex: 1; }
+
+  .log { background: var(--bg); border: 1px solid var(--border); border-radius: 4px;
+         padding: 8px 10px; font-family: monospace; font-size: 12px; color: var(--muted);
+         max-height: 150px; overflow-y: auto; margin-top: 8px; }
+  .log-entry { margin-bottom: 2px; }
+  .log-ok { color: var(--success); }
+  .log-err { color: var(--danger); }
+  .log-info { color: var(--accent); }
+
+  .progress-bar { width: 100%; height: 6px; background: var(--border); border-radius: 3px;
+                  margin-top: 8px; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--accent); border-radius: 3px;
+                   transition: width 0.3s; }
+
+  .dispense-action { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border);
+                     display: flex; gap: 8px; align-items: center; }
+
+  /* Plate map */
+  .plate-map-wrap { margin-top: 10px; overflow-x: auto; }
+  .plate-map { display: inline-grid; gap: 1px; user-select: none; }
+  .plate-map .corner { }
+  .plate-map .col-hdr {
+    text-align: center; font-size: 10px; font-weight: 700; color: var(--muted);
+    cursor: pointer; padding: 2px 0; border-radius: 3px 3px 0 0;
+    transition: background 0.1s;
+  }
+  .plate-map .col-hdr:hover { background: rgba(108,142,239,0.2); }
+  .plate-map .col-hdr.selected { background: var(--accent); color: #fff; }
+  .plate-map .row-hdr {
+    font-size: 10px; font-weight: 700; color: var(--muted);
+    display: flex; align-items: center; justify-content: center; padding: 0 3px;
+  }
+  .plate-map .well { border-radius: 50%; background: var(--border); transition: background 0.1s; }
+  .plate-map .well.has-vol { background: #3a5a3a; }
+  .plate-map .well.selected { background: var(--accent); }
+  .plate-map .well.selected.has-vol { background: #5a8aef; }
+
+  .vol-toolbar { display: flex; gap: 8px; align-items: flex-end; margin-top: 10px; flex-wrap: wrap; }
+  .vol-toolbar > div { min-width: 100px; }
+  .vol-toolbar .input-narrow { max-width: 120px; }
+
+  .col-vol-summary { margin-top: 8px; font-size: 12px; color: var(--muted);
+                     max-height: 80px; overflow-y: auto; }
+  .col-vol-summary table { width: 100%; border-collapse: collapse; }
+  .col-vol-summary th, .col-vol-summary td {
+    padding: 2px 8px; text-align: left; border-bottom: 1px solid var(--border);
+  }
+  .col-vol-summary th { color: var(--muted); font-weight: 600; }
+  .col-vol-summary td { color: var(--text); }
+  .col-vol-summary .vol-cell { font-family: monospace; }
+
+  .plate-legend { display: flex; gap: 16px; margin-top: 6px; font-size: 11px; color: var(--muted); }
+  .legend-swatch { display: inline-block; width: 10px; height: 10px; border-radius: 50%;
+                   vertical-align: middle; margin-right: 4px; }
+
+  /* Error modal */
+  .error-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                         background: rgba(0,0,0,0.6); z-index: 1000; display: flex;
+                         align-items: center; justify-content: center; }
+  .error-modal { background: var(--surface); border: 1px solid var(--danger); border-radius: 10px;
+                 padding: 20px 24px; max-width: 460px; width: 90%; }
+  .error-modal h3 { color: var(--danger); margin-bottom: 10px; font-size: 16px; }
+  .error-modal pre { background: var(--bg); border: 1px solid var(--border); border-radius: 4px;
+                     padding: 10px; font-size: 12px; white-space: pre-wrap; word-break: break-word;
+                     max-height: 200px; overflow-y: auto; margin-bottom: 14px; color: var(--text); }
+
+  .sse-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px;
+               font-weight: 700; margin-left: 8px; }
+  .sse-connected { background: #1b5e20; color: #a5d6a7; }
+  .sse-disconnected { background: #b71c1c; color: #ef9a9a; }
+
+  /* Script editor */
+  .script-editor { width: 100%; min-height: 200px; background: var(--bg); color: var(--text);
+                   border: 1px solid var(--border); border-radius: 4px; padding: 8px;
+                   font-family: monospace; font-size: 13px; resize: vertical; tab-size: 4; }
+  .script-output { background: var(--bg); border: 1px solid var(--border); border-radius: 4px;
+                   padding: 8px 10px; font-family: monospace; font-size: 12px; color: var(--muted);
+                   max-height: 250px; overflow-y: auto; margin-top: 8px; white-space: pre-wrap; }
+  .script-toolbar { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }
+  .saved-script-item { display: flex; justify-content: space-between; align-items: center;
+                       padding: 4px 8px; border-bottom: 1px solid var(--border); font-size: 12px; }
+  .saved-script-item:hover { background: rgba(108,142,239,0.1); }
+  .saved-script-item a { color: var(--accent); cursor: pointer; text-decoration: none; }
+  .saved-script-item a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" data-type="module">
+const { useState, useEffect, useRef, useCallback, useMemo } = React;
+
+// ── API Configuration ──
+const _urlParts = window.location.pathname.split('/');
+const SILA_HOST = _urlParts[3];
+const SILA_PORT = _urlParts[4];
+const API_BASE = `${window.location.origin}/api`;
+const FEATURE_ID = "MultidropCombi";
+
+// ── API Helpers ──
+async function executeCommand(commandId, params = {}) {
+  const resp = await fetch(`${API_BASE}/command/${SILA_HOST}/${SILA_PORT}/${FEATURE_ID}/${commandId}`, {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(params),
+  });
+  const data = await resp.json();
+  if (data.status === "error") throw new Error(`${data.error_type}: ${data.message}`);
+  return data;
+}
+
+async function readProperty(featureId, propertyId) {
+  const resp = await fetch(`${API_BASE}/property/${SILA_HOST}/${SILA_PORT}/${featureId}/${propertyId}`);
+  const data = await resp.json();
+  if (data.error) throw new Error(data.error);
+  return data;
+}
+
+// ── Plate format helpers ──
+const PLATE_FORMATS = { 96: {cols:12,rows:8}, 384: {cols:24,rows:16}, 1536: {cols:48,rows:32} };
+function plateWellCount(code) {
+  const c = parseInt(code, 10);
+  if (c >= 10 && c <= 11) return 1536;
+  if (c >= 6 && c <= 9) return 384;
+  return 96;
+}
+function rowLabel(idx) {
+  if (idx < 26) return String.fromCharCode(65 + idx);
+  return 'A' + String.fromCharCode(65 + idx - 26);
+}
+
+// ── Settings persistence (localStorage) ──
+const SETTINGS_KEY = "multidrop-combi-v2-settings";
+function getAllSettings() {
+  try { return JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}; }
+  catch { return {}; }
+}
+function saveAllSettings(all) {
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(all));
+}
+
+// ── SSE Hook: subscribes to DeviceStatus observable property ──
+function useDeviceStatus() {
+  const [status, setStatus] = useState({
+    isConnected: false, isPrimed: false, instrumentName: "", firmwareVersion: "",
+    serialNumber: "", simulationMode: true, plateType: 0, cassetteType: 0,
+    pumpSpeed: 50, dispensingHeight: 0, columnVolumes: {}, activityLog: [], configuredSerialPort: "",
+  });
+  const [sseConnected, setSseConnected] = useState(false);
+  const eventSourceRef = useRef(null);
+
+  useEffect(() => {
+    // SSE endpoint: /api/sse/<host>/<port>/<featureId>/<propertyId>
+    const url = `${API_BASE}/sse/${SILA_HOST}/${SILA_PORT}/${FEATURE_ID}/DeviceStatus`;
+    let es = new EventSource(url);
+    eventSourceRef.current = es;
+
+    es.onopen = () => setSseConnected(true);
+    es.onmessage = (event) => {
+      try {
+        const parsed = JSON.parse(event.data);
+        // The SSE data is the property value (a JSON string), parse it
+        const deviceStatus = typeof parsed === 'string' ? JSON.parse(parsed) : parsed;
+        setStatus(deviceStatus);
+      } catch (e) {
+        console.warn("SSE parse error:", e, event.data);
+      }
+    };
+    es.onerror = () => {
+      setSseConnected(false);
+      // EventSource auto-reconnects
+    };
+
+    return () => {
+      es.close();
+      eventSourceRef.current = null;
+    };
+  }, []);
+
+  // Fallback: poll if SSE not available
+  useEffect(() => {
+    if (sseConnected) return;
+    const interval = setInterval(async () => {
+      try {
+        const result = await readProperty(FEATURE_ID, "DeviceStatus");
+        if (result.value) {
+          const parsed = JSON.parse(result.value);
+          setStatus(parsed);
+        }
+      } catch { /* ignore poll errors */ }
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [sseConnected]);
+
+  return { status, sseConnected };
+}
+
+// ── StatusBar Component ──
+function StatusBar({ status, sseConnected }) {
+  const dotClass = status.isConnected ? "status-dot dot-connected" : "status-dot dot-disconnected";
+  const simBadge = status.simulationMode
+    ? <span className="sse-badge" style={{background:'#e65100',color:'#ffe0b2'}}>SIM</span>
+    : <span className="sse-badge" style={{background:'#1b5e20',color:'#a5d6a7'}}>REAL</span>;
+
+  return (
+    <div className="status-bar">
+      <span className={dotClass}></span>
+      <span className="status-text">{status.isConnected ? "Connected" : "Disconnected"}</span>
+      {simBadge}
+      <span className={`sse-badge ${sseConnected ? 'sse-connected' : 'sse-disconnected'}`}>
+        SSE {sseConnected ? 'LIVE' : 'OFF'}
+      </span>
+      <span className="status-info">
+        {status.isConnected && status.instrumentName
+          ? `${status.instrumentName} | FW ${status.firmwareVersion} | SN ${status.serialNumber}`
+          : ""}
+      </span>
+    </div>
+  );
+}
+
+// ── PlateMap Component ──
+function PlateMap({ plateType, columnVolumes, selectedCols, onColClick }) {
+  const wells = plateWellCount(plateType);
+  const fmt = PLATE_FORMATS[wells];
+  let wellSize, gap;
+  if (fmt.cols <= 12) { wellSize = 22; gap = 2; }
+  else if (fmt.cols <= 24) { wellSize = 16; gap = 1; }
+  else { wellSize = 10; gap = 1; }
+
+  const style = {
+    gridTemplateColumns: `24px repeat(${fmt.cols}, ${wellSize}px)`,
+    gridTemplateRows: `20px repeat(${fmt.rows}, ${wellSize}px)`,
+    gap: `${gap}px`,
+  };
+
+  const elements = [<div key="corner" className="corner"></div>];
+
+  for (let c = 1; c <= fmt.cols; c++) {
+    const sel = selectedCols.has(c);
+    elements.push(
+      <div key={`ch-${c}`} className={`col-hdr${sel ? ' selected' : ''}`}
+           onClick={(e) => onColClick(c, e)}>{c}</div>
+    );
+  }
+
+  for (let r = 0; r < fmt.rows; r++) {
+    elements.push(<div key={`rh-${r}`} className="row-hdr">{rowLabel(r)}</div>);
+    for (let c = 1; c <= fmt.cols; c++) {
+      const hasVol = columnVolumes[c] !== undefined;
+      const isSel = selectedCols.has(c);
+      const cls = `well${hasVol ? ' has-vol' : ''}${isSel ? ' selected' : ''}`;
+      elements.push(
+        <div key={`w-${r}-${c}`} className={cls}
+             style={{width: wellSize, height: wellSize}}
+             title={hasVol ? `Col ${c}: ${columnVolumes[c]} (1/10 uL)` : ''}></div>
+      );
+    }
+  }
+
+  return <div className="plate-map" style={style}>{elements}</div>;
+}
+
+// ── VolumeSummary Component ──
+function VolumeSummary({ columnVolumes }) {
+  const entries = Object.entries(columnVolumes)
+    .map(([c, v]) => [parseInt(c), v])
+    .sort((a, b) => a[0] - b[0]);
+
+  if (entries.length === 0) {
+    return <span style={{fontSize:12,color:'var(--muted)'}}>No column volumes set. Select columns and apply a volume.</span>;
+  }
+
+  // Group consecutive columns with same volume
+  const groups = [];
+  let i = 0;
+  while (i < entries.length) {
+    const vol = entries[i][1];
+    const start = entries[i][0];
+    let end = start;
+    while (i + 1 < entries.length && entries[i+1][1] === vol && entries[i+1][0] === end + 1) {
+      end = entries[++i][0];
+    }
+    groups.push({ start, end, vol });
+    i++;
+  }
+
+  return (
+    <table><thead><tr><th>Columns</th><th>Volume (µL)</th></tr></thead>
+    <tbody>{groups.map((g, idx) => (
+      <tr key={idx}>
+        <td>{g.start === g.end ? g.start : `${g.start}-${g.end}`}</td>
+        <td className="vol-cell">{g.vol}</td>
+      </tr>
+    ))}</tbody></table>
+  );
+}
+
+// ── ActivityLog Component ──
+function ActivityLog({ entries }) {
+  const logRef = useRef(null);
+  useEffect(() => {
+    if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
+  }, [entries.length]);
+
+  return (
+    <div className="log" ref={logRef}>
+      {entries.map((entry, i) => {
+        let cls = "";
+        if (entry.includes("OK") || entry.includes("completed") || entry.includes("Connected") || entry.includes("Primed"))
+          cls = "log-ok";
+        else if (entry.includes("failed") || entry.includes("Error") || entry.includes("error"))
+          cls = "log-err";
+        else cls = "log-info";
+        return <div key={i} className={`log-entry ${cls}`}>{entry}</div>;
+      })}
+      {entries.length === 0 && <div className="log-entry" style={{color:'var(--muted)'}}>No activity yet</div>}
+    </div>
+  );
+}
+
+// ── ErrorModal Component ──
+function ErrorModal({ message, onRetry, onIgnore, onAbort }) {
+  if (!message) return null;
+  return (
+    <div className="error-modal-overlay">
+      <div className="error-modal">
+        <h3>Command Error</h3>
+        <pre>{message}</pre>
+        <div className="btn-group">
+          <button className="btn btn-primary" onClick={onRetry}>Retry</button>
+          <button className="btn btn-warning" onClick={onIgnore}>Ignore</button>
+          <button className="btn btn-danger" onClick={onAbort}>Abort</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── ScriptPanel Component ──
+function ScriptPanel() {
+  const [code, setCode] = useState(`# Script for this device\n# The 'device' helper is pre-loaded.\n# Example:\n#   result = device.command("MultidropCombi", "Connect", SerialPort="COM3")\n#   print(result)\n\ndevice.print("Hello from ScriptRunner!")\n`);
+  const [output, setOutput] = useState([]);
+  const [running, setRunning] = useState(false);
+  const [scriptName, setScriptName] = useState("untitled");
+  const [savedScripts, setSavedScripts] = useState([]);
+
+  const SCRIPT_FEATURE = "ScriptRunner";
+
+  const refreshSaved = useCallback(async () => {
+    try {
+      const resp = await fetch(`${API_BASE}/command/${SILA_HOST}/${SILA_PORT}/${SCRIPT_FEATURE}/ListScripts`, {
+        method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({}),
+      });
+      const data = await resp.json();
+      if (data.status !== "error" && data.responses?.Scripts) {
+        setSavedScripts(data.responses.Scripts);
+      }
+    } catch {}
+  }, []);
+
+  useEffect(() => { refreshSaved(); }, []);
+
+  const runScript = useCallback(async () => {
+    setRunning(true);
+    setOutput(["[Starting script...]"]);
+    try {
+      const resp = await fetch(`${API_BASE}/command/${SILA_HOST}/${SILA_PORT}/${SCRIPT_FEATURE}/RunScript`, {
+        method: "POST", headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ ScriptName: scriptName, ScriptCode: code }),
+      });
+      const data = await resp.json();
+      if (data.status === "error") {
+        setOutput(prev => [...prev, `[Error] ${data.error_type}: ${data.message}`]);
+      } else {
+        const lines = [];
+        if (data.intermediates) lines.push(...data.intermediates);
+        if (data.responses?.FullOutput) lines.push(data.responses.FullOutput);
+        if (data.responses?.ExitCode !== undefined) lines.push(`[Exit code: ${data.responses.ExitCode}]`);
+        setOutput(prev => [...prev, ...lines]);
+      }
+    } catch (err) {
+      setOutput(prev => [...prev, `[Error] ${err.message}`]);
+    }
+    setRunning(false);
+  }, [code, scriptName]);
+
+  const stopScript = useCallback(async () => {
+    try {
+      await fetch(`${API_BASE}/command/${SILA_HOST}/${SILA_PORT}/${SCRIPT_FEATURE}/StopScript`, {
+        method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({}),
+      });
+      setOutput(prev => [...prev, "[Script stopped]"]);
+    } catch (err) {
+      setOutput(prev => [...prev, `[Stop error] ${err.message}`]);
+    }
+  }, []);
+
+  const saveScript = useCallback(async () => {
+    if (!scriptName.trim()) return;
+    try {
+      await fetch(`${API_BASE}/command/${SILA_HOST}/${SILA_PORT}/${SCRIPT_FEATURE}/SaveScript`, {
+        method: "POST", headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ ScriptName: scriptName, ScriptCode: code }),
+      });
+      setOutput(prev => [...prev, `[Saved: ${scriptName}]`]);
+      refreshSaved();
+    } catch (err) {
+      setOutput(prev => [...prev, `[Save error] ${err.message}`]);
+    }
+  }, [scriptName, code, refreshSaved]);
+
+  const loadScript = useCallback(async (name) => {
+    try {
+      const resp = await fetch(`${API_BASE}/command/${SILA_HOST}/${SILA_PORT}/${SCRIPT_FEATURE}/LoadScript`, {
+        method: "POST", headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ ScriptName: name }),
+      });
+      const data = await resp.json();
+      if (data.responses?.ScriptCode) {
+        setCode(data.responses.ScriptCode);
+        setScriptName(name);
+      }
+    } catch (err) {
+      setOutput(prev => [...prev, `[Load error] ${err.message}`]);
+    }
+  }, []);
+
+  const deleteScript = useCallback(async (name) => {
+    try {
+      await fetch(`${API_BASE}/command/${SILA_HOST}/${SILA_PORT}/${SCRIPT_FEATURE}/DeleteScript`, {
+        method: "POST", headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ ScriptName: name }),
+      });
+      refreshSaved();
+    } catch {}
+  }, [refreshSaved]);
+
+  const outputRef = useRef(null);
+  useEffect(() => {
+    if (outputRef.current) outputRef.current.scrollTop = outputRef.current.scrollHeight;
+  }, [output.length]);
+
+  return (
+    <div className="card card-full">
+      <h3>Script Runner</h3>
+
+      <div className="script-toolbar">
+        <input type="text" value={scriptName} onChange={e => setScriptName(e.target.value)}
+               placeholder="Script name" style={{width:160}} />
+        <button className="btn btn-success btn-sm" onClick={runScript} disabled={running}>Run</button>
+        <button className="btn btn-danger btn-sm" onClick={stopScript} disabled={!running}>Stop</button>
+        <button className="btn btn-primary btn-sm" onClick={saveScript}>Save</button>
+        <button className="btn btn-outline btn-sm" onClick={() => { setCode(''); setOutput([]); }}>Clear</button>
+      </div>
+
+      {savedScripts.length > 0 && (
+        <div style={{marginBottom:8, border:'1px solid var(--border)', borderRadius:4, maxHeight:100, overflowY:'auto'}}>
+          {savedScripts.map(name => (
+            <div key={name} className="saved-script-item">
+              <a onClick={() => loadScript(name)}>{name}</a>
+              <button className="btn btn-danger btn-xs" onClick={() => deleteScript(name)}>x</button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <textarea className="script-editor" value={code} onChange={e => setCode(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Tab') {
+                    e.preventDefault();
+                    const start = e.target.selectionStart;
+                    const end = e.target.selectionEnd;
+                    setCode(code.substring(0, start) + '    ' + code.substring(end));
+                    setTimeout(() => { e.target.selectionStart = e.target.selectionEnd = start + 4; }, 0);
+                  }
+                }}
+                spellCheck={false} />
+
+      <div className="script-output" ref={outputRef}>
+        {output.map((line, i) => <div key={i}>{line}</div>)}
+        {output.length === 0 && <span style={{color:'var(--muted)'}}>Script output will appear here</span>}
+      </div>
+    </div>
+  );
+}
+
+// ── Main App Component ──
+function App() {
+  const { status, sseConnected } = useDeviceStatus();
+  const [localLog, setLocalLog] = useState([]);
+  const [serialPort, setSerialPort] = useState("COM3");
+  const [plateType, setPlateType] = useState(0);
+  const [cassetteType, setCassetteType] = useState(0);
+  const [pumpSpeed, setPumpSpeed] = useState(50);
+  const [dispHeight, setDispHeight] = useState(17);    // mm (UI) → ×100 for SiLA (1/100 mm)
+  const [columnVolumes, setColumnVolumes] = useState({});
+  const [selectedCols, setSelectedCols] = useState(new Set());
+  const [volInput, setVolInput] = useState(10);        // µL (UI) → ×10 for SiLA (1/10 µL)
+  const [primeVol, setPrimeVol] = useState(50);        // µL (UI) → ×10 for SiLA
+  const [primeMode, setPrimeMode] = useState(0);
+  const [emptyVol, setEmptyVol] = useState(50);        // µL (UI) → ×10 for SiLA
+  const [emptyMode, setEmptyMode] = useState(0);
+  const [shakeTime, setShakeTime] = useState(5);       // seconds (UI) → ×100 for SiLA (1/100 s)
+  const [shakeDist, setShakeDist] = useState(2);       // mm (direct)
+  const [shakeSpeed, setShakeSpeed] = useState(10);    // Hz (direct)
+  const [busy, setBusy] = useState(false);
+  const [dispenseProgress, setDispenseProgress] = useState(null);
+  const [errorModal, setErrorModal] = useState(null);
+  const [settingsName, setSettingsName] = useState("");
+  const [selectedSetting, setSelectedSetting] = useState("");
+  const lastClickedCol = useRef(null);
+
+  const addLog = useCallback((msg, cls) => {
+    const ts = new Date().toLocaleTimeString();
+    setLocalLog(prev => [...prev.slice(-99), `[${ts}] ${msg}`]);
+  }, []);
+
+  // Merge SSE activity log with local log for display
+  const displayLog = useMemo(() => {
+    // Use SSE activity log as the authoritative source, append local-only entries
+    return status.activityLog.length > 0 ? status.activityLog : localLog;
+  }, [status.activityLog, localLog]);
+
+  const isConnected = status.isConnected;
+  const serialPortInitRef = useRef(false);
+  useEffect(() => {
+    if (!serialPortInitRef.current && status.configuredSerialPort) {
+      setSerialPort(status.configuredSerialPort);
+      serialPortInitRef.current = true;
+    }
+  }, [status.configuredSerialPort]);
+  const fmt = PLATE_FORMATS[plateWellCount(plateType)];
+
+  // ── Command execution with error recovery ──
+  const doCommand = useCallback(async (cmdId, params = {}) => {
+    setBusy(true);
+    while (true) {
+      addLog(`${cmdId}...`);
+      try {
+        const result = await executeCommand(cmdId, params);
+        const r = result.responses || {};
+        const msg = Object.keys(r).length ? JSON.stringify(r) : "OK";
+        addLog(`${cmdId}: ${msg}`);
+        setBusy(false);
+        return result;
+      } catch (err) {
+        addLog(`${cmdId} failed: ${err.message}`);
+        const choice = await new Promise(resolve => {
+          setErrorModal({
+            message: `${cmdId} failed:\n${err.message}`,
+            onRetry: () => { setErrorModal(null); resolve("retry"); },
+            onIgnore: () => { setErrorModal(null); resolve("ignore"); },
+            onAbort: () => { setErrorModal(null); resolve("abort"); },
+          });
+        });
+        if (choice === "retry") continue;
+        setBusy(false);
+        if (choice === "abort") throw err;
+        return null;
+      }
+    }
+  }, [addLog]);
+
+  // ── Connect ──
+  const doConnect = useCallback(async () => {
+    setBusy(true);
+    addLog(`Connecting to ${serialPort}...`);
+    try {
+      const result = await executeCommand("Connect", { SerialPort: serialPort });
+      const r = result.responses || {};
+      addLog(`Connected: ${r.InstrumentName || "OK"}`);
+    } catch (err) {
+      addLog(`Connect failed: ${err.message}`);
+    }
+    setBusy(false);
+  }, [serialPort, addLog]);
+
+  // ── Dispense workflow ──
+  const doDispense = useCallback(async () => {
+    setBusy(true);
+    setDispenseProgress(0);
+
+    // Helper that runs a command with retry/ignore/abort error recovery
+    const step = async (label, cmdId, params) => {
+      while (true) {
+        try {
+          const result = await executeCommand(cmdId, params);
+          addLog(`${label}: OK`);
+          return result;
+        } catch (err) {
+          addLog(`${label} failed: ${err.message}`);
+          const choice = await new Promise(resolve => {
+            setErrorModal({
+              message: `${label} failed:\n${err.message}`,
+              onRetry: () => { setErrorModal(null); resolve("retry"); },
+              onIgnore: () => { setErrorModal(null); resolve("ignore"); },
+              onAbort: () => { setErrorModal(null); resolve("abort"); },
+            });
+          });
+          if (choice === "retry") continue;
+          if (choice === "abort") throw err;
+          return null;  // ignore
+        }
+      }
+    };
+
+    try {
+      addLog("Applying dispense settings...");
+      await step("SetPlateType", "SetPlateType", { PlateType: plateType });
+      await step("SetCassetteType", "SetCassetteType", { CassetteType: cassetteType });
+
+      const volEntries = Object.entries(columnVolumes).map(([c,v]) => [parseInt(c), v]).sort((a,b) => a[0]-b[0]);
+      if (volEntries.length === 0) {
+        addLog("No column volumes set, using instrument defaults");
+      } else {
+        // Zero all columns first, then set desired ones (SCV 0 0 = don't dispense any)
+        await step("SetColumnVolume(all=0)", "SetColumnVolume", { Column: 0, Volume: 0 });
+        for (const [col, vol] of volEntries) {
+          const rawVol = Math.round(vol * 10);  // µL → 1/10 µL
+          await step(`SetColumnVolume(${col}=${vol}µL)`, "SetColumnVolume", { Column: col, Volume: rawVol });
+        }
+      }
+
+      await step("SetPumpSpeed", "SetPumpSpeed", { Speed: pumpSpeed });
+      const rawHeight = Math.round(dispHeight * 100);  // mm → 1/100 mm
+      await step(`SetDispensingHeight(${dispHeight}mm)`, "SetDispensingHeight", { Height: rawHeight });
+
+      addLog("Dispense...");
+      const result = await executeCommand("Dispense", {});
+      addLog(`Dispense: ${result.responses?.Status || "OK"}`);
+    } catch (err) {
+      addLog(`Dispense sequence aborted: ${err.message}`);
+    }
+    setDispenseProgress(null);
+    setBusy(false);
+  }, [plateType, cassetteType, columnVolumes, pumpSpeed, dispHeight, fmt, addLog]);
+
+  // ── Column selection ──
+  const onColClick = useCallback((col, event) => {
+    setSelectedCols(prev => {
+      const next = new Set(prev);
+      if (event.shiftKey && lastClickedCol.current !== null) {
+        const from = Math.min(lastClickedCol.current, col);
+        const to = Math.max(lastClickedCol.current, col);
+        for (let c = from; c <= to; c++) next.add(c);
+      } else if (event.ctrlKey || event.metaKey) {
+        if (next.has(col)) next.delete(col); else next.add(col);
+      } else {
+        if (next.size === 1 && next.has(col)) { next.clear(); }
+        else { next.clear(); next.add(col); }
+      }
+      lastClickedCol.current = col;
+      return next;
+    });
+  }, []);
+
+  const selectAllCols = useCallback(() => {
+    const all = new Set();
+    for (let c = 1; c <= fmt.cols; c++) all.add(c);
+    setSelectedCols(all);
+  }, [fmt]);
+
+  const applyVolToSelected = useCallback(() => {
+    if (volInput < 1) { addLog("Volume must be >= 1"); return; }
+    if (selectedCols.size === 0) { addLog("Select columns on the plate map first"); return; }
+    setColumnVolumes(prev => {
+      const next = {...prev};
+      for (const c of selectedCols) next[c] = volInput;
+      return next;
+    });
+    addLog(`Set volume ${volInput} µL on columns: ${[...selectedCols].sort((a,b)=>a-b).join(', ')}`);
+  }, [volInput, selectedCols, addLog]);
+
+  // ── Settings ──
+  const savedSettings = useMemo(() => Object.keys(getAllSettings()).sort(), [settingsName, selectedSetting]);
+
+  const saveSettings = useCallback(() => {
+    const name = settingsName.trim() || selectedSetting;
+    if (!name) { addLog("Enter a settings name to save"); return; }
+    const all = getAllSettings();
+    all[name] = { plateType, cassetteType, pumpSpeed, dispHeight, columnVolumes };
+    saveAllSettings(all);
+    setSettingsName("");
+    setSelectedSetting(name);
+    addLog(`Settings saved: ${name}`);
+  }, [settingsName, selectedSetting, plateType, cassetteType, pumpSpeed, dispHeight, columnVolumes, addLog]);
+
+  const loadSettings = useCallback(() => {
+    if (!selectedSetting) { addLog("Select a saved settings profile to load"); return; }
+    const all = getAllSettings();
+    const s = all[selectedSetting];
+    if (s) {
+      if (s.plateType !== undefined) setPlateType(s.plateType);
+      if (s.cassetteType !== undefined) setCassetteType(s.cassetteType);
+      if (s.pumpSpeed !== undefined) setPumpSpeed(s.pumpSpeed);
+      if (s.dispHeight !== undefined) setDispHeight(s.dispHeight);
+      if (s.columnVolumes) {
+        const cv = {};
+        for (const [k,v] of Object.entries(s.columnVolumes)) cv[parseInt(k)] = v;
+        setColumnVolumes(cv);
+      } else setColumnVolumes({});
+      setSelectedCols(new Set());
+      addLog(`Settings loaded: ${selectedSetting}`);
+    }
+  }, [selectedSetting, addLog]);
+
+  const deleteSettings = useCallback(() => {
+    if (!selectedSetting) { addLog("Select a saved settings profile to delete"); return; }
+    const all = getAllSettings();
+    delete all[selectedSetting];
+    saveAllSettings(all);
+    setSelectedSetting("");
+    addLog(`Settings deleted: ${selectedSetting}`);
+  }, [selectedSetting, addLog]);
+
+  // ── Structured log viewer ──
+  const LOG_FEATURE_ID = "ServerLogProvider";
+  const [logEntries, setLogEntries] = useState([]);
+  const [logFeatures, setLogFeatures] = useState([]);
+  const [logSeverity, setLogSeverity] = useState("");
+  const [logFeature, setLogFeature] = useState("");
+  const [logMaxEntries, setLogMaxEntries] = useState(200);
+  const [logLoading, setLogLoading] = useState(false);
+
+  const refreshLogFeatures = useCallback(async () => {
+    try {
+      const resp = await fetch(`${API_BASE}/command/${SILA_HOST}/${SILA_PORT}/${LOG_FEATURE_ID}/GetLogFeatures`, {
+        method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({}),
+      });
+      const data = await resp.json();
+      if (data.status !== "error" && data.responses?.Features) {
+        setLogFeatures(data.responses.Features);
+      }
+    } catch {}
+  }, []);
+
+  const refreshLogs = useCallback(async () => {
+    setLogLoading(true);
+    try {
+      const resp = await fetch(`${API_BASE}/command/${SILA_HOST}/${SILA_PORT}/${LOG_FEATURE_ID}/GetLogs`, {
+        method: "POST", headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+          StartTime: "", EndTime: "", MinSeverity: logSeverity, Feature: logFeature, MaxEntries: logMaxEntries
+        }),
+      });
+      const data = await resp.json();
+      if (data.status !== "error" && data.responses?.LogEntries) {
+        setLogEntries(JSON.parse(data.responses.LogEntries));
+      }
+    } catch (err) {
+      addLog("Log fetch failed: " + err.message);
+    }
+    setLogLoading(false);
+  }, [logSeverity, logFeature, logMaxEntries, addLog]);
+
+  // Plate type options
+  const plateOptions = useMemo(() => {
+    // Factory-defined plate types from manual (Appendix A)
+    const names = {
+      0: "96 Standard (15mm)",
+      1: "96 Low DW (22mm)",
+      2: "96 DW (44mm)",
+      3: "384 Low Vol. (7.5mm)",
+      4: "384 Low Prof. (10mm)",
+      5: "384 Standard (15mm)",
+      6: "384 DW (22mm)",
+      7: "384 DW (44mm)",
+      8: "1536 Low Vol. (5mm)",
+      9: "1536 Std (10.5mm)",
+    };
+    const opts = [];
+    for (let i = 0; i <= 9; i++) opts.push(<option key={i} value={i}>{i} - {names[i]}</option>);
+    for (let i = 10; i <= 29; i++) opts.push(<option key={i} value={i}>{i} - User Plate {i}</option>);
+    return opts;
+  }, []);
+
+  return (
+    <div>
+      <h2>Multidrop Combi Controller</h2>
+      <StatusBar status={status} sseConnected={sseConnected} />
+
+      <div className="workflow">
+        {/* Connection */}
+        <div className="card">
+          <h3>Connection</h3>
+          <label>Serial Port</label>
+          <input type="text" value={serialPort} onChange={e => setSerialPort(e.target.value)} placeholder="COM3" />
+          <div className="btn-group">
+            <button className="btn btn-primary btn-sm" disabled={isConnected || busy} onClick={doConnect}>Connect</button>
+            <button className="btn btn-danger btn-sm" disabled={!isConnected || busy}
+              onClick={() => doCommand("Disconnect")}>Disconnect</button>
+          </div>
+        </div>
+
+        {/* Dispense Settings */}
+        <div className="card card-full">
+          <h3>Dispense Settings</h3>
+          <div className="inline-fields">
+            <div>
+              <label>Plate Type</label>
+              <select value={plateType} onChange={e => { setPlateType(parseInt(e.target.value)); setSelectedCols(new Set()); }}>
+                {plateOptions}
+              </select>
+            </div>
+            <div>
+              <label>Cassette Type</label>
+              <select value={cassetteType} onChange={e => setCassetteType(parseInt(e.target.value))}>
+                <option value={0}>0 - Standard Tube</option>
+                <option value={1}>1 - Small Tube</option>
+                <option value={2}>2 - User Cassette 2</option>
+                <option value={3}>3 - User Cassette 3</option>
+              </select>
+            </div>
+            <div>
+              <label>Pump Speed %</label>
+              <input type="number" value={pumpSpeed} onChange={e => setPumpSpeed(parseInt(e.target.value)||50)} min={1} max={100} />
+            </div>
+            <div>
+              <label>Dispensing Height (mm)</label>
+              <input type="number" value={dispHeight} onChange={e => setDispHeight(parseFloat(e.target.value)||17)} min={5} max={55} step={0.5} />
+            </div>
+          </div>
+
+          {/* Plate map */}
+          <div className="plate-map-wrap">
+            <PlateMap plateType={plateType} columnVolumes={columnVolumes}
+                      selectedCols={selectedCols} onColClick={onColClick} />
+          </div>
+          <div className="plate-legend">
+            <span><span className="legend-swatch" style={{background:'var(--border)'}}></span>No volume</span>
+            <span><span className="legend-swatch" style={{background:'#3a5a3a'}}></span>Volume set</span>
+            <span><span className="legend-swatch" style={{background:'var(--accent)'}}></span>Selected</span>
+          </div>
+
+          {/* Volume toolbar */}
+          <div className="vol-toolbar">
+            <div className="input-narrow">
+              <label>Volume (µL)</label>
+              <input type="number" value={volInput} onChange={e => setVolInput(parseFloat(e.target.value)||1)} min={0.1} step={0.1} />
+            </div>
+            <div>
+              <div className="btn-group" style={{marginTop:0}}>
+                <button className="btn btn-primary btn-sm" onClick={applyVolToSelected}>Apply to Selected</button>
+                <button className="btn btn-outline btn-sm" onClick={selectAllCols}>Select All</button>
+                <button className="btn btn-outline btn-sm" onClick={() => { setSelectedCols(new Set()); lastClickedCol.current = null; }}>Clear Selection</button>
+                <button className="btn btn-outline btn-sm" onClick={() => setColumnVolumes({})}>Clear All Volumes</button>
+              </div>
+            </div>
+          </div>
+
+          <div className="col-vol-summary">
+            <VolumeSummary columnVolumes={columnVolumes} />
+          </div>
+
+          {/* Settings save/load */}
+          <div className="settings-row">
+            <div>
+              <label>Saved Settings</label>
+              <select value={selectedSetting} onChange={e => setSelectedSetting(e.target.value)}>
+                <option value="">-- select --</option>
+                {savedSettings.map(n => <option key={n} value={n}>{n}</option>)}
+              </select>
+            </div>
+            <div>
+              <label>Name</label>
+              <input type="text" value={settingsName} onChange={e => setSettingsName(e.target.value)} placeholder="My Settings" />
+            </div>
+            <div>
+              <div className="btn-group">
+                <button className="btn btn-primary btn-sm" onClick={saveSettings}>Save</button>
+                <button className="btn btn-outline btn-sm" onClick={loadSettings}>Load</button>
+                <button className="btn btn-danger btn-sm" onClick={deleteSettings}>Delete</button>
+              </div>
+            </div>
+          </div>
+
+          {/* Dispense action */}
+          <div className="dispense-action">
+            <button className="btn btn-success" disabled={!isConnected || busy} onClick={doDispense}>Dispense</button>
+            {dispenseProgress !== null && <span className="status-info">Dispensing...</span>}
+          </div>
+          {dispenseProgress !== null && (
+            <div className="progress-bar">
+              <div className="progress-fill" style={{width: `${(dispenseProgress||0)*100}%`}}></div>
+            </div>
+          )}
+        </div>
+
+        {/* Prime */}
+        <div className="card">
+          <h3>Prime</h3>
+          <div className="inline-fields">
+            <div>
+              <label>Volume (µL)</label>
+              <input type="number" value={primeVol} onChange={e => setPrimeVol(parseFloat(e.target.value)||1)}
+                min={1} max={10000} step={1} disabled={primeMode === 1} style={primeMode === 1 ? {opacity:0.5} : {}} />
+            </div>
+            <div>
+              <label>Mode</label>
+              <select value={primeMode} onChange={e => setPrimeMode(parseInt(e.target.value))}>
+                <option value={0}>Standard</option>
+                <option value={1}>Continuous</option>
+              </select>
+            </div>
+          </div>
+          <div className="btn-group">
+            <button className="btn btn-success btn-sm" disabled={!isConnected || busy}
+              onClick={() => doCommand("Prime", {Volume: Math.round(primeVol * 10), Mode: primeMode})}>
+              {primeMode === 1 ? "Start Prime" : "Prime"}</button>
+            {primeMode === 1 && <button className="btn btn-outline btn-sm" disabled={!isConnected || busy}
+              onClick={() => doCommand("Prime", {Volume: Math.round(primeVol * 10), Mode: 0})}>Stop Prime</button>}
+          </div>
+        </div>
+
+        {/* Empty */}
+        <div className="card">
+          <h3>Empty</h3>
+          <div className="inline-fields">
+            <div>
+              <label>Volume (µL)</label>
+              <input type="number" value={emptyVol} onChange={e => setEmptyVol(parseFloat(e.target.value)||1)}
+                min={1} max={10000} step={1} disabled={emptyMode === 1} style={emptyMode === 1 ? {opacity:0.5} : {}} />
+            </div>
+            <div>
+              <label>Mode</label>
+              <select value={emptyMode} onChange={e => setEmptyMode(parseInt(e.target.value))}>
+                <option value={0}>Standard</option>
+                <option value={1}>Continuous</option>
+              </select>
+            </div>
+          </div>
+          <div className="btn-group">
+            <button className="btn btn-warning btn-sm" disabled={!isConnected || busy}
+              onClick={() => doCommand("Empty", {Volume: Math.round(emptyVol * 10), Mode: emptyMode})}>
+              {emptyMode === 1 ? "Start Empty" : "Empty"}</button>
+            {emptyMode === 1 && <button className="btn btn-outline btn-sm" disabled={!isConnected || busy}
+              onClick={() => doCommand("Empty", {Volume: Math.round(emptyVol * 10), Mode: 0})}>Stop Empty</button>}
+          </div>
+        </div>
+
+        {/* Shake */}
+        <div className="card">
+          <h3>Shake</h3>
+          <div className="inline-fields">
+            <div>
+              <label>Time (seconds)</label>
+              <input type="number" value={shakeTime} onChange={e => setShakeTime(parseFloat(e.target.value)||0.1)} min={0.01} step={0.1} />
+            </div>
+            <div>
+              <label>Distance (mm)</label>
+              <input type="number" value={shakeDist} onChange={e => setShakeDist(parseInt(e.target.value)||1)} min={1} max={5} />
+            </div>
+            <div>
+              <label>Speed (Hz)</label>
+              <input type="number" value={shakeSpeed} onChange={e => setShakeSpeed(parseInt(e.target.value)||1)} min={1} max={20} />
+            </div>
+          </div>
+          <div className="btn-group">
+            <button className="btn btn-primary btn-sm" disabled={!isConnected || busy}
+              onClick={() => doCommand("Shake", {Time: Math.round(shakeTime * 100), Distance: shakeDist, Speed: shakeSpeed})}>Shake</button>
+          </div>
+        </div>
+
+        {/* Instrument */}
+        <div className="card">
+          <h3>Instrument</h3>
+          <div className="btn-group">
+            <button className="btn btn-warning btn-sm" disabled={!isConnected || busy}
+              onClick={() => doCommand("MoveOut")}>Move Out</button>
+            <button className="btn btn-danger btn-sm" disabled={!isConnected}
+              onClick={() => doCommand("Abort")}>Abort</button>
+            <button className="btn btn-primary btn-sm" disabled={!isConnected || busy}
+              onClick={() => doCommand("AcknowledgeError")}>Acknowledge Error</button>
+            <button className="btn btn-danger btn-sm" disabled={!isConnected || busy}
+              onClick={() => doCommand("Restart")}>Restart</button>
+          </div>
+        </div>
+
+        {/* Activity Log */}
+        <div className="card card-full">
+          <h3>Activity Log</h3>
+          <ActivityLog entries={displayLog} />
+        </div>
+
+        {/* Server Log Viewer */}
+        <div className="card card-full">
+          <h3>Server Log</h3>
+          <div className="inline-fields" style={{marginBottom:8}}>
+            <div>
+              <label>Feature</label>
+              <select value={logFeature} onChange={e => setLogFeature(e.target.value)} onFocus={refreshLogFeatures}>
+                <option value="">All Features</option>
+                {logFeatures.map(f => <option key={f} value={f}>{f}</option>)}
+              </select>
+            </div>
+            <div>
+              <label>Min Severity</label>
+              <select value={logSeverity} onChange={e => setLogSeverity(e.target.value)}>
+                <option value="">DEBUG</option>
+                <option value="INFO">INFO</option>
+                <option value="WARNING">WARNING</option>
+                <option value="ERROR">ERROR</option>
+                <option value="CRITICAL">CRITICAL</option>
+              </select>
+            </div>
+            <div>
+              <label>Max Entries</label>
+              <input type="number" value={logMaxEntries} onChange={e => setLogMaxEntries(parseInt(e.target.value)||200)} min={1} max={2000} />
+            </div>
+            <div style={{alignSelf:'flex-end'}}>
+              <button className="btn btn-primary btn-sm" onClick={refreshLogs} disabled={logLoading}>
+                {logLoading ? "Loading..." : "Refresh"}
+              </button>
+            </div>
+          </div>
+          <div style={{maxHeight:300,overflowY:'auto',fontSize:11,background:'var(--bg)',border:'1px solid var(--border)',
+                       borderRadius:4}}>
+            <table style={{width:'100%',borderCollapse:'collapse'}}>
+              <thead>
+                <tr style={{position:'sticky',top:0,background:'var(--surface)',zIndex:1}}>
+                  <th style={{padding:'4px 6px',textAlign:'left',borderBottom:'1px solid var(--border)',color:'var(--muted)',fontWeight:600}}>Time</th>
+                  <th style={{padding:'4px 6px',textAlign:'left',borderBottom:'1px solid var(--border)',color:'var(--muted)',fontWeight:600}}>Level</th>
+                  <th style={{padding:'4px 6px',textAlign:'left',borderBottom:'1px solid var(--border)',color:'var(--muted)',fontWeight:600}}>Feature</th>
+                  <th style={{padding:'4px 6px',textAlign:'left',borderBottom:'1px solid var(--border)',color:'var(--muted)',fontWeight:600}}>Message</th>
+                </tr>
+              </thead>
+              <tbody>
+                {logEntries.map((e, i) => {
+                  const levelColor = e.level === 'ERROR' || e.level === 'CRITICAL' ? 'var(--danger)'
+                    : e.level === 'WARNING' ? 'var(--warning)'
+                    : e.level === 'DEBUG' ? 'var(--muted)' : 'var(--text)';
+                  const ts = e.timestamp ? e.timestamp.replace('T', ' ').substring(0, 23) : '';
+                  return (
+                    <tr key={i} style={{borderBottom:'1px solid var(--border)'}}>
+                      <td style={{padding:'2px 6px',whiteSpace:'nowrap',fontFamily:'monospace',color:'var(--muted)'}}>{ts}</td>
+                      <td style={{padding:'2px 6px',fontWeight:600,color:levelColor}}>{e.level}</td>
+                      <td style={{padding:'2px 6px',color:'var(--accent)'}}>{e.feature}</td>
+                      <td style={{padding:'2px 6px',wordBreak:'break-word'}}>{e.message}</td>
+                    </tr>
+                  );
+                })}
+                {logEntries.length === 0 && (
+                  <tr><td colSpan={4} style={{padding:'8px',color:'var(--muted)',textAlign:'center'}}>
+                    Click Refresh to load log entries
+                  </td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        {/* Script Runner */}
+        <ScriptPanel />
+      </div>
+
+      {errorModal && <ErrorModal {...errorModal} />}
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
+</script>
+</body>
+</html>

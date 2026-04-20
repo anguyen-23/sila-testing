@@ -1,0 +1,204 @@
+syntax = "proto3";
+
+import "SiLAFramework.proto";
+
+package sila2.calico.automation.extended.micronictubescanner.v1;
+
+/* Controls a Micronic 2D tube-rack barcode scanner via its REST API. Supports rack scanning, single tube scanning, layout management, and decode retry/rescan operations. This is a learning feature wrapping the Micronic HTTP API (port 2500). */
+service MicronicTubeScanner {
+  /* Sets the base URL of the Micronic scanner REST API and verifies connectivity by querying the device state. */
+  rpc Connect (sila2.calico.automation.extended.micronictubescanner.v1.Connect_Parameters) returns (sila2.calico.automation.extended.micronictubescanner.v1.Connect_Responses) {}
+  /* Clears the connection to the Micronic scanner. */
+  rpc Disconnect (sila2.calico.automation.extended.micronictubescanner.v1.Disconnect_Parameters) returns (sila2.calico.automation.extended.micronictubescanner.v1.Disconnect_Responses) {}
+  /* Changes the active rack layout used by the scanner software. */
+  rpc SetLayout (sila2.calico.automation.extended.micronictubescanner.v1.SetLayout_Parameters) returns (sila2.calico.automation.extended.micronictubescanner.v1.SetLayout_Responses) {}
+  /* Initiates a single tube scan and decode operation. */
+  rpc ScanTube (sila2.calico.automation.extended.micronictubescanner.v1.ScanTube_Parameters) returns (sila2.calico.automation.extended.micronictubescanner.v1.ScanTube_Responses) {}
+  /* Returns the scan results of the most recent scan in JSON format. */
+  rpc GetScanResult (sila2.calico.automation.extended.micronictubescanner.v1.GetScanResult_Parameters) returns (sila2.calico.automation.extended.micronictubescanner.v1.GetScanResult_Responses) {}
+  /* Returns the scan results of the most recent scan in CSV format. */
+  rpc GetScanResultCsv (sila2.calico.automation.extended.micronictubescanner.v1.GetScanResultCsv_Parameters) returns (sila2.calico.automation.extended.micronictubescanner.v1.GetScanResultCsv_Responses) {}
+  /* Retries decoding a specified tube with new image parameters without rescanning. */
+  rpc RetryDecode (sila2.calico.automation.extended.micronictubescanner.v1.RetryDecode_Parameters) returns (sila2.calico.automation.extended.micronictubescanner.v1.RetryDecode_Responses) {}
+  /* Rescans and decodes a specified tube with new image parameters. */
+  rpc RescanTube (sila2.calico.automation.extended.micronictubescanner.v1.RescanTube_Parameters) returns (sila2.calico.automation.extended.micronictubescanner.v1.RescanTube_Responses) {}
+  /* 
+            Initiates a full rack scan and decode operation. Polls the device
+            state until scanning completes and results are available.
+         */
+  rpc ScanBox (sila2.calico.automation.extended.micronictubescanner.v1.ScanBox_Parameters) returns (sila2.org.silastandard.CommandConfirmation) {}
+  /* Monitor the state of ScanBox */
+  rpc ScanBox_Info (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.org.silastandard.ExecutionInfo) {}
+  /* Retrieve intermediate responses of ScanBox */
+  rpc ScanBox_Intermediate (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.calico.automation.extended.micronictubescanner.v1.ScanBox_IntermediateResponses) {}
+  /* Retrieve result of ScanBox */
+  rpc ScanBox_Result(sila2.org.silastandard.CommandExecutionUUID) returns (sila2.calico.automation.extended.micronictubescanner.v1.ScanBox_Responses) {}
+  /* Whether the scanner API connection is established. */
+  rpc Get_IsConnected (sila2.calico.automation.extended.micronictubescanner.v1.Get_IsConnected_Parameters) returns (sila2.calico.automation.extended.micronictubescanner.v1.Get_IsConnected_Responses) {}
+  /* Current state of the scanner: idle, scanning, or dataready. */
+  rpc Get_State (sila2.calico.automation.extended.micronictubescanner.v1.Get_State_Parameters) returns (sila2.calico.automation.extended.micronictubescanner.v1.Get_State_Responses) {}
+  /* The currently active rack layout name. */
+  rpc Get_CurrentLayout (sila2.calico.automation.extended.micronictubescanner.v1.Get_CurrentLayout_Parameters) returns (sila2.calico.automation.extended.micronictubescanner.v1.Get_CurrentLayout_Responses) {}
+  /* List of rack layout names supported by the scanner software. */
+  rpc Get_AvailableLayouts (sila2.calico.automation.extended.micronictubescanner.v1.Get_AvailableLayouts_Parameters) returns (sila2.calico.automation.extended.micronictubescanner.v1.Get_AvailableLayouts_Responses) {}
+  /* The rack ID read from the current rack. */
+  rpc Get_RackId (sila2.calico.automation.extended.micronictubescanner.v1.Get_RackId_Parameters) returns (sila2.calico.automation.extended.micronictubescanner.v1.Get_RackId_Responses) {}
+  /* PNG icon representing this instrument, for display in client UIs. */
+  rpc Get_DisplayIcon (sila2.calico.automation.extended.micronictubescanner.v1.Get_DisplayIcon_Parameters) returns (sila2.calico.automation.extended.micronictubescanner.v1.Get_DisplayIcon_Responses) {}
+  /* Rich text description of device capabilities for LLM system prompts. */
+  rpc Get_DeviceDescription (sila2.calico.automation.extended.micronictubescanner.v1.Get_DeviceDescription_Parameters) returns (sila2.calico.automation.extended.micronictubescanner.v1.Get_DeviceDescription_Responses) {}
+}
+
+/* Parameters for Connect */
+message Connect_Parameters {
+  sila2.org.silastandard.String BaseUrl = 1;  /* Base URL of the Micronic API (e.g. "http://10.11.63.32:2500"). */
+}
+
+/* Responses of Connect */
+message Connect_Responses {
+}
+
+/* Parameters for Disconnect */
+message Disconnect_Parameters {
+}
+
+/* Responses of Disconnect */
+message Disconnect_Responses {
+}
+
+/* Parameters for SetLayout */
+message SetLayout_Parameters {
+  sila2.org.silastandard.String LayoutName = 1;  /* Name of the layout to activate (must be from AvailableLayouts). */
+}
+
+/* Responses of SetLayout */
+message SetLayout_Responses {
+}
+
+/* Parameters for ScanTube */
+message ScanTube_Parameters {
+}
+
+/* Responses of ScanTube */
+message ScanTube_Responses {
+  sila2.org.silastandard.String ScanResult = 1;  /* JSON scan result for the single tube. */
+}
+
+/* Parameters for GetScanResult */
+message GetScanResult_Parameters {
+}
+
+/* Responses of GetScanResult */
+message GetScanResult_Responses {
+  sila2.org.silastandard.String ScanResult = 1;  /* JSON scan result data. */
+}
+
+/* Parameters for GetScanResultCsv */
+message GetScanResultCsv_Parameters {
+}
+
+/* Responses of GetScanResultCsv */
+message GetScanResultCsv_Responses {
+  sila2.org.silastandard.String CsvData = 1;  /* Scan result data in CSV format. */
+}
+
+/* Parameters for RetryDecode */
+message RetryDecode_Parameters {
+  sila2.org.silastandard.String Position = 1;  /* Tube position in the rack. */
+  sila2.org.silastandard.Integer Brightness = 2;  /* Brightness value for decoding. */
+  sila2.org.silastandard.Integer Contrast = 3;  /* Contrast value for decoding. */
+  sila2.org.silastandard.Integer Threshold = 4;  /* Threshold value for decoding. */
+}
+
+/* Responses of RetryDecode */
+message RetryDecode_Responses {
+}
+
+/* Parameters for RescanTube */
+message RescanTube_Parameters {
+  sila2.org.silastandard.String Position = 1;  /* Tube position in the rack. */
+  sila2.org.silastandard.Integer Brightness = 2;  /* Brightness value for decoding. */
+  sila2.org.silastandard.Integer Contrast = 3;  /* Contrast value for decoding. */
+  sila2.org.silastandard.Integer Threshold = 4;  /* Threshold value for decoding. */
+}
+
+/* Responses of RescanTube */
+message RescanTube_Responses {
+}
+
+/* Parameters for ScanBox */
+message ScanBox_Parameters {
+}
+
+/* Responses of ScanBox */
+message ScanBox_Responses {
+  sila2.org.silastandard.String ScanResult = 1;  /* JSON scan result data for the entire rack. */
+}
+
+/* Intermediate responses of ScanBox */
+message ScanBox_IntermediateResponses {
+  sila2.org.silastandard.String ProgressInfo = 1;  /* Status update during scanning. */
+}
+
+/* Parameters for IsConnected */
+message Get_IsConnected_Parameters {
+}
+
+/* Responses of IsConnected */
+message Get_IsConnected_Responses {
+  sila2.org.silastandard.Boolean IsConnected = 1;  /* Whether the scanner API connection is established. */
+}
+
+/* Parameters for State */
+message Get_State_Parameters {
+}
+
+/* Responses of State */
+message Get_State_Responses {
+  sila2.org.silastandard.String State = 1;  /* Current state of the scanner: idle, scanning, or dataready. */
+}
+
+/* Parameters for CurrentLayout */
+message Get_CurrentLayout_Parameters {
+}
+
+/* Responses of CurrentLayout */
+message Get_CurrentLayout_Responses {
+  sila2.org.silastandard.String CurrentLayout = 1;  /* The currently active rack layout name. */
+}
+
+/* Parameters for AvailableLayouts */
+message Get_AvailableLayouts_Parameters {
+}
+
+/* Responses of AvailableLayouts */
+message Get_AvailableLayouts_Responses {
+  repeated sila2.org.silastandard.String AvailableLayouts = 1;  /* List of rack layout names supported by the scanner software. */
+}
+
+/* Parameters for RackId */
+message Get_RackId_Parameters {
+}
+
+/* Responses of RackId */
+message Get_RackId_Responses {
+  sila2.org.silastandard.String RackId = 1;  /* The rack ID read from the current rack. */
+}
+
+/* Parameters for DisplayIcon */
+message Get_DisplayIcon_Parameters {
+}
+
+/* Responses of DisplayIcon */
+message Get_DisplayIcon_Responses {
+  sila2.org.silastandard.Binary DisplayIcon = 1;  /* PNG icon representing this instrument, for display in client UIs. */
+}
+
+/* Parameters for DeviceDescription */
+message Get_DeviceDescription_Parameters {
+}
+
+/* Responses of DeviceDescription */
+message Get_DeviceDescription_Responses {
+  sila2.org.silastandard.String DeviceDescription = 1;  /* Rich text description of device capabilities for LLM system prompts. */
+}

@@ -1,0 +1,97 @@
+<Feature xmlns="http://www.sila-standard.org" Category="examples" FeatureVersion="1.0" MaturityLevel="Draft" Originator="org.silalearning" SiLA2Version="1.1">
+  <Identifier>ScreenStreamer</Identifier>
+  <DisplayName>Screen Streamer</DisplayName>
+  <Description>Captures screenshots of a target application window on the host PC.
+        Uses Win32 API (PrintWindow/BitBlt) to capture the window even when
+        partially obscured. Returns JPEG frames on demand.</Description>
+  <!-- ============================================================ -->
+  <!-- COMMANDS                                                      -->
+  <!-- ============================================================ -->
+  <Command>
+    <Identifier>StartCapture</Identifier>
+    <DisplayName>Start Capture</DisplayName>
+    <Description>Starts capturing a window whose title contains the given substring.
+            A background thread continuously captures frames.</Description>
+    <Observable>No</Observable>
+    <Parameter>
+      <Identifier>WindowTitle</Identifier>
+      <DisplayName>Window Title</DisplayName>
+      <Description>Substring to match in the target window's title bar.</Description>
+      <DataType>
+        <Basic>String</Basic>
+      </DataType>
+    </Parameter>
+    <DefinedExecutionErrors>
+      <Identifier>WindowNotFound</Identifier>
+      <Identifier>CaptureError</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <Command>
+    <Identifier>StopCapture</Identifier>
+    <DisplayName>Stop Capture</DisplayName>
+    <Description>Stops the background capture thread.</Description>
+    <Observable>No</Observable>
+  </Command>
+  <Command>
+    <Identifier>GetLatestFrame</Identifier>
+    <DisplayName>Get Latest Frame</DisplayName>
+    <Description>Returns the most recently captured frame as JPEG bytes.</Description>
+    <Observable>No</Observable>
+    <Response>
+      <Identifier>Frame</Identifier>
+      <DisplayName>Frame</DisplayName>
+      <Description>JPEG image bytes of the latest captured frame.</Description>
+      <DataType>
+        <Basic>Binary</Basic>
+      </DataType>
+    </Response>
+    <DefinedExecutionErrors>
+      <Identifier>CaptureError</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <Command>
+    <Identifier>ListWindows</Identifier>
+    <DisplayName>List Windows</DisplayName>
+    <Description>Returns a list of visible window titles on the server machine.
+            Use these titles with StartCapture to begin streaming.</Description>
+    <Observable>No</Observable>
+    <Response>
+      <Identifier>WindowTitles</Identifier>
+      <DisplayName>Window Titles</DisplayName>
+      <Description>List of visible window titles.</Description>
+      <DataType>
+        <List>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </List>
+      </DataType>
+    </Response>
+  </Command>
+  <!-- ============================================================ -->
+  <!-- PROPERTIES                                                    -->
+  <!-- ============================================================ -->
+  <Property>
+    <Identifier>IsCapturing</Identifier>
+    <DisplayName>Is Capturing</DisplayName>
+    <Description>Whether the capture thread is currently running.</Description>
+    <Observable>No</Observable>
+    <DataType>
+      <Basic>Boolean</Basic>
+    </DataType>
+  </Property>
+  <!-- ============================================================ -->
+  <!-- DEFINED EXECUTION ERRORS                                      -->
+  <!-- ============================================================ -->
+  <DefinedExecutionError>
+    <Identifier>WindowNotFound</Identifier>
+    <DisplayName>Window Not Found</DisplayName>
+    <Description>No visible window matching the given title substring was found.</Description>
+  </DefinedExecutionError>
+  <DefinedExecutionError>
+    <Identifier>CaptureError</Identifier>
+    <DisplayName>Capture Error</DisplayName>
+    <Description>Failed to capture the window content (e.g. no frame available,
+            window closed, or Win32 API error).</Description>
+  </DefinedExecutionError>
+</Feature>

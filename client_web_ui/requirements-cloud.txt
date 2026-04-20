@@ -1,0 +1,7 @@
+sila2[full]
+flask
+aiohttp
+google-genai
+python-dotenv
+requests
+gunicorn

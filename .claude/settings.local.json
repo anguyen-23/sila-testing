@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip show:*)",
+      "Bash(pdftotext:*)",
+      "WebFetch(domain:sila2.gitlab.io)",
+      "WebFetch(domain:gitlab.com)",
+      "Bash(source:*)",
+      "Bash(.venv/Scripts/pip.exe install:*)",
+      "Bash(.venv/Scripts/python.exe:*)",
+      "WebSearch",
+      "WebFetch(domain:sila-standard.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:sila2-manager.readthedocs.io)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(python:*)",
+      "Bash(cp:*)",
+      "Bash(ls:*)",
+      "Bash(.venv/Scripts/python:*)",
+      "Bash(grep:*)",
+      "Bash(git checkout:*)",
+      "Bash(source .venv/Scripts/activate && cd servers/multidrop_combi && sila2-codegen generate-feature -o multidrop_combi/generated WebUIProvider.sila.xml 2>&1)",
+      "Bash(cd \"C:/Users/keyser/source/repos/keyser-sila-testing\" && source .venv/Scripts/activate && sila2-codegen new-package -n multidrop_combi_v2 -o servers/multidrop_combi_v2 --lock-controller servers/multidrop_combi_v2/MultidropCombi.sila.xml servers/multidrop_combi_v2/SimulationController.sila.xml servers/multidrop_combi_v2/ScreenStreamer.sila.xml servers/multidrop_combi_v2/MessagingClient.sila.xml servers/multidrop_combi_v2/WebUIProvider.sila.xml servers/multidrop_combi_v2/UserManualProvider.sila.xml 2>&1)",
+      "Bash(cd \"C:/Users/keyser/source/repos/keyser-sila-testing\" && source .venv/Scripts/activate && pip install -e servers/multidrop_combi_v2 2>&1 | tail -5)"
+    ]
+  }
+}

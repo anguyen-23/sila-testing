@@ -1,0 +1,42 @@
+---
+# Quick update: sync code and restart service (skips venv creation and dep install).
+#
+# Usage:
+#   ansible-playbook playbooks/update.yml -l venus_api
+#   ansible-playbook playbooks/update.yml -l f311-w11-2494
+
+- name: Update SiLA 2 servers
+  hosts: all
+  gather_facts: true
+
+  vars:
+    sila_service_prefix: "sila"
+
+  tasks:
+    - name: Filter servers to update
+      set_fact:
+        _sila_servers_to_deploy: "{{ sila_servers | selectattr('package', 'equalto', ansible_limit) | list if (ansible_limit is defined and ansible_limit in sila_servers | map(attribute='package') | list) else sila_servers }}"
+
+    # ── Windows ──────────────────────────────────────────
+    - name: "Windows: Update servers"
+      include_tasks: update_windows_server.yml
+      loop: "{{ _sila_servers_to_deploy }}"
+      loop_control:
+        loop_var: server
+      vars:
+        sila_package: "{{ server.package }}"
+        sila_port: "{{ server.port }}"
+        sila_extra_args: "{{ server.extra_args | default('') }}"
+      when: ansible_os_family == "Windows"
+
+    # ── Linux ────────────────────────────────────────────
+    - name: "Linux: Update servers"
+      include_tasks: update_linux_server.yml
+      loop: "{{ _sila_servers_to_deploy }}"
+      loop_control:
+        loop_var: server
+      vars:
+        sila_package: "{{ server.package }}"
+        sila_port: "{{ server.port }}"
+        sila_extra_args: "{{ server.extra_args | default('') }}"
+      when: ansible_os_family != "Windows"

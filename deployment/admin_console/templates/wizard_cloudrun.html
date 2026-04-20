@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+{% block title %}Cloud Run Deploy - SiLA 2 Deployment{% endblock %}
+{% block content %}
+
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="/">Dashboard</a></li>
+        <li class="breadcrumb-item active">Cloud Run Deploy</li>
+    </ol>
+</nav>
+
+<h4 class="mb-3"><i class="bi bi-cloud-arrow-up"></i> Deploy Web UI to Cloud Run</h4>
+<p class="text-muted">Deploy the SiLA 2 Client Web UI to Google Cloud Run with Tailscale VPN access to your on-prem servers.</p>
+
+<!-- Step Indicator -->
+<div class="step-indicator" id="stepIndicator">
+    <div class="step-dot active" id="step-dot-1">1</div>
+    <div class="step-connector"></div>
+    <div class="step-dot" id="step-dot-2">2</div>
+    <div class="step-connector"></div>
+    <div class="step-dot" id="step-dot-3">3</div>
+    <div class="step-connector"></div>
+    <div class="step-dot" id="step-dot-4">4</div>
+</div>
+
+<!-- Step 1: Prerequisites -->
+<div class="wizard-step active" id="step-1">
+    <div class="card">
+        <div class="card-body">
+            <h5>Step 1: Prerequisites</h5>
+            <p>Make sure you have the following ready:</p>
+
+            <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" id="chk-gcloud" onchange="validatePrereqs()">
+                <label class="form-check-label" for="chk-gcloud">
+                    <code>gcloud</code> CLI installed and authenticated
+                </label>
+            </div>
+            <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" id="chk-project" onchange="validatePrereqs()">
+                <label class="form-check-label" for="chk-project">
+                    Google Cloud project created with billing enabled
+                </label>
+            </div>
+            <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" id="chk-tailscale" onchange="validatePrereqs()">
+                <label class="form-check-label" for="chk-tailscale">
+                    Tailscale deployed on your SiLA servers (<a href="/wizard/tailscale">run the wizard</a>)
+                </label>
+            </div>
+            <div class="form-check mb-3">
+                <input class="form-check-input" type="checkbox" id="chk-authkey" onchange="validatePrereqs()">
+                <label class="form-check-label" for="chk-authkey">
+                    Tailscale auth key ready (same one from the Tailscale wizard)
+                </label>
+            </div>
+
+            <button class="btn btn-primary" id="btn-next-1" disabled onclick="goToStep(2)">Next</button>
+        </div>
+    </div>
+</div>
+
+<!-- Step 2: Configure -->
+<div class="wizard-step" id="step-2">
+    <div class="card">
+        <div class="card-body">
+            <h5>Step 2: Configure Your Deployment</h5>
+
+            <div class="mb-3">
+                <label class="form-label">GCP Project ID</label>
+                <input type="text" class="form-control" id="gcp-project" placeholder="my-sila-project"
+                       oninput="updateCommands()">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Region</label>
+                <select class="form-select" id="gcp-region" onchange="updateCommands()">
+                    <option value="us-central1">us-central1 (Iowa)</option>
+                    <option value="europe-west1">europe-west1 (Belgium)</option>
+                    <option value="europe-west2">europe-west2 (London)</option>
+                    <option value="asia-northeast1">asia-northeast1 (Tokyo)</option>
+                </select>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Service Name</label>
+                <input type="text" class="form-control" id="service-name" value="sila-web-ui"
+                       oninput="updateCommands()">
+            </div>
+
+            <button class="btn btn-outline-secondary me-2" onclick="goToStep(1)">Back</button>
+            <button class="btn btn-primary" onclick="goToStep(3)">Next</button>
+        </div>
+    </div>
+</div>
+
+<!-- Step 3: Build & Deploy -->
+<div class="wizard-step" id="step-3">
+    <div class="card">
+        <div class="card-body">
+            <h5>Step 3: Build and Deploy</h5>
+            <p>Run these commands from the <strong>project root</strong> directory:</p>
+
+            <h6 class="mt-3">1. Build the container image</h6>
+            <pre class="terminal" id="cmd-build"></pre>
+
+            <h6 class="mt-3">2. Deploy to Cloud Run</h6>
+            <pre class="terminal" id="cmd-deploy"></pre>
+
+            <div class="alert alert-info mt-3">
+                <i class="bi bi-info-circle"></i>
+                Replace <code>YOUR_TS_AUTHKEY</code> with your Tailscale auth key and
+                <code>YOUR_GEMINI_KEY</code> with your Gemini API key (optional).
+            </div>
+
+            <div class="form-check mb-3">
+                <input class="form-check-input" type="checkbox" id="chk-deployed" onchange="document.getElementById('btn-next-3').disabled = !this.checked">
+                <label class="form-check-label" for="chk-deployed">I've deployed successfully</label>
+            </div>
+
+            <button class="btn btn-outline-secondary me-2" onclick="goToStep(2)">Back</button>
+            <button class="btn btn-primary" id="btn-next-3" disabled onclick="goToStep(4)">Next</button>
+        </div>
+    </div>
+</div>
+
+<!-- Step 4: Configure Servers -->
+<div class="wizard-step" id="step-4">
+    <div class="card">
+        <div class="card-body">
+            <h5>Step 4: Connect to Your Servers</h5>
+            <p>Your Cloud Run instance is now on the Tailscale network. To connect to your SiLA servers:</p>
+
+            <ol>
+                <li>Open the Cloud Run URL in your browser</li>
+                <li>Click <strong>+ Add New Device</strong></li>
+                <li>Enter the <strong>Tailscale IP</strong> (100.x.y.z) and port for each server</li>
+            </ol>
+
+            <p>You can find your servers' Tailscale IPs by running a status check from the
+               <a href="/">dashboard</a>, or by checking the Tailscale admin console.</p>
+
+            <div class="alert alert-success">
+                <i class="bi bi-check-circle"></i>
+                You're all set! Your SiLA 2 Client Web UI is now accessible from anywhere,
+                securely connected to your lab instruments via Tailscale.
+            </div>
+
+            <button class="btn btn-outline-secondary me-2" onclick="goToStep(3)">Back</button>
+            <a href="/" class="btn btn-primary">Return to Dashboard</a>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function goToStep(n) {
+    document.querySelectorAll('.wizard-step').forEach(s => s.classList.remove('active'));
+    document.getElementById(`step-${n}`).classList.add('active');
+    for (let i = 1; i <= 4; i++) {
+        const dot = document.getElementById(`step-dot-${i}`);
+        dot.className = 'step-dot';
+        if (i < n) dot.classList.add('done');
+        if (i === n) dot.classList.add('active');
+    }
+    if (n === 3) updateCommands();
+}
+
+function validatePrereqs() {
+    const all = ['chk-gcloud', 'chk-project', 'chk-tailscale', 'chk-authkey']
+        .every(id => document.getElementById(id).checked);
+    document.getElementById('btn-next-1').disabled = !all;
+}
+
+function updateCommands() {
+    const project = document.getElementById('gcp-project').value || 'YOUR_PROJECT';
+    const region = document.getElementById('gcp-region').value;
+    const service = document.getElementById('service-name').value || 'sila-web-ui';
+    const image = `gcr.io/${project}/${service}`;
+
+    document.getElementById('cmd-build').textContent =
+        `gcloud builds submit --tag ${image}`;
+
+    document.getElementById('cmd-deploy').textContent =
+        `gcloud run deploy ${service} \\\n` +
+        `  --image ${image} \\\n` +
+        `  --platform managed \\\n` +
+        `  --region ${region} \\\n` +
+        `  --allow-unauthenticated \\\n` +
+        `  --set-env-vars "TS_AUTHKEY=YOUR_TS_AUTHKEY,GEMINI_API_KEY=YOUR_GEMINI_KEY"`;
+}
+
+updateCommands();
+</script>
+{% endblock %}

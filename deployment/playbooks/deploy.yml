@@ -1,0 +1,14 @@
+---
+# Full deployment: install dependencies, copy code, register and start service.
+#
+# Usage:
+#   ansible-playbook playbooks/deploy.yml              # all servers, all targets
+#   ansible-playbook playbooks/deploy.yml -l venus_api # just venus_api group
+#   ansible-playbook playbooks/deploy.yml -l venus-pc-01  # just one host
+
+- name: Deploy SiLA 2 servers
+  hosts: all
+  gather_facts: true
+
+  roles:
+    - sila_server

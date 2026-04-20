@@ -1,0 +1,95 @@
+<Feature xmlns="http://www.sila-standard.org" Category="extended" FeatureVersion="1.0" MaturityLevel="Draft" Originator="calico.automation" SiLA2Version="1.1">
+  <Identifier>ServerLogProvider</Identifier>
+  <DisplayName>Server Log Provider</DisplayName>
+  <Description>Provides structured server log access with filtering capabilities.
+        Logs are stored in a SQLite database with indexed columns for fast
+        queries by time range, severity level, and feature name.</Description>
+  <!-- ============================================================ -->
+  <!-- COMMANDS                                                       -->
+  <!-- ============================================================ -->
+  <Command>
+    <Identifier>GetLogs</Identifier>
+    <DisplayName>Get Logs</DisplayName>
+    <Description>Query structured log entries with optional filters. Returns a JSON
+            array of log objects sorted newest-first.</Description>
+    <Observable>No</Observable>
+    <Parameter>
+      <Identifier>StartTime</Identifier>
+      <DisplayName>Start Time</DisplayName>
+      <Description>ISO 8601 timestamp lower bound (empty string = no lower bound).</Description>
+      <DataType>
+        <Basic>String</Basic>
+      </DataType>
+    </Parameter>
+    <Parameter>
+      <Identifier>EndTime</Identifier>
+      <DisplayName>End Time</DisplayName>
+      <Description>ISO 8601 timestamp upper bound (empty string = no upper bound).</Description>
+      <DataType>
+        <Basic>String</Basic>
+      </DataType>
+    </Parameter>
+    <Parameter>
+      <Identifier>MinSeverity</Identifier>
+      <DisplayName>Min Severity</DisplayName>
+      <Description>Minimum log level: DEBUG, INFO, WARNING, ERROR, or CRITICAL (empty string = DEBUG).</Description>
+      <DataType>
+        <Basic>String</Basic>
+      </DataType>
+    </Parameter>
+    <Parameter>
+      <Identifier>Feature</Identifier>
+      <DisplayName>Feature</DisplayName>
+      <Description>Filter by feature name (empty string = all features).</Description>
+      <DataType>
+        <Basic>String</Basic>
+      </DataType>
+    </Parameter>
+    <Parameter>
+      <Identifier>MaxEntries</Identifier>
+      <DisplayName>Max Entries</DisplayName>
+      <Description>Maximum number of entries to return (0 = default 500, capped at 2000).</Description>
+      <DataType>
+        <Basic>Integer</Basic>
+      </DataType>
+    </Parameter>
+    <Response>
+      <Identifier>LogEntries</Identifier>
+      <DisplayName>Log Entries</DisplayName>
+      <Description>JSON array of log entry objects with fields: timestamp, level, feature, message, module, func_name, category, direction, extra.</Description>
+      <DataType>
+        <Basic>String</Basic>
+      </DataType>
+    </Response>
+  </Command>
+  <Command>
+    <Identifier>GetLogFeatures</Identifier>
+    <DisplayName>Get Log Features</DisplayName>
+    <Description>Returns the list of distinct feature names present in the log database.</Description>
+    <Observable>No</Observable>
+    <Response>
+      <Identifier>Features</Identifier>
+      <DisplayName>Features</DisplayName>
+      <Description>List of distinct feature names in the log database.</Description>
+      <DataType>
+        <List>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </List>
+      </DataType>
+    </Response>
+  </Command>
+  <!-- ============================================================ -->
+  <!-- PROPERTIES                                                     -->
+  <!-- ============================================================ -->
+  <Property>
+    <Identifier>LogStats</Identifier>
+    <DisplayName>Log Stats</DisplayName>
+    <Description>JSON object with log statistics: total entries, counts by level, oldest/newest timestamp, DB file size in bytes.</Description>
+    <Observable>No</Observable>
+    <DataType>
+      <Basic>String</Basic>
+    </DataType>
+  </Property>
+</Feature>

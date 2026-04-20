@@ -1,0 +1,43 @@
+---
+# Per-host Windows setup (runs once per machine, not per server)
+
+# ── Screen Capture Helper (once per machine) ──────────────────────
+
+- name: Create screen capture helper directory
+  win_file:
+    path: "{{ sila_install_dir_windows }}\\screen_capture_helper"
+    state: directory
+
+- name: Sync screen capture helper files
+  win_copy:
+    src: "{{ sila_repo_path }}/deployment/screen_capture_helper/"
+    dest: "{{ sila_install_dir_windows }}\\screen_capture_helper\\"
+
+- name: Create helper virtual environment
+  win_command: >
+    {{ python_executable_windows }} -m venv
+    {{ sila_install_dir_windows }}\screen_capture_helper\{{ sila_venv_dir }}
+  args:
+    creates: "{{ sila_install_dir_windows }}\\screen_capture_helper\\{{ sila_venv_dir }}\\Scripts\\python.exe"
+
+- name: Install helper dependencies
+  win_command: >
+    {{ sila_install_dir_windows }}\screen_capture_helper\{{ sila_venv_dir }}\Scripts\pip.exe
+    install -r requirements.txt
+  args:
+    chdir: "{{ sila_install_dir_windows }}\\screen_capture_helper"
+
+- name: Register screen capture helper as logon scheduled task
+  win_command: >
+    schtasks /Create /F
+    /TN "SiLA Screen Capture Helper"
+    /TR "{{ sila_install_dir_windows }}\screen_capture_helper\run-helper.bat"
+    /SC ONLOGON
+    /RL HIGHEST
+  register: schtask_result
+  failed_when: schtask_result.rc not in [0, 1]
+
+- name: Start screen capture helper now (if not already running)
+  win_command: >
+    schtasks /Run /TN "SiLA Screen Capture Helper"
+  failed_when: false

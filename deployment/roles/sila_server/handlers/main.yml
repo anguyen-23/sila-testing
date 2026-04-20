@@ -1,0 +1,7 @@
+---
+- name: Restart sila service
+  systemd:
+    name: "{{ sila_service_prefix }}-{{ sila_package }}"
+    state: restarted
+    daemon_reload: true
+  become: true

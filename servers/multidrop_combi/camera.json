@@ -1,0 +1,7 @@
+{
+    "source": "rtsp://192.168.1.3:8554/profile0",
+    "type": "ip",
+    "auto_start": true,
+    "jpeg_quality": 80,
+    "fps": 15
+}

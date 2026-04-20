@@ -1,0 +1,44 @@
+# Virtual environment
+.venv/
+venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+
+# Runtime data
+client_web_ui/custom_servers.json
+**/logs/
+
+# Generated SiLA files (keep in repo for learning reference)
+# *.proto
+
+# Certificates
+certs/*.pem
+certs/*.key
+!certs/.gitkeep
+
+# Ansible vault files (encrypted credentials)
+**/vault.yml
+*_vault.yml
+
+# Large binary installers
+*.exe

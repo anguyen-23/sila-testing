@@ -1,0 +1,233 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - SiLA 2 Deployment{% endblock %}
+{% block content %}
+
+<!-- Action Bar -->
+<div class="action-bar mb-3">
+    <div class="d-flex align-items-center justify-content-between">
+        <div>
+            <h4 class="mb-0">Fleet Dashboard</h4>
+            <small class="text-muted">{{ hosts|length }} host{{ 's' if hosts|length != 1 }} across {{ groups|length }} server group{{ 's' if groups|length != 1 }}</small>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-primary btn-sm" onclick="runAction('status', '')">
+                <i class="bi bi-arrow-clockwise"></i> Check All Status
+            </button>
+            <button class="btn btn-outline-success btn-sm" onclick="runAction('deploy', '')"
+                    title="Full deploy to all hosts">
+                <i class="bi bi-rocket-takeoff"></i> Deploy All
+            </button>
+            <button class="btn btn-outline-warning btn-sm" onclick="runAction('update', '')"
+                    title="Quick code update + restart on all hosts">
+                <i class="bi bi-arrow-repeat"></i> Update All
+            </button>
+            <button class="btn btn-outline-danger btn-sm" onclick="runAction('uninstall', '')"
+                    title="Uninstall from all hosts">
+                <i class="bi bi-trash"></i> Uninstall All
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Host Grid -->
+<div class="row" id="host-grid">
+{% for host in hosts %}
+    <div class="col-md-6 col-lg-4">
+        <div class="card host-card platform-{{ host.platform }}">
+            <div class="card-body">
+                <div class="d-flex align-items-start justify-content-between mb-2">
+                    <div>
+                        <h5 class="card-title mb-0">
+                            <i class="bi bi-{{ 'windows' if host.platform == 'windows' else 'ubuntu' }}"></i>
+                            {{ host.hostname }}
+                        </h5>
+                        <small class="text-muted">{{ host.group }}</small>
+                    </div>
+                    <span class="badge badge-{{ host.platform }}">{{ host.platform }}</span>
+                </div>
+
+                <table class="table table-sm table-borderless mb-2" style="font-size: 0.85rem;">
+                    <tr><td class="text-muted" style="width:35%">Package</td><td><code>{{ host.sila_package }}</code></td></tr>
+                    <tr><td class="text-muted">Port</td><td>{{ host.sila_port }}</td></tr>
+                    {% if host.sila_extra_args %}
+                    <tr><td class="text-muted">Extra args</td><td><code>{{ host.sila_extra_args }}</code></td></tr>
+                    {% endif %}
+                </table>
+
+                <div class="btn-group btn-group-sm w-100">
+                    <button class="btn btn-outline-primary" onclick="runAction('status', '{{ host.group }}')"
+                            title="Check status">
+                        <i class="bi bi-info-circle"></i> Status
+                    </button>
+                    <button class="btn btn-outline-success" onclick="runAction('deploy', '{{ host.group }}')"
+                            title="Full deploy">
+                        <i class="bi bi-rocket-takeoff"></i> Deploy
+                    </button>
+                    <button class="btn btn-outline-warning" onclick="runAction('update', '{{ host.group }}')"
+                            title="Quick update">
+                        <i class="bi bi-arrow-repeat"></i> Update
+                    </button>
+                    <button class="btn btn-outline-danger" onclick="runAction('uninstall', '{{ host.hostname }}')"
+                            title="Uninstall server">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                    <button class="btn btn-outline-info" onclick="runAction('tailscale', '{{ host.hostname }}')"
+                            title="Install/check Tailscale">
+                        <i class="bi bi-shield-lock"></i> TS
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endfor %}
+
+{% if not hosts %}
+    <div class="col-12">
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i>
+            No hosts found in the inventory. <a href="/wizard/add-host">Add a host</a> to get started.
+        </div>
+    </div>
+{% endif %}
+</div>
+
+<!-- Job Output Modal -->
+<div class="modal fade" id="jobModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="jobModalTitle">Running...</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div class="terminal" id="jobOutput"></div>
+            </div>
+            <div class="modal-footer">
+                <span id="jobStatus" class="me-auto"></span>
+                <a id="jobLink" href="#" class="btn btn-sm btn-outline-secondary" target="_blank" style="display:none">
+                    Open Full Page
+                </a>
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Jobs -->
+<div class="mt-4" id="recent-jobs-section" style="display:none">
+    <h5>Recent Jobs</h5>
+    <table class="table table-sm table-hover">
+        <thead><tr><th>ID</th><th>Playbook</th><th>Target</th><th>Status</th><th>Duration</th><th></th></tr></thead>
+        <tbody id="recent-jobs-body"></tbody>
+    </table>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function runAction(action, limit) {
+    const displayName = {
+        deploy: 'Full Deploy',
+        update: 'Quick Update',
+        uninstall: 'Uninstall',
+        status: 'Status Check',
+        tailscale: 'Tailscale Setup',
+    }[action] || action;
+
+    const target = limit || 'all hosts';
+    if (action !== 'status' && !confirm(`Run "${displayName}" on ${target}?`)) return;
+
+    fetch(`/api/action/${action}`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({limit}),
+    })
+    .then(r => r.json())
+    .then(data => {
+        showJobModal(data.job_id, `${displayName} — ${target}`);
+    })
+    .catch(err => alert('Failed to start job: ' + err));
+}
+
+function showJobModal(jobId, title) {
+    const modal = new bootstrap.Modal(document.getElementById('jobModal'));
+    document.getElementById('jobModalTitle').textContent = title;
+    document.getElementById('jobOutput').textContent = '';
+    document.getElementById('jobStatus').textContent = 'Running...';
+    document.getElementById('jobLink').href = `/job/${jobId}`;
+    document.getElementById('jobLink').style.display = 'none';
+    modal.show();
+
+    const output = document.getElementById('jobOutput');
+    const source = new EventSource(`/api/jobs/${jobId}/stream`);
+
+    source.onmessage = function(e) {
+        const data = JSON.parse(e.data);
+        if (data.line) {
+            const span = document.createElement('span');
+            span.className = classifyLine(data.line);
+            span.textContent = data.line;
+            output.appendChild(span);
+            output.scrollTop = output.scrollHeight;
+        }
+        if (data.done) {
+            source.close();
+            const statusEl = document.getElementById('jobStatus');
+            if (data.status === 'completed') {
+                statusEl.innerHTML = '<span class="text-success"><i class="bi bi-check-circle"></i> Completed</span>';
+            } else {
+                statusEl.innerHTML = `<span class="text-danger"><i class="bi bi-x-circle"></i> Failed (rc=${data.return_code})</span>`;
+            }
+            document.getElementById('jobLink').style.display = 'inline-block';
+            refreshRecentJobs();
+        }
+    };
+
+    source.onerror = function() {
+        source.close();
+        document.getElementById('jobStatus').innerHTML =
+            '<span class="text-warning"><i class="bi bi-exclamation-triangle"></i> Connection lost</span>';
+    };
+}
+
+function classifyLine(line) {
+    if (/^PLAY\s/.test(line)) return 'line-play';
+    if (/^TASK\s/.test(line)) return 'line-task';
+    if (/ok:/.test(line)) return 'line-ok';
+    if (/changed:/.test(line)) return 'line-changed';
+    if (/fatal:|failed:|ERROR/.test(line)) return 'line-failed';
+    return '';
+}
+
+function refreshRecentJobs() {
+    fetch('/api/jobs')
+    .then(r => r.json())
+    .then(jobs => {
+        if (jobs.length === 0) return;
+        document.getElementById('recent-jobs-section').style.display = 'block';
+        const tbody = document.getElementById('recent-jobs-body');
+        tbody.innerHTML = jobs.slice(0, 10).map(j => {
+            const statusBadge = {
+                completed: '<span class="badge bg-success">completed</span>',
+                failed: '<span class="badge bg-danger">failed</span>',
+                running: '<span class="badge bg-primary">running</span>',
+                pending: '<span class="badge bg-secondary">pending</span>',
+            }[j.status] || j.status;
+            const elapsed = j.elapsed ? `${j.elapsed}s` : '-';
+            return `<tr>
+                <td><code>${j.id}</code></td>
+                <td>${j.playbook}</td>
+                <td>${j.limit || 'all'}</td>
+                <td>${statusBadge}</td>
+                <td>${elapsed}</td>
+                <td><a href="/job/${j.id}" class="btn btn-outline-secondary btn-sm">View</a></td>
+            </tr>`;
+        }).join('');
+    });
+}
+
+// Load recent jobs on page load
+refreshRecentJobs();
+</script>
+{% endblock %}

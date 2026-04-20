@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+import "SiLAFramework.proto";
+
+package sila2.org.silalearning.examples.webuiprovider.v1;
+
+/* Provides a self-contained HTML page for device-specific UI rendering. When this feature is present, clients may use the CustomUI property to display a tailored interface instead of the generic dynamic view. */
+service WebUIProvider {
+  /* 
+            A self-contained HTML page (with inline CSS and JavaScript) that
+            renders a device-specific user interface. Intended to be displayed
+            in a sandboxed iframe. Uses window.parent.postMessage() to request
+            command execution and property reads from the host application.
+         */
+  rpc Get_CustomUI (sila2.org.silalearning.examples.webuiprovider.v1.Get_CustomUI_Parameters) returns (sila2.org.silalearning.examples.webuiprovider.v1.Get_CustomUI_Responses) {}
+}
+
+/* Parameters for CustomUI */
+message Get_CustomUI_Parameters {
+}
+
+/* Responses of CustomUI */
+message Get_CustomUI_Responses {
+  sila2.org.silastandard.String CustomUI = 1;  /* A self-contained HTML page (with inline CSS and JavaScript) that renders a device-specific user interface. Intended to be displayed in a sandboxed iframe. Uses window.parent.postMessage() to request command execution and property reads from the host application. */
+}

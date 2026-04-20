@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+import "SiLAFramework.proto";
+
+package sila2.calico.automation.extended.usermanualprovider.v1;
+
+/* Provides access to the device user manual. The ManualDocument property returns the raw PDF bytes for display in a viewer, while ManualText returns the full extracted text content for LLM search and chat context. */
+service UserManualProvider {
+  /* 
+            The device user manual as a PDF binary. Clients can display this
+            in an embedded PDF viewer or offer it as a download.
+         */
+  rpc Get_ManualDocument (sila2.calico.automation.extended.usermanualprovider.v1.Get_ManualDocument_Parameters) returns (sila2.calico.automation.extended.usermanualprovider.v1.Get_ManualDocument_Responses) {}
+  /* 
+            The full text content extracted from the device user manual.
+            Intended for LLM/chat context so the assistant can answer
+            questions about device operation, maintenance, and troubleshooting.
+         */
+  rpc Get_ManualText (sila2.calico.automation.extended.usermanualprovider.v1.Get_ManualText_Parameters) returns (sila2.calico.automation.extended.usermanualprovider.v1.Get_ManualText_Responses) {}
+}
+
+/* Parameters for ManualDocument */
+message Get_ManualDocument_Parameters {
+}
+
+/* Responses of ManualDocument */
+message Get_ManualDocument_Responses {
+  sila2.org.silastandard.Binary ManualDocument = 1;  /* The device user manual as a PDF binary. Clients can display this in an embedded PDF viewer or offer it as a download. */
+}
+
+/* Parameters for ManualText */
+message Get_ManualText_Parameters {
+}
+
+/* Responses of ManualText */
+message Get_ManualText_Responses {
+  sila2.org.silastandard.String ManualText = 1;  /* The full text content extracted from the device user manual. Intended for LLM/chat context so the assistant can answer questions about device operation, maintenance, and troubleshooting. */
+}

@@ -1,0 +1,928 @@
+{
+  "name": "Plate Reader — Production Readiness Test Suite",
+  "description": "Comprehensive test checklist for validating the Plate Reader SiLA 2 server prior to production deployment. Covers measurement workflows, parameter validation, observable property updates, and integration tests. Tests can be run in Simulation mode (no hardware required).",
+  "server": {
+    "default_host": "127.0.0.1",
+    "default_port": 50054,
+    "feature_id": "PlateReader",
+    "connection": null,
+    "variables": {}
+  },
+  "categories": [
+    {
+      "id": "plate",
+      "name": "Plate Management",
+      "description": "Plate insertion, ejection, and state tracking",
+      "tests": [
+        {
+          "id": "plate_insert",
+          "name": "Insert plate",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Insert a plate into the reader. Verifies InsertPlate succeeds and IsPlateInserted becomes true.",
+          "expected": "InsertPlate succeeds",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "PlateReader", "command": "InsertPlate", "params": {}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "plate_eject",
+          "name": "Insert then eject plate",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Insert a plate then eject it. Verifies EjectPlate succeeds after insertion.",
+          "expected": "Both InsertPlate and EjectPlate succeed",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "PlateReader", "command": "InsertPlate", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "PlateReader", "command": "EjectPlate", "params": {}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "plate_eject_empty",
+          "name": "Eject without plate",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Attempt to eject a plate when none is inserted. Should return PlateNotInserted error.",
+          "expected": "PlateNotInserted error returned",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "PlateReader", "command": "EjectPlate", "params": {}, "expect": "error", "error_type": "PlateNotInserted"}
+            ]
+          }
+        },
+        {
+          "id": "plate_double_insert",
+          "name": "Double insert plate",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Insert a plate twice. Second insert should succeed (idempotent) or be a no-op.",
+          "expected": "Both InsertPlate calls succeed",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "PlateReader", "command": "InsertPlate", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "PlateReader", "command": "InsertPlate", "params": {}, "expect": "any"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "measurement",
+      "name": "Measurement",
+      "description": "Plate measurement workflows and status queries",
+      "tests": [
+        {
+          "id": "meas_96well",
+          "name": "Measure 96-well plate",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Run a measurement on a 96-well plate at 450nm. Verifies ResultsCsv is not empty.",
+          "expected": "RunMeasurement succeeds, ResultsCsv is not empty",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "PlateReader", "command": "InsertPlate", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "PlateReader", "command": "RunMeasurement", "params": {"Wavelength": 450, "PlateFormat": 96}, "expect": "success"},
+              {"action": "check_response", "field": "ResultsCsv", "condition": "not_empty"},
+              {"action": "command", "feature": "PlateReader", "command": "EjectPlate", "params": {}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "meas_384well",
+          "name": "Measure 384-well plate",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Run a measurement on a 384-well plate at 450nm. Verifies ResultsCsv is not empty.",
+          "expected": "RunMeasurement succeeds, ResultsCsv is not empty",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "PlateReader", "command": "InsertPlate", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "PlateReader", "command": "RunMeasurement", "params": {"Wavelength": 450, "PlateFormat": 384}, "expect": "success"},
+              {"action": "check_response", "field": "ResultsCsv", "condition": "not_empty"},
+              {"action": "command", "feature": "PlateReader", "command": "EjectPlate", "params": {}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "meas_24well",
+          "name": "Measure 24-well plate",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Run a measurement on a 24-well plate at 450nm. Verifies ResultsCsv is not empty.",
+          "expected": "RunMeasurement succeeds, ResultsCsv is not empty",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "PlateReader", "command": "InsertPlate", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "PlateReader", "command": "RunMeasurement", "params": {"Wavelength": 450, "PlateFormat": 24}, "expect": "success"},
+              {"action": "check_response", "field": "ResultsCsv", "condition": "not_empty"},
+              {"action": "command", "feature": "PlateReader", "command": "EjectPlate", "params": {}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "meas_no_plate",
+          "name": "Measure without plate",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Attempt to run a measurement when no plate is inserted. Should return PlateNotInserted error.",
+          "expected": "PlateNotInserted error returned",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "PlateReader", "command": "EjectPlate", "params": {}, "expect": "any"},
+              {"action": "command", "feature": "PlateReader", "command": "RunMeasurement", "params": {"Wavelength": 450, "PlateFormat": 96}, "expect": "error", "error_type": "PlateNotInserted"}
+            ]
+          }
+        },
+        {
+          "id": "meas_get_status",
+          "name": "GetReaderStatus returns message",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Call GetReaderStatus and verify it returns a non-empty StatusMessage.",
+          "expected": "StatusMessage is not empty",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "PlateReader", "command": "GetReaderStatus", "params": {}, "expect": "success"},
+              {"action": "check_response", "field": "StatusMessage", "condition": "not_empty"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "validation",
+      "name": "Parameter Validation",
+      "description": "Verify command parameters are validated against FDL constraints",
+      "tests": [
+        {
+          "id": "val_wavelength_min",
+          "name": "Wavelength minimum (200nm)",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Run measurement at minimum wavelength (200nm). Should succeed.",
+          "expected": "Wavelength 200nm accepted",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "PlateReader", "command": "InsertPlate", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "PlateReader", "command": "RunMeasurement", "params": {"Wavelength": 200, "PlateFormat": 96}, "expect": "success"},
+              {"action": "check_response", "field": "ResultsCsv", "condition": "not_empty"},
+              {"action": "command", "feature": "PlateReader", "command": "EjectPlate", "params": {}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "val_wavelength_max",
+          "name": "Wavelength maximum (1000nm)",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Run measurement at maximum wavelength (1000nm). Should succeed.",
+          "expected": "Wavelength 1000nm accepted",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "PlateReader", "command": "InsertPlate", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "PlateReader", "command": "RunMeasurement", "params": {"Wavelength": 1000, "PlateFormat": 96}, "expect": "success"},
+              {"action": "check_response", "field": "ResultsCsv", "condition": "not_empty"},
+              {"action": "command", "feature": "PlateReader", "command": "EjectPlate", "params": {}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "val_wavelength_below",
+          "name": "Wavelength below minimum (199nm)",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Attempt to run measurement at 199nm (below minimum). Should be rejected.",
+          "expected": "ValidationError or InvalidWavelength error",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "PlateReader", "command": "InsertPlate", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "PlateReader", "command": "RunMeasurement", "params": {"Wavelength": 199, "PlateFormat": 96}, "expect": "error"},
+              {"action": "command", "feature": "PlateReader", "command": "EjectPlate", "params": {}, "expect": "any"}
+            ]
+          }
+        },
+        {
+          "id": "val_invalid_plate_format",
+          "name": "Invalid plate format (48)",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Attempt to run measurement with PlateFormat=48 (not in allowed values: 24, 96, 384). Should be rejected.",
+          "expected": "ValidationError",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "PlateReader", "command": "InsertPlate", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "PlateReader", "command": "RunMeasurement", "params": {"Wavelength": 450, "PlateFormat": 48}, "expect": "error"},
+              {"action": "command", "feature": "PlateReader", "command": "EjectPlate", "params": {}, "expect": "any"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "webui",
+      "name": "WebUI Integration",
+      "description": "Tests for the React WebUI, SSE streaming, and user interface correctness",
+      "tests": [
+        {
+          "id": "ui_insert_eject",
+          "name": "Insert and eject plate via WebUI",
+          "type": "guided",
+          "modes": ["simulation"],
+          "description": "Open the Plate Reader WebUI, insert a plate, confirm it's shown, then eject and confirm it's removed.",
+          "expected": "WebUI accurately reflects plate insertion and ejection state",
+          "script": {
+            "steps": [
+              {"action": "prompt", "message": "Open the Plate Reader WebUI in your browser."},
+              {"action": "command", "feature": "PlateReader", "command": "InsertPlate", "params": {}, "expect": "success"},
+              {"action": "confirm", "message": "Does the WebUI show that a plate is inserted?", "pass_label": "Yes, plate shown", "fail_label": "No, not shown"},
+              {"action": "command", "feature": "PlateReader", "command": "EjectPlate", "params": {}, "expect": "success"},
+              {"action": "confirm", "message": "Does the WebUI show that the plate was removed?", "pass_label": "Yes, plate removed", "fail_label": "No, still shown"}
+            ]
+          }
+        },
+        {
+          "id": "ui_measurement_progress",
+          "name": "Measurement progress display",
+          "type": "guided",
+          "modes": ["simulation"],
+          "description": "Open the Plate Reader WebUI, insert a plate, run a 96-well measurement, and verify the WebUI shows progress (well-by-well intermediate responses).",
+          "expected": "WebUI displays measurement progress as intermediate responses arrive",
+          "script": {
+            "steps": [
+              {"action": "prompt", "message": "Open the Plate Reader WebUI in your browser."},
+              {"action": "command", "feature": "PlateReader", "command": "InsertPlate", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "PlateReader", "command": "RunMeasurement", "params": {"Wavelength": 450, "PlateFormat": 96}, "expect": "success"},
+              {"action": "confirm", "message": "Did the WebUI show well-by-well progress during the measurement?", "pass_label": "Yes, progress shown", "fail_label": "No progress shown"},
+              {"action": "command", "feature": "PlateReader", "command": "EjectPlate", "params": {}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "ui_results_display",
+          "name": "Results CSV display",
+          "type": "guided",
+          "modes": ["simulation"],
+          "description": "Open the Plate Reader WebUI, run a measurement, and verify the WebUI displays the final CSV results.",
+          "expected": "WebUI displays the CSV results after measurement completes",
+          "script": {
+            "steps": [
+              {"action": "prompt", "message": "Open the Plate Reader WebUI in your browser."},
+              {"action": "command", "feature": "PlateReader", "command": "InsertPlate", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "PlateReader", "command": "RunMeasurement", "params": {"Wavelength": 450, "PlateFormat": 96}, "expect": "success"},
+              {"action": "confirm", "message": "Does the WebUI display the final CSV results?", "pass_label": "Yes, CSV shown", "fail_label": "No CSV shown"},
+              {"action": "command", "feature": "PlateReader", "command": "EjectPlate", "params": {}, "expect": "success"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "lock",
+      "name": "LockController",
+      "description": "Server locking for exclusive access control",
+      "tests": [
+        {
+          "id": "lock_lock_unlock",
+          "name": "Lock and unlock server",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Lock the server with a token, then unlock it.",
+          "expected": "Lock succeeds, unlock succeeds",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "LockController", "command": "LockServer", "params": {"LockIdentifier": "test-token-123", "Timeout": 30}, "expect": "success"},
+              {"action": "command", "feature": "LockController", "command": "UnlockServer", "params": {"LockIdentifier": "test-token-123"}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "lock_already_locked",
+          "name": "Lock when already locked",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Lock the server, then try to lock again with a different token.",
+          "expected": "Second lock attempt returns ServerAlreadyLocked error",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "LockController", "command": "LockServer", "params": {"LockIdentifier": "token-A", "Timeout": 30}, "expect": "success"},
+              {"action": "command", "feature": "LockController", "command": "LockServer", "params": {"LockIdentifier": "token-B", "Timeout": 30}, "expect": "error", "error_type": "ServerAlreadyLocked"},
+              {"action": "command", "feature": "LockController", "command": "UnlockServer", "params": {"LockIdentifier": "token-A"}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "lock_wrong_token",
+          "name": "Unlock with wrong token",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Lock the server, then try to unlock with a different token.",
+          "expected": "InvalidLockIdentifier error",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "LockController", "command": "LockServer", "params": {"LockIdentifier": "correct-token", "Timeout": 30}, "expect": "success"},
+              {"action": "command", "feature": "LockController", "command": "UnlockServer", "params": {"LockIdentifier": "wrong-token"}, "expect": "error", "error_type": "InvalidLockIdentifier"},
+              {"action": "command", "feature": "LockController", "command": "UnlockServer", "params": {"LockIdentifier": "correct-token"}, "expect": "success"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "logging",
+      "name": "Structured Logging",
+      "description": "ServerLogProvider feature: structured log queries with filters",
+      "tests": [
+        {
+          "id": "log_get_logs_no_filter",
+          "name": "GetLogs with no filters returns entries",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Query logs with no filters. Server should have logged startup entries.",
+          "expected": "Non-empty array of log entries returned",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ServerLogProvider", "command": "GetLogs", "params": {"StartTime": "", "EndTime": "", "MinSeverity": "", "Feature": "", "MaxEntries": 10}, "expect": "success"},
+              {"action": "check_response", "field": "LogEntries", "condition": "not_empty"}
+            ]
+          }
+        },
+        {
+          "id": "log_get_logs_severity_filter",
+          "name": "GetLogs with MinSeverity=ERROR",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Query logs filtered to ERROR and above. All returned entries should be ERROR or CRITICAL.",
+          "expected": "All entries have level ERROR or CRITICAL (or empty if none)",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ServerLogProvider", "command": "GetLogs", "params": {"StartTime": "", "EndTime": "", "MinSeverity": "ERROR", "Feature": "", "MaxEntries": 100}, "expect": "success"},
+              {"action": "check_response", "field": "LogEntries", "condition": "not_empty"}
+            ]
+          }
+        },
+        {
+          "id": "log_get_logs_feature_filter",
+          "name": "GetLogs with Feature=Server",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Query logs filtered to the Server feature. All returned entries should have feature 'Server'.",
+          "expected": "All entries have feature 'Server'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ServerLogProvider", "command": "GetLogs", "params": {"StartTime": "", "EndTime": "", "MinSeverity": "", "Feature": "Server", "MaxEntries": 10}, "expect": "success"},
+              {"action": "check_response", "field": "LogEntries", "condition": "not_empty"}
+            ]
+          }
+        },
+        {
+          "id": "log_get_logs_max_entries",
+          "name": "GetLogs with MaxEntries=5 returns at most 5",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Query with MaxEntries=5 and verify no more than 5 entries are returned.",
+          "expected": "At most 5 entries returned",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ServerLogProvider", "command": "GetLogs", "params": {"StartTime": "", "EndTime": "", "MinSeverity": "", "Feature": "", "MaxEntries": 5}, "expect": "success"},
+              {"action": "check_response", "field": "LogEntries", "condition": "not_empty"}
+            ]
+          }
+        },
+        {
+          "id": "log_get_features",
+          "name": "GetLogFeatures returns feature list",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "GetLogFeatures should return a list containing at least 'Server' (from startup logs).",
+          "expected": "List of feature names including 'Server'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ServerLogProvider", "command": "GetLogFeatures", "params": {}, "expect": "success"},
+              {"action": "check_response", "field": "Features", "condition": "not_empty"}
+            ]
+          }
+        },
+        {
+          "id": "log_stats",
+          "name": "LogStats property returns valid JSON",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Read the LogStats property and verify it contains expected fields.",
+          "expected": "JSON with total_entries, counts_by_level, oldest_timestamp, newest_timestamp, db_size_bytes",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ServerLogProvider", "command": "GetLogs", "params": {"StartTime": "", "EndTime": "", "MinSeverity": "", "Feature": "", "MaxEntries": 1}, "expect": "success"},
+              {"action": "check_response", "field": "LogEntries", "condition": "not_empty"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "script_exec",
+      "name": "Script Runner — Execution",
+      "description": "Core script execution: output capture, exit codes, error handling, and the device helper preamble",
+      "tests": [
+        {
+          "id": "exec_hello",
+          "name": "Simple print output",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Run a one-liner that prints 'hello' and verify it appears in FullOutput with exit code 0.",
+          "expected": "FullOutput contains 'hello', ExitCode == 0",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_hello", "ScriptCode": "print('hello')"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "hello"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "exec_multiline",
+          "name": "Multi-line output",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Run a script with multiple print statements and verify all lines appear in FullOutput.",
+          "expected": "FullOutput contains 'line_one', 'line_two', and 'line_three'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_multi", "ScriptCode": "print('line_one')\nprint('line_two')\nprint('line_three')"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "line_one"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "line_two"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "line_three"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "exec_computation",
+          "name": "Computation and formatted output",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Run a script that does arithmetic and string formatting, verify computed result in output.",
+          "expected": "FullOutput contains 'result=42'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_compute", "ScriptCode": "x = 6 * 7\nprint(f'result={x}')"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "result=42"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "exec_stdlib_import",
+          "name": "Standard library imports",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Verify scripts can import standard library modules (json, math, datetime).",
+          "expected": "FullOutput contains 'imports_ok'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_imports", "ScriptCode": "import json, math, datetime\nprint('imports_ok')\nprint(json.dumps({'pi': round(math.pi, 2)}))"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "imports_ok"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "3.14"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "exec_loop",
+          "name": "Loop output",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Run a script with a for loop and verify output from each iteration.",
+          "expected": "FullOutput contains 'iter_0' through 'iter_4'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_loop", "ScriptCode": "for i in range(5):\n    print(f'iter_{i}')"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "iter_0"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "iter_4"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "exec_syntax_error",
+          "name": "Syntax error produces non-zero exit code",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Run code with a syntax error. Should complete (not crash the server) with non-zero exit code and traceback in output.",
+          "expected": "ExitCode != 0, FullOutput contains 'SyntaxError'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_syntax", "ScriptCode": "this is not valid python!!!"}, "expect": "success"},
+              {"action": "check_response", "field": "ExitCode", "condition": "not_equals", "value": 0},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "SyntaxError"}
+            ]
+          }
+        },
+        {
+          "id": "exec_runtime_error",
+          "name": "Runtime exception produces non-zero exit code",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Run code that raises a runtime exception. Should produce non-zero exit code with traceback.",
+          "expected": "ExitCode != 0, FullOutput contains 'ZeroDivisionError'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_runtime", "ScriptCode": "print('before')\nx = 1 / 0\nprint('after')"}, "expect": "success"},
+              {"action": "check_response", "field": "ExitCode", "condition": "not_equals", "value": 0},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "before"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "ZeroDivisionError"},
+              {"action": "check_response", "field": "FullOutput", "condition": "not_contains", "value": "after"}
+            ]
+          }
+        },
+        {
+          "id": "exec_empty_script",
+          "name": "Empty script succeeds with exit code 0",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Run an empty (whitespace-only) script. Should succeed without error.",
+          "expected": "ExitCode == 0",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_empty", "ScriptCode": "# nothing here\n"}, "expect": "success"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "exec_preamble_banner",
+          "name": "FullOutput contains ScriptRunner banner",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Verify that ScriptRunner injects its own [ScriptRunner] Started and Finished banners into the output.",
+          "expected": "FullOutput contains '[ScriptRunner] Started' and '[ScriptRunner] Finished'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_banner", "ScriptCode": "pass"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "[ScriptRunner] Started"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "[ScriptRunner] Finished: exit_code=0"}
+            ]
+          }
+        },
+        {
+          "id": "exec_consecutive",
+          "name": "Consecutive script executions",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Run two scripts back-to-back. Verify each produces independent output (no bleed-over).",
+          "expected": "First output contains 'first_run', second contains 'second_run' and not 'first_run'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_run1", "ScriptCode": "print('first_run')"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "first_run"},
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_run2", "ScriptCode": "print('second_run')"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "second_run"},
+              {"action": "check_response", "field": "FullOutput", "condition": "not_contains", "value": "first_run"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "script_device",
+      "name": "Script Runner — Device Helper",
+      "description": "Verify the injected `device` helper object works: introspection, print, sleep",
+      "tests": [
+        {
+          "id": "dev_available",
+          "name": "device object is available",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Verify the `device` object exists and is a DeviceHelper instance.",
+          "expected": "FullOutput contains 'DeviceHelper'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_devobj", "ScriptCode": "print(type(device).__name__)\nprint(repr(device))"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "DeviceHelper"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "dev_print",
+          "name": "device.print() writes to output",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Verify device.print() sends text to the captured output stream.",
+          "expected": "FullOutput contains 'device_says_hi'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_devprint", "ScriptCode": "device.print('device_says_hi')"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "device_says_hi"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "dev_features",
+          "name": "device.features lists server features",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Verify device.features returns a list that includes PlateReader and ScriptRunner.",
+          "expected": "FullOutput contains 'PlateReader' and 'ScriptRunner'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_devfeat", "ScriptCode": "feats = device.features\nfor f in feats:\n    print(f)"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "PlateReader"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "ScriptRunner"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "dev_commands_list",
+          "name": "device.commands() lists feature commands",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Verify device.commands('ScriptRunner') returns known command names.",
+          "expected": "FullOutput contains 'RunScript' and 'ListScripts'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_devcmds", "ScriptCode": "cmds = device.commands('ScriptRunner')\nfor c in cmds:\n    print(c)"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "RunScript"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "ListScripts"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "dev_properties_list",
+          "name": "device.properties() lists feature properties",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Verify device.properties('ScriptRunner') returns IsRunning.",
+          "expected": "FullOutput contains 'IsRunning'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_devprops", "ScriptCode": "props = device.properties('ScriptRunner')\nfor p in props:\n    print(p)"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "IsRunning"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "dev_read_property",
+          "name": "device.property() reads a SiLA property",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Use device.property() to read the DeviceDescription property. Should not crash.",
+          "expected": "FullOutput contains 'type=str', ExitCode == 0",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_devprop", "ScriptCode": "val = device.property('PlateReader', 'DeviceDescription')\nprint(f'type={type(val).__name__}')\nprint(f'len={len(val)}')"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "type=str"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "dev_command_sim",
+          "name": "device.command() calls SiLA command (simulation)",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Use device.command() to call GetReaderStatus and verify the response.",
+          "expected": "FullOutput contains 'ExitCode=0'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_devcmd", "ScriptCode": "import json\nresult = device.command('PlateReader', 'GetReaderStatus')\nprint(json.dumps(result))"}, "expect": "success"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "script_persist",
+      "name": "Script Runner — Persistence",
+      "description": "Save, load, list, delete, and overwrite scripts stored on the server",
+      "tests": [
+        {
+          "id": "persist_crud",
+          "name": "Full CRUD round-trip",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Save a script, verify it appears in list, load it back, then delete it and verify it's gone.",
+          "expected": "Save/list/load/delete all succeed, code matches after load, gone after delete",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "SaveScript", "params": {"ScriptName": "test_crud_abc", "ScriptCode": "print('crud_marker')"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "ListScripts", "params": {}, "expect": "success"},
+              {"action": "check_response", "field": "Scripts", "condition": "contains", "value": "test_crud_abc"},
+              {"action": "command", "feature": "ScriptRunner", "command": "LoadScript", "params": {"ScriptName": "test_crud_abc"}, "expect": "success"},
+              {"action": "check_response", "field": "ScriptCode", "condition": "contains", "value": "crud_marker"},
+              {"action": "command", "feature": "ScriptRunner", "command": "DeleteScript", "params": {"ScriptName": "test_crud_abc"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "LoadScript", "params": {"ScriptName": "test_crud_abc"}, "expect": "error", "error_type": "ScriptNotFound"}
+            ]
+          }
+        },
+        {
+          "id": "persist_overwrite",
+          "name": "Save overwrites existing script",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Save a script, then save again with the same name but different code. Load should return the new code.",
+          "expected": "Second save overwrites first, loaded code contains 'version_two'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "SaveScript", "params": {"ScriptName": "test_overwrite", "ScriptCode": "print('version_one')"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "SaveScript", "params": {"ScriptName": "test_overwrite", "ScriptCode": "print('version_two')"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "LoadScript", "params": {"ScriptName": "test_overwrite"}, "expect": "success"},
+              {"action": "check_response", "field": "ScriptCode", "condition": "contains", "value": "version_two"},
+              {"action": "check_response", "field": "ScriptCode", "condition": "not_contains", "value": "version_one"},
+              {"action": "command", "feature": "ScriptRunner", "command": "DeleteScript", "params": {"ScriptName": "test_overwrite"}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "persist_multiple",
+          "name": "Save and list multiple scripts",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Save three scripts and verify ListScripts returns all of them.",
+          "expected": "List contains all three script names",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "SaveScript", "params": {"ScriptName": "test_multi_a", "ScriptCode": "pass"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "SaveScript", "params": {"ScriptName": "test_multi_b", "ScriptCode": "pass"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "SaveScript", "params": {"ScriptName": "test_multi_c", "ScriptCode": "pass"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "ListScripts", "params": {}, "expect": "success"},
+              {"action": "check_response", "field": "Scripts", "condition": "contains", "value": "test_multi_a"},
+              {"action": "check_response", "field": "Scripts", "condition": "contains", "value": "test_multi_b"},
+              {"action": "check_response", "field": "Scripts", "condition": "contains", "value": "test_multi_c"},
+              {"action": "command", "feature": "ScriptRunner", "command": "DeleteScript", "params": {"ScriptName": "test_multi_a"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "DeleteScript", "params": {"ScriptName": "test_multi_b"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "DeleteScript", "params": {"ScriptName": "test_multi_c"}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "persist_save_then_run",
+          "name": "Save a script then run it by loading",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Save a script, load it back, then execute the loaded code via RunScript.",
+          "expected": "RunScript output contains 'saved_and_ran'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "SaveScript", "params": {"ScriptName": "test_save_run", "ScriptCode": "print('saved_and_ran')"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "LoadScript", "params": {"ScriptName": "test_save_run"}, "expect": "success"},
+              {"action": "check_response", "field": "ScriptCode", "condition": "contains", "value": "saved_and_ran"},
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "test_save_run", "ScriptCode": "print('saved_and_ran')"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "saved_and_ran"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0},
+              {"action": "command", "feature": "ScriptRunner", "command": "DeleteScript", "params": {"ScriptName": "test_save_run"}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "persist_load_not_found",
+          "name": "LoadScript with nonexistent name",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Attempt to load a script that doesn't exist. Should return ScriptNotFound error.",
+          "expected": "ScriptNotFound error",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "LoadScript", "params": {"ScriptName": "nonexistent_script_xyz"}, "expect": "error", "error_type": "ScriptNotFound"}
+            ]
+          }
+        },
+        {
+          "id": "persist_delete_not_found",
+          "name": "DeleteScript with nonexistent name",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Attempt to delete a script that doesn't exist. Should return ScriptNotFound error.",
+          "expected": "ScriptNotFound error",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "DeleteScript", "params": {"ScriptName": "nonexistent_script_xyz"}, "expect": "error", "error_type": "ScriptNotFound"}
+            ]
+          }
+        },
+        {
+          "id": "persist_delete_idempotent",
+          "name": "Double-delete returns ScriptNotFound",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Save a script, delete it, then try to delete again. Second delete should fail with ScriptNotFound.",
+          "expected": "First delete succeeds, second returns ScriptNotFound",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "SaveScript", "params": {"ScriptName": "test_dbldelete", "ScriptCode": "pass"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "DeleteScript", "params": {"ScriptName": "test_dbldelete"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "DeleteScript", "params": {"ScriptName": "test_dbldelete"}, "expect": "error", "error_type": "ScriptNotFound"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "script_errors",
+      "name": "Script Runner — Error Handling",
+      "description": "Error conditions: StopScript when idle, AlreadyRunning guard, and graceful failures",
+      "tests": [
+        {
+          "id": "err_stop_idle",
+          "name": "StopScript when no script running",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Attempt to stop a script when none is running. Should return ScriptError.",
+          "expected": "ScriptError returned",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "StopScript", "params": {}, "expect": "error", "error_type": "ScriptError"}
+            ]
+          }
+        },
+        {
+          "id": "err_name_error",
+          "name": "NameError (undefined variable)",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Run a script referencing an undefined variable. Should produce NameError in output.",
+          "expected": "ExitCode != 0, FullOutput contains 'NameError'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_name_err", "ScriptCode": "print(undefined_variable)"}, "expect": "success"},
+              {"action": "check_response", "field": "ExitCode", "condition": "not_equals", "value": 0},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "NameError"}
+            ]
+          }
+        },
+        {
+          "id": "err_type_error",
+          "name": "TypeError (wrong argument type)",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Run a script that causes a TypeError. Should produce TypeError in output.",
+          "expected": "ExitCode != 0, FullOutput contains 'TypeError'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_type_err", "ScriptCode": "x = 'hello' + 42"}, "expect": "success"},
+              {"action": "check_response", "field": "ExitCode", "condition": "not_equals", "value": 0},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "TypeError"}
+            ]
+          }
+        },
+        {
+          "id": "err_partial_output",
+          "name": "Output captured before exception",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Verify output printed before an exception is still captured in FullOutput.",
+          "expected": "FullOutput contains 'before_crash' but not 'after_crash'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_partial", "ScriptCode": "print('before_crash')\nraise RuntimeError('boom')\nprint('after_crash')"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "before_crash"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "RuntimeError"},
+              {"action": "check_response", "field": "FullOutput", "condition": "not_contains", "value": "after_crash"},
+              {"action": "check_response", "field": "ExitCode", "condition": "not_equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "err_sys_exit",
+          "name": "sys.exit() produces matching exit code",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Verify that calling sys.exit(2) in a script sets ExitCode to 2.",
+          "expected": "ExitCode == 2",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_exit", "ScriptCode": "import sys\nprint('exiting')\nsys.exit(2)"}, "expect": "success"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 2},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "exiting"}
+            ]
+          }
+        },
+        {
+          "id": "err_clean_after_error",
+          "name": "Server stable after script error",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "After a failed script, verify the server is still responsive by running a successful script.",
+          "expected": "First fails, second succeeds with ExitCode 0",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_err", "ScriptCode": "raise Exception('intentional')"}, "expect": "success"},
+              {"action": "check_response", "field": "ExitCode", "condition": "not_equals", "value": 0},
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_ok", "ScriptCode": "print('recovered')"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "recovered"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

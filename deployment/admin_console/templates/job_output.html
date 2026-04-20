@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Job {{ job_id }} - SiLA 2 Deployment{% endblock %}
+{% block content %}
+
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="/">Dashboard</a></li>
+        <li class="breadcrumb-item active">Job {{ job_id }}</li>
+    </ol>
+</nav>
+
+{% if job %}
+<div class="d-flex align-items-center mb-3">
+    <h4 class="mb-0 me-3">
+        <code>{{ job.playbook }}</code>
+        {% if job.limit %}<span class="text-muted">-l {{ job.limit }}</span>{% endif %}
+    </h4>
+    <span id="statusBadge" class="badge bg-secondary">{{ job.status }}</span>
+    <span id="elapsed" class="ms-2 text-muted"></span>
+</div>
+{% else %}
+<div class="alert alert-warning">Job <code>{{ job_id }}</code> not found. It may have expired.</div>
+{% endif %}
+
+<div class="terminal" id="output" style="max-height: 70vh;"></div>
+
+{% endblock %}
+
+{% block scripts %}
+{% if job %}
+<script>
+const output = document.getElementById('output');
+const statusBadge = document.getElementById('statusBadge');
+const elapsedEl = document.getElementById('elapsed');
+
+function classifyLine(line) {
+    if (/^PLAY\s/.test(line)) return 'line-play';
+    if (/^TASK\s/.test(line)) return 'line-task';
+    if (/ok:/.test(line)) return 'line-ok';
+    if (/changed:/.test(line)) return 'line-changed';
+    if (/fatal:|failed:|ERROR/.test(line)) return 'line-failed';
+    return '';
+}
+
+const source = new EventSource('/api/jobs/{{ job_id }}/stream');
+source.onmessage = function(e) {
+    const data = JSON.parse(e.data);
+    if (data.line) {
+        const span = document.createElement('span');
+        span.className = classifyLine(data.line);
+        span.textContent = data.line;
+        output.appendChild(span);
+        output.scrollTop = output.scrollHeight;
+    }
+    if (data.done) {
+        source.close();
+        if (data.status === 'completed') {
+            statusBadge.className = 'badge bg-success';
+            statusBadge.textContent = 'completed';
+        } else {
+            statusBadge.className = 'badge bg-danger';
+            statusBadge.textContent = `failed (rc=${data.return_code})`;
+        }
+    }
+};
+
+// Poll elapsed time
+const elapsedTimer = setInterval(() => {
+    fetch('/api/jobs/{{ job_id }}')
+    .then(r => r.json())
+    .then(j => {
+        if (j.elapsed) elapsedEl.textContent = `${j.elapsed}s`;
+        if (j.status === 'completed' || j.status === 'failed') clearInterval(elapsedTimer);
+    });
+}, 1000);
+</script>
+{% endif %}
+{% endblock %}

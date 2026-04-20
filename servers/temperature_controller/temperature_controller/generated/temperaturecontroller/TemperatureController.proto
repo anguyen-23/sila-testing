@@ -1,0 +1,102 @@
+syntax = "proto3";
+
+import "SiLAFramework.proto";
+
+package sila2.calico.automation.extended.temperaturecontroller.v1;
+
+/* Controls a simulated heating/cooling device (e.g., a hot plate or incubator). Demonstrates observable commands with progress tracking, observable properties with live updates, defined execution errors, and simulation mode branching. This is a learning feature, not intended for production use. */
+service TemperatureController {
+  /* 
+            Ramps the device to the specified target temperature. This is an
+            observable command so the client can monitor progress, estimated
+            remaining time, and receive intermediate temperature readings
+            as the device ramps.
+         */
+  rpc SetTemperature (sila2.calico.automation.extended.temperaturecontroller.v1.SetTemperature_Parameters) returns (sila2.org.silastandard.CommandConfirmation) {}
+  /* Monitor the state of SetTemperature */
+  rpc SetTemperature_Info (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.org.silastandard.ExecutionInfo) {}
+  /* Retrieve intermediate responses of SetTemperature */
+  rpc SetTemperature_Intermediate (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.calico.automation.extended.temperaturecontroller.v1.SetTemperature_IntermediateResponses) {}
+  /* Retrieve result of SetTemperature */
+  rpc SetTemperature_Result(sila2.org.silastandard.CommandExecutionUUID) returns (sila2.calico.automation.extended.temperaturecontroller.v1.SetTemperature_Responses) {}
+  /* Immediately stops any active heating or cooling. The device will drift toward ambient temperature. This is an unobservable command (simple request/response). */
+  rpc StopTemperatureControl (sila2.calico.automation.extended.temperaturecontroller.v1.StopTemperatureControl_Parameters) returns (sila2.calico.automation.extended.temperaturecontroller.v1.StopTemperatureControl_Responses) {}
+  /* Returns a human-readable status string describing the current state of the temperature controller (e.g., "Idle at 22.5 degC", "Ramping to 80.0 degC", "Fault: Heater disconnected"). */
+  rpc GetDeviceStatus (sila2.calico.automation.extended.temperaturecontroller.v1.GetDeviceStatus_Parameters) returns (sila2.calico.automation.extended.temperaturecontroller.v1.GetDeviceStatus_Responses) {}
+  /* 
+            The current temperature of the device in degrees Celsius. This is
+            observable, so clients can subscribe and receive live updates.
+         */
+  rpc Subscribe_CurrentTemperature (sila2.calico.automation.extended.temperaturecontroller.v1.Subscribe_CurrentTemperature_Parameters) returns (stream sila2.calico.automation.extended.temperaturecontroller.v1.Subscribe_CurrentTemperature_Responses) {}
+  /* 
+            The current target temperature setpoint in degrees Celsius, or NaN
+            if no setpoint is active.
+         */
+  rpc Get_TargetTemperature (sila2.calico.automation.extended.temperaturecontroller.v1.Get_TargetTemperature_Parameters) returns (sila2.calico.automation.extended.temperaturecontroller.v1.Get_TargetTemperature_Responses) {}
+  /* 
+            Whether the device is actively controlling temperature (ramping or
+            holding at a setpoint). False when idle or stopped.
+         */
+  rpc Get_IsControlling (sila2.calico.automation.extended.temperaturecontroller.v1.Get_IsControlling_Parameters) returns (sila2.calico.automation.extended.temperaturecontroller.v1.Get_IsControlling_Responses) {}
+}
+
+/* Parameters for SetTemperature */
+message SetTemperature_Parameters {
+  sila2.org.silastandard.Real TargetTemperature = 1;  /* The desired temperature setpoint in degrees Celsius. */
+  sila2.org.silastandard.Real RampRate = 2;  /* How fast to change temperature, in degrees Celsius per second. Use a small value (e.g., 0.5) for a slow observable ramp. */
+}
+
+/* Responses of SetTemperature */
+message SetTemperature_Responses {
+  sila2.org.silastandard.Real FinalTemperature = 1;  /* The actual temperature reached at the end of the ramp. */
+}
+
+/* Intermediate responses of SetTemperature */
+message SetTemperature_IntermediateResponses {
+  sila2.org.silastandard.Real CurrentTemperature = 1;  /* The current temperature during the ramp, reported periodically. */
+}
+
+/* Parameters for StopTemperatureControl */
+message StopTemperatureControl_Parameters {
+}
+
+/* Responses of StopTemperatureControl */
+message StopTemperatureControl_Responses {
+  sila2.org.silastandard.Real TemperatureAtStop = 1;  /* The temperature reading at the moment control was stopped. */
+}
+
+/* Parameters for GetDeviceStatus */
+message GetDeviceStatus_Parameters {
+}
+
+/* Responses of GetDeviceStatus */
+message GetDeviceStatus_Responses {
+  sila2.org.silastandard.String StatusMessage = 1;  /* A human-readable status string. */
+}
+
+/* Parameters for CurrentTemperature */
+message Subscribe_CurrentTemperature_Parameters {
+}
+
+/* Responses of CurrentTemperature */
+message Subscribe_CurrentTemperature_Responses {
+  sila2.org.silastandard.Real CurrentTemperature = 1;  /* The current temperature of the device in degrees Celsius. This is observable, so clients can subscribe and receive live updates. */
+}
+
+/* Parameters for TargetTemperature */
+message Get_TargetTemperature_Parameters {
+}
+
+/* Responses of TargetTemperature */
+message Get_TargetTemperature_Responses {
+  sila2.org.silastandard.Real TargetTemperature = 1;  /* The current target temperature setpoint in degrees Celsius, or NaN if no setpoint is active. */
+}
+
+/* Parameters for IsControlling */
+message Get_IsControlling_Parameters {
+}
+
+/* Responses of IsControlling */
+message Get_IsControlling_Responses {
+  sila2.org.silastandard.Boolean IsControlling = 1;  /* Whether the device is actively controlling temperature (ramping or holding at a setpoint). False when idle or stopped. */
+}

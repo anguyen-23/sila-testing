@@ -1,0 +1,90 @@
+---
+# Uninstall: stop and remove service, delete server files.
+#
+# Usage:
+#   ansible-playbook playbooks/uninstall.yml -l venus_api          # uninstall one server group
+#   ansible-playbook playbooks/uninstall.yml -l venus-pc-01        # uninstall from one host
+#   ansible-playbook playbooks/uninstall.yml -l venus_api -e remove_helper=true  # also remove screen capture helper
+
+- name: Uninstall SiLA 2 servers
+  hosts: all
+  gather_facts: true
+
+  vars:
+    sila_service_prefix: "sila"
+    remove_helper: false
+
+  tasks:
+    # ── Windows ──────────────────────────────────────────
+    - name: "Windows: Check if nssm exists"
+      win_stat:
+        path: "{{ nssm_path }}"
+      register: nssm_check
+      when: ansible_os_family == "Windows"
+
+    - name: "Windows: Stop service"
+      win_command: >
+        {{ nssm_path }} stop {{ sila_service_prefix }}-{{ sila_package }}
+      when: ansible_os_family == "Windows" and nssm_check.stat.exists
+      failed_when: false
+
+    - name: "Windows: Remove service"
+      win_command: >
+        {{ nssm_path }} remove {{ sila_service_prefix }}-{{ sila_package }} confirm
+      when: ansible_os_family == "Windows" and nssm_check.stat.exists
+      failed_when: false
+
+    - name: "Windows: Delete server directory"
+      win_file:
+        path: "{{ sila_install_dir_windows }}\\{{ sila_package }}"
+        state: absent
+      when: ansible_os_family == "Windows"
+
+    - name: "Windows: Stop screen capture helper"
+      win_command: >
+        schtasks /End /TN "SiLA Screen Capture Helper"
+      when: ansible_os_family == "Windows" and remove_helper | bool
+      failed_when: false
+
+    - name: "Windows: Remove screen capture helper scheduled task"
+      win_command: >
+        schtasks /Delete /F /TN "SiLA Screen Capture Helper"
+      when: ansible_os_family == "Windows" and remove_helper | bool
+      failed_when: false
+
+    - name: "Windows: Delete screen capture helper directory"
+      win_file:
+        path: "{{ sila_install_dir_windows }}\\screen_capture_helper"
+        state: absent
+      when: ansible_os_family == "Windows" and remove_helper | bool
+
+    # ── Linux ────────────────────────────────────────────
+    - name: "Linux: Stop and disable service"
+      systemd:
+        name: "{{ sila_service_prefix }}-{{ sila_package }}"
+        state: stopped
+        enabled: false
+      become: true
+      when: ansible_os_family != "Windows"
+      failed_when: false
+
+    - name: "Linux: Remove systemd service file"
+      file:
+        path: "/etc/systemd/system/{{ sila_service_prefix }}-{{ sila_package }}.service"
+        state: absent
+      become: true
+      when: ansible_os_family != "Windows"
+      register: systemd_removed
+
+    - name: "Linux: Reload systemd daemon"
+      systemd:
+        daemon_reload: true
+      become: true
+      when: ansible_os_family != "Windows" and systemd_removed.changed
+
+    - name: "Linux: Delete server directory"
+      file:
+        path: "{{ sila_install_dir_linux }}/{{ sila_package }}"
+        state: absent
+      become: true
+      when: ansible_os_family != "Windows"

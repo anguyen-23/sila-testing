@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+{% block title %}Message Server{% endblock %}
+{% block content %}
+<div class="learning-banner">
+    This is a <strong>test messaging server</strong> for the Micronic Tube Scanner's MessagingClient feature.
+    Send messages here, then use <code>ConnectToMessageServer</code> on the SiLA server to receive them.
+</div>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>Message Server</h2>
+    <div>
+        <span class="badge bg-secondary">WS port: {{ ws_port }}</span>
+        <span class="badge bg-info ms-1" id="ws-clients">Clients: --</span>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Send message form -->
+    <div class="col-md-5">
+        <div class="card">
+            <div class="card-header"><strong>Send Message</strong></div>
+            <div class="card-body">
+                <div class="mb-2">
+                    <label class="form-label mb-0"><small>Instrument ID</small></label>
+                    <input type="text" class="form-control form-control-sm" id="msg-instrument"
+                           value="ps-tws-1" placeholder="e.g. ps-tws-1">
+                </div>
+                <div class="mb-2">
+                    <label class="form-label mb-0"><small>Title</small></label>
+                    <input type="text" class="form-control form-control-sm" id="msg-title"
+                           placeholder="e.g. Load plate onto scanner">
+                </div>
+                <div class="mb-2">
+                    <label class="form-label mb-0"><small>Body</small></label>
+                    <textarea class="form-control form-control-sm" id="msg-body" rows="3"
+                              placeholder="Detailed instructions for the operator..."></textarea>
+                </div>
+                <button class="btn btn-primary btn-sm" onclick="sendMessage()">Send Message</button>
+                <div id="send-result" class="mt-2"></div>
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header"><strong>Connection Info</strong></div>
+            <div class="card-body">
+                <p class="mb-1"><small>To connect the SiLA MessagingClient to this server:</small></p>
+                <pre class="response mb-0" style="font-size: 0.8rem;"><code>Server URL: http://&lt;this-pc-ip&gt;:{{ ws_port }}
+Instrument ID: ps-tws-1</code></pre>
+                <p class="mt-2 mb-0 text-muted"><small>
+                    The SiLA server's <code>ConnectToMessageServer</code> command
+                    accepts these two parameters. Use <code>localhost</code> if running
+                    on the same machine.
+                </small></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Message list -->
+    <div class="col-md-7">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <strong>Messages</strong>
+                <button class="btn btn-outline-secondary btn-sm" onclick="loadMessages()">Refresh</button>
+            </div>
+            <div class="card-body p-0">
+                <div id="message-list" style="max-height: 500px; overflow-y: auto;">
+                    <p class="text-muted p-3 mb-0">Loading...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const WS_PORT = {{ ws_port }};
+
+function sendMessage() {
+    const title = document.getElementById('msg-title').value.trim();
+    const body = document.getElementById('msg-body').value.trim();
+    const instrumentId = document.getElementById('msg-instrument').value.trim();
+    const resultDiv = document.getElementById('send-result');
+
+    if (!title || !instrumentId) {
+        resultDiv.innerHTML = '<span class="text-danger">Title and Instrument ID are required.</span>';
+        return;
+    }
+
+    fetch('/api/messages', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({title, body, instrument_id: instrumentId}),
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.error) {
+            resultDiv.innerHTML = `<span class="text-danger">${data.error}</span>`;
+        } else {
+            resultDiv.innerHTML = `<span class="text-success">Sent! ID: ${data.id.substring(0, 8)}...</span>`;
+            document.getElementById('msg-title').value = '';
+            document.getElementById('msg-body').value = '';
+            loadMessages();
+        }
+    })
+    .catch(err => {
+        resultDiv.innerHTML = `<span class="text-danger">Error: ${err}</span>`;
+    });
+}
+
+function confirmMessage(msgId) {
+    fetch(`/api/messages/${msgId}/confirm`, {method: 'POST'})
+        .then(r => r.json())
+        .then(() => loadMessages())
+        .catch(err => alert('Confirm failed: ' + err));
+}
+
+function loadMessages() {
+    fetch('/api/messages')
+        .then(r => r.json())
+        .then(messages => {
+            const list = document.getElementById('message-list');
+            if (!messages.length) {
+                list.innerHTML = '<p class="text-muted p-3 mb-0">No messages yet. Send one using the form.</p>';
+                return;
+            }
+            // Show newest first
+            messages.reverse();
+            list.innerHTML = messages.map(msg => {
+                const isPending = msg.status === 'pending';
+                const statusBadge = isPending
+                    ? '<span class="badge bg-warning text-dark">pending</span>'
+                    : '<span class="badge bg-success">confirmed</span>';
+                const confirmBtn = isPending
+                    ? `<button class="btn btn-outline-success btn-sm" onclick="confirmMessage('${msg.id}')">Confirm</button>`
+                    : '';
+                return `
+                    <div class="border-bottom p-3">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <strong>${escapeHtml(msg.title)}</strong> ${statusBadge}
+                                <br><small class="text-muted">
+                                    Instrument: <code>${escapeHtml(msg.instrument_id)}</code>
+                                    &bull; ID: <code>${msg.id.substring(0, 8)}...</code>
+                                </small>
+                                ${msg.body ? `<p class="mb-0 mt-1">${escapeHtml(msg.body)}</p>` : ''}
+                            </div>
+                            <div>${confirmBtn}</div>
+                        </div>
+                    </div>`;
+            }).join('');
+        })
+        .catch(err => {
+            document.getElementById('message-list').innerHTML =
+                `<p class="text-danger p-3">Error loading messages: ${err}</p>`;
+        });
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function loadStatus() {
+    fetch('/api/messages/status')
+        .then(r => r.json())
+        .then(data => {
+            document.getElementById('ws-clients').textContent = `WS Clients: ${data.ws_clients}`;
+        })
+        .catch(() => {});
+}
+
+// Auto-refresh every 3 seconds
+loadMessages();
+loadStatus();
+setInterval(loadMessages, 3000);
+setInterval(loadStatus, 3000);
+</script>
+{% endblock %}

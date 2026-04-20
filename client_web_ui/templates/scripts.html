@@ -1,0 +1,375 @@
+{% extends "base.html" %}
+{% block title %}Scripts - SiLA 2 Client{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Saved scripts sidebar -->
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <strong>Saved Scripts</strong>
+                <button class="btn btn-sm btn-outline-primary" onclick="refreshSavedScripts()">Refresh</button>
+            </div>
+            <div class="card-body p-0">
+                <div id="saved-scripts-list" class="list-group list-group-flush">
+                    <div class="list-group-item text-muted small">Loading...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Helper reference -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <a class="text-decoration-none" data-bs-toggle="collapse" href="#helperRef">
+                    <strong>Helper Reference</strong>
+                </a>
+            </div>
+            <div id="helperRef" class="collapse">
+                <div class="card-body small">
+                    <pre class="bg-light p-2 rounded" style="font-size:0.75rem; white-space:pre-wrap;">
+# Connect to a server by name
+device = lab.connect("Multidrop")
+device = lab.connect("127.0.0.1", 50055)
+
+# Execute a command
+result = device.command(
+    "MultidropCombi", "Connect",
+    ComPort="COM3", BaudRate=9600
+)
+
+# Read a property
+val = device.property(
+    "MultidropCombi", "DeviceStatus"
+)
+
+# Lock/unlock
+device.lock(token="my-script")
+device.unlock(token="my-script")
+
+# List features/commands
+device.features
+device.commands("MultidropCombi")
+device.properties("MultidropCombi")
+
+# Utilities
+lab.servers()  # list all servers
+lab.sleep(2)   # sleep 2 seconds
+lab.print("hello")  # print output</pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sessions -->
+        <div class="card mt-3">
+            <div class="card-header"><strong>Sessions</strong></div>
+            <div class="card-body p-0">
+                <div id="sessions-list" class="list-group list-group-flush">
+                    <div class="list-group-item text-muted small">No sessions yet</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main editor area -->
+    <div class="col-md-9">
+        <!-- Toolbar -->
+        <div class="card mb-3">
+            <div class="card-body py-2 d-flex align-items-center gap-2 flex-wrap">
+                <button class="btn btn-success btn-sm" onclick="runScript()" id="btn-run">Run</button>
+                <button class="btn btn-danger btn-sm" onclick="stopScript()" id="btn-stop" disabled>Stop</button>
+                <div class="vr"></div>
+                <input type="text" class="form-control form-control-sm" id="script-name"
+                       placeholder="Script name" style="width:200px;" value="untitled">
+                <button class="btn btn-outline-primary btn-sm" onclick="saveScript()">Save</button>
+                <button class="btn btn-outline-secondary btn-sm" onclick="clearEditor()">Clear</button>
+                <div class="vr"></div>
+                <input type="text" class="form-control form-control-sm" id="llm-prompt"
+                       placeholder="Describe script for AI to generate..." style="flex:1; min-width:200px;">
+                <button class="btn btn-outline-info btn-sm" onclick="generateScript()" id="btn-generate">Generate</button>
+            </div>
+        </div>
+
+        <!-- Code editor -->
+        <div class="card mb-3">
+            <div class="card-header py-1"><small class="text-muted">Python Editor</small></div>
+            <div class="card-body p-0">
+                <textarea id="code-editor"></textarea>
+            </div>
+        </div>
+
+        <!-- Output panel -->
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center py-1">
+                <small class="text-muted">Output</small>
+                <span id="output-status" class="badge bg-secondary">idle</span>
+            </div>
+            <div class="card-body p-0">
+                <pre id="output-panel" class="response mb-0" style="min-height:200px; max-height:400px; margin:0;"></pre>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- CodeMirror 5 CDN -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/codemirror.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/theme/dracula.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.18/mode/python/python.min.js"></script>
+
+<script>
+// ── Editor setup ────────────────────────────────────────────────
+const editor = CodeMirror.fromTextArea(document.getElementById("code-editor"), {
+    mode: "python",
+    theme: "dracula",
+    lineNumbers: true,
+    indentUnit: 4,
+    tabSize: 4,
+    indentWithTabs: false,
+    extraKeys: {
+        "Ctrl-Enter": () => runScript(),
+        "Tab": (cm) => cm.replaceSelection("    ", "end"),
+    },
+});
+editor.setSize(null, 350);
+editor.setValue(`# Welcome to the SiLA 2 Scripting Environment\n# The 'lab' helper is pre-loaded. Try:\n#   device = lab.connect("Multidrop")\n#   result = device.command("MultidropCombi", "Connect", ComPort="COM3")\n\nlab.print("Hello from the scripting engine!")\n`);
+
+let currentSessionId = null;
+let eventSource = null;
+
+// ── Script execution ────────────────────────────────────────────
+async function runScript() {
+    const code = editor.getValue();
+    const name = document.getElementById("script-name").value || "untitled";
+
+    document.getElementById("output-panel").textContent = "";
+    document.getElementById("output-status").textContent = "starting...";
+    document.getElementById("output-status").className = "badge bg-warning";
+    document.getElementById("btn-run").disabled = true;
+    document.getElementById("btn-stop").disabled = false;
+
+    try {
+        const resp = await fetch("/api/scripts/run", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({code, name}),
+        });
+        const data = await resp.json();
+        if (data.error) {
+            appendOutput("[Error] " + data.error);
+            setIdle();
+            return;
+        }
+        currentSessionId = data.session_id;
+        document.getElementById("output-status").textContent = "running";
+        document.getElementById("output-status").className = "badge bg-success";
+
+        // Connect SSE for output streaming
+        connectSSE(currentSessionId);
+    } catch (e) {
+        appendOutput("[Error] " + e.message);
+        setIdle();
+    }
+}
+
+function connectSSE(sessionId) {
+    if (eventSource) eventSource.close();
+    eventSource = new EventSource("/api/scripts/output/" + sessionId);
+
+    eventSource.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (data.line !== undefined) {
+            appendOutput(data.line);
+        }
+        if (data.status) {
+            document.getElementById("output-status").textContent = data.status;
+            document.getElementById("output-status").className =
+                data.status === "completed" ? "badge bg-primary" :
+                data.status === "error" ? "badge bg-danger" :
+                data.status === "stopped" ? "badge bg-warning" : "badge bg-secondary";
+            eventSource.close();
+            eventSource = null;
+            setIdle();
+            refreshSessions();
+        }
+    };
+
+    eventSource.onerror = () => {
+        if (eventSource) eventSource.close();
+        eventSource = null;
+        setIdle();
+    };
+}
+
+async function stopScript() {
+    if (!currentSessionId) return;
+    try {
+        await fetch("/api/scripts/stop/" + currentSessionId, {method: "POST"});
+    } catch (e) {
+        appendOutput("[Error stopping] " + e.message);
+    }
+}
+
+function setIdle() {
+    document.getElementById("btn-run").disabled = false;
+    document.getElementById("btn-stop").disabled = true;
+}
+
+function appendOutput(line) {
+    const panel = document.getElementById("output-panel");
+    panel.textContent += line + "\n";
+    panel.scrollTop = panel.scrollHeight;
+}
+
+function clearEditor() {
+    editor.setValue("");
+    document.getElementById("output-panel").textContent = "";
+    document.getElementById("output-status").textContent = "idle";
+    document.getElementById("output-status").className = "badge bg-secondary";
+}
+
+// ── Saved scripts ───────────────────────────────────────────────
+async function refreshSavedScripts() {
+    try {
+        const resp = await fetch("/api/scripts/saved");
+        const data = await resp.json();
+        const list = document.getElementById("saved-scripts-list");
+        if (Object.keys(data).length === 0) {
+            list.innerHTML = '<div class="list-group-item text-muted small">No saved scripts</div>';
+            return;
+        }
+        list.innerHTML = "";
+        for (const name of Object.keys(data)) {
+            const item = document.createElement("div");
+            item.className = "list-group-item d-flex justify-content-between align-items-center";
+            item.innerHTML = `
+                <a href="#" class="text-decoration-none" onclick="loadScript('${name.replace(/'/g, "\\'")}'); return false;">${name}</a>
+                <button class="btn btn-outline-danger btn-sm py-0 px-1" onclick="deleteSavedScript('${name.replace(/'/g, "\\'")}')">x</button>
+            `;
+            list.appendChild(item);
+        }
+    } catch (e) {
+        console.error("Failed to load saved scripts:", e);
+    }
+}
+
+async function saveScript() {
+    const name = document.getElementById("script-name").value.trim();
+    if (!name) { alert("Enter a script name"); return; }
+    const code = editor.getValue();
+    try {
+        await fetch("/api/scripts/save", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({name, code}),
+        });
+        refreshSavedScripts();
+    } catch (e) {
+        alert("Save failed: " + e.message);
+    }
+}
+
+async function loadScript(name) {
+    try {
+        const resp = await fetch("/api/scripts/saved/" + encodeURIComponent(name));
+        const data = await resp.json();
+        if (data.code !== undefined) {
+            editor.setValue(data.code);
+            document.getElementById("script-name").value = name;
+        }
+    } catch (e) {
+        alert("Load failed: " + e.message);
+    }
+}
+
+async function deleteSavedScript(name) {
+    if (!confirm("Delete script '" + name + "'?")) return;
+    try {
+        await fetch("/api/scripts/saved/" + encodeURIComponent(name), {method: "DELETE"});
+        refreshSavedScripts();
+    } catch (e) {
+        alert("Delete failed: " + e.message);
+    }
+}
+
+// ── Sessions ────────────────────────────────────────────────────
+async function refreshSessions() {
+    try {
+        const resp = await fetch("/api/scripts/sessions");
+        const sessions = await resp.json();
+        const list = document.getElementById("sessions-list");
+        if (sessions.length === 0) {
+            list.innerHTML = '<div class="list-group-item text-muted small">No sessions yet</div>';
+            return;
+        }
+        list.innerHTML = "";
+        // Show last 10, newest first
+        for (const s of sessions.slice(-10).reverse()) {
+            const badge = s.status === "running" ? "bg-success" :
+                          s.status === "completed" ? "bg-primary" :
+                          s.status === "error" ? "bg-danger" : "bg-warning";
+            const item = document.createElement("div");
+            item.className = "list-group-item small py-1";
+            item.innerHTML = `<span class="badge ${badge} me-1">${s.status}</span> ${s.script_name} <small class="text-muted">${s.id}</small>`;
+            item.style.cursor = "pointer";
+            item.onclick = () => viewSession(s.id);
+            list.appendChild(item);
+        }
+    } catch (e) {
+        console.error("Failed to load sessions:", e);
+    }
+}
+
+async function viewSession(id) {
+    try {
+        const resp = await fetch("/api/scripts/sessions/" + id);
+        const data = await resp.json();
+        const panel = document.getElementById("output-panel");
+        panel.textContent = (data.output_lines || []).join("\n");
+        panel.scrollTop = panel.scrollHeight;
+        document.getElementById("output-status").textContent = data.status || "unknown";
+    } catch (e) {
+        console.error("Failed to load session:", e);
+    }
+}
+
+// ── LLM generation ──────────────────────────────────────────────
+async function generateScript() {
+    const prompt = document.getElementById("llm-prompt").value.trim();
+    if (!prompt) { alert("Enter a description for the script to generate"); return; }
+
+    const btn = document.getElementById("btn-generate");
+    btn.disabled = true;
+    btn.textContent = "Generating...";
+
+    try {
+        const resp = await fetch("/api/scripts/generate", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({prompt}),
+        });
+        const data = await resp.json();
+        if (data.error) {
+            alert("Generation failed: " + data.error);
+            return;
+        }
+        if (data.code) {
+            editor.setValue(data.code);
+        }
+        if (data.explanation) {
+            appendOutput("[AI] " + data.explanation);
+        }
+    } catch (e) {
+        alert("Generation failed: " + e.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = "Generate";
+    }
+}
+
+// ── Init ────────────────────────────────────────────────────────
+refreshSavedScripts();
+refreshSessions();
+</script>
+{% endblock %}

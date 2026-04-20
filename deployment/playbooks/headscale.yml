@@ -1,0 +1,21 @@
+---
+# Deploy Headscale control server on the local WSL2 instance.
+#
+# Usage:
+#   ansible-playbook playbooks/headscale.yml
+#
+# After running:
+#   1. Note the pre-auth key from the output
+#   2. Store it in vault: ansible-vault edit inventory/group_vars/all/vault.yml
+#      Add: vault_tailscale_auth_key: "<the key>"
+#   3. Note the headscale_server_url from the output
+#   4. Set headscale_server_url in inventory/group_vars/all.yml
+#   5. Run the tailscale playbook: ansible-playbook playbooks/tailscale.yml
+
+- name: Deploy Headscale control server
+  hosts: headscale
+  become: true
+  gather_facts: true
+
+  roles:
+    - headscale

@@ -1,0 +1,25 @@
+[project]
+name = "phenix_imager"
+version = "1.0.0"
+requires-python = ">=3.10"
+dependencies = [
+    "sila2",
+    "typer",
+    "pywin32",
+    "opencv-python",
+    "numpy",
+    "Pillow",
+]
+
+[build-system]
+requires = ["setuptools>=61.0.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["phenix_imager*"]
+
+[tool.setuptools.package-data]
+"phenix_imager.generated" = [
+    "*/*.sila.xml",
+    "*/*.proto",
+]

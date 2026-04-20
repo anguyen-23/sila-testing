@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Feature xmlns="http://www.sila-standard.org"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         SiLA2Version="1.1"
+         FeatureVersion="1.0"
+         Originator="org.silalearning"
+         Category="examples"
+         MaturityLevel="Draft">
+
+    <Identifier>UserManualProvider</Identifier>
+    <DisplayName>User Manual Provider</DisplayName>
+    <Description>
+        Provides access to the device user manual. The ManualDocument property
+        returns the raw PDF bytes for display in a viewer, while ManualText
+        returns the full extracted text content for LLM search and chat context.
+    </Description>
+
+    <Property>
+        <Identifier>ManualDocument</Identifier>
+        <DisplayName>Manual Document</DisplayName>
+        <Description>
+            The device user manual as a PDF binary. Clients can display this
+            in an embedded PDF viewer or offer it as a download.
+        </Description>
+        <Observable>No</Observable>
+        <DataType><Basic>Binary</Basic></DataType>
+    </Property>
+
+    <Property>
+        <Identifier>ManualText</Identifier>
+        <DisplayName>Manual Text</DisplayName>
+        <Description>
+            The full text content extracted from the device user manual.
+            Intended for LLM/chat context so the assistant can answer
+            questions about device operation, maintenance, and troubleshooting.
+        </Description>
+        <Observable>No</Observable>
+        <DataType><Basic>String</Basic></DataType>
+    </Property>
+
+</Feature>

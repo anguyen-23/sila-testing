@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Feature xmlns="http://www.sila-standard.org"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         SiLA2Version="1.0"
+         FeatureVersion="1.0"
+         Originator="org.silastandard"
+         Category="core"
+         MaturityLevel="Verified">
+
+    <Identifier>SimulationController</Identifier>
+    <DisplayName>Simulation Controller</DisplayName>
+    <Description>
+        Allows a SiLA Client to control the simulation mode of a SiLA Server.
+        In simulation mode, the server simulates device behavior without requiring
+        actual hardware. This is useful for testing, development, and learning.
+    </Description>
+
+    <Command>
+        <Identifier>StartSimulationMode</Identifier>
+        <DisplayName>Start Simulation Mode</DisplayName>
+        <Description>
+            Switches the SiLA Server to simulation mode. All subsequent commands
+            will be simulated rather than executed on real hardware.
+        </Description>
+        <Observable>No</Observable>
+    </Command>
+
+    <Command>
+        <Identifier>StopSimulationMode</Identifier>
+        <DisplayName>Stop Simulation Mode</DisplayName>
+        <Description>
+            Switches the SiLA Server out of simulation mode back to real mode.
+            All subsequent commands will be executed on real hardware.
+        </Description>
+        <Observable>No</Observable>
+    </Command>
+
+    <Property>
+        <Identifier>SimulationMode</Identifier>
+        <DisplayName>Simulation Mode</DisplayName>
+        <Description>
+            Indicates whether the SiLA Server is currently in simulation mode.
+            True means the server is simulating, false means real hardware mode.
+        </Description>
+        <Observable>Yes</Observable>
+        <DataType><Basic>Boolean</Basic></DataType>
+    </Property>
+
+</Feature>

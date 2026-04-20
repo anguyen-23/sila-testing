@@ -1,0 +1,351 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Feature xmlns="http://www.sila-standard.org"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         SiLA2Version="1.1"
+         FeatureVersion="1.0"
+         Originator="calico.automation"
+         Category="extended"
+         MaturityLevel="Draft">
+
+    <Identifier>XArm6Controller</Identifier>
+    <DisplayName>xArm 6 Controller</DisplayName>
+    <Description>
+        Controls a UFACTORY xArm 6 robotic arm via the xArm Python SDK.
+        Supports connecting, enabling, linear and joint motion, gripper control,
+        and reading current position/state. Coordinates use the tool coordinate
+        space: X, Y, Z in mm and Roll, Pitch, Yaw in degrees.
+    </Description>
+
+    <!-- ============================================================ -->
+    <!-- UNOBSERVABLE COMMANDS                                         -->
+    <!-- ============================================================ -->
+
+    <Command>
+        <Identifier>Connect</Identifier>
+        <DisplayName>Connect</DisplayName>
+        <Description>
+            Connects to the xArm controller at the specified IP address,
+            enables motion, sets position mode, and clears the ready state.
+        </Description>
+        <Observable>No</Observable>
+        <Parameter>
+            <Identifier>IpAddress</Identifier>
+            <DisplayName>IP Address</DisplayName>
+            <Description>IP address of the xArm controller (e.g. "192.168.1.185").</Description>
+            <DataType><Basic>String</Basic></DataType>
+        </Parameter>
+        <Response>
+            <Identifier>FirmwareVersion</Identifier>
+            <DisplayName>Firmware Version</DisplayName>
+            <Description>The firmware version reported by the arm.</Description>
+            <DataType><Basic>String</Basic></DataType>
+        </Response>
+        <DefinedExecutionErrors>
+            <Identifier>CommunicationError</Identifier>
+        </DefinedExecutionErrors>
+    </Command>
+
+    <Command>
+        <Identifier>Disconnect</Identifier>
+        <DisplayName>Disconnect</DisplayName>
+        <Description>Disconnects from the xArm controller.</Description>
+        <Observable>No</Observable>
+        <DefinedExecutionErrors>
+            <Identifier>NotConnected</Identifier>
+        </DefinedExecutionErrors>
+    </Command>
+
+    <Command>
+        <Identifier>SetPosition</Identifier>
+        <DisplayName>Set Position</DisplayName>
+        <Description>
+            Moves the arm to an absolute Cartesian position using linear motion.
+            Coordinates are in the tool coordinate space.
+        </Description>
+        <Observable>No</Observable>
+        <Parameter>
+            <Identifier>X</Identifier>
+            <DisplayName>X (mm)</DisplayName>
+            <Description>X coordinate in mm.</Description>
+            <DataType><Basic>Real</Basic></DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>Y</Identifier>
+            <DisplayName>Y (mm)</DisplayName>
+            <Description>Y coordinate in mm.</Description>
+            <DataType><Basic>Real</Basic></DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>Z</Identifier>
+            <DisplayName>Z (mm)</DisplayName>
+            <Description>Z coordinate in mm.</Description>
+            <DataType><Basic>Real</Basic></DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>Roll</Identifier>
+            <DisplayName>Roll (deg)</DisplayName>
+            <Description>Roll angle in degrees.</Description>
+            <DataType><Basic>Real</Basic></DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>Pitch</Identifier>
+            <DisplayName>Pitch (deg)</DisplayName>
+            <Description>Pitch angle in degrees.</Description>
+            <DataType><Basic>Real</Basic></DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>Yaw</Identifier>
+            <DisplayName>Yaw (deg)</DisplayName>
+            <Description>Yaw angle in degrees.</Description>
+            <DataType><Basic>Real</Basic></DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>Speed</Identifier>
+            <DisplayName>Speed (mm/s)</DisplayName>
+            <Description>Motion speed in mm/s.</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>Real</Basic></DataType>
+                    <Constraints>
+                        <MinimalInclusive>1</MinimalInclusive>
+                        <MaximalInclusive>1000</MaximalInclusive>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>Wait</Identifier>
+            <DisplayName>Wait</DisplayName>
+            <Description>Whether to block until the move is complete.</Description>
+            <DataType><Basic>Boolean</Basic></DataType>
+        </Parameter>
+        <DefinedExecutionErrors>
+            <Identifier>NotConnected</Identifier>
+            <Identifier>ArmError</Identifier>
+        </DefinedExecutionErrors>
+    </Command>
+
+    <Command>
+        <Identifier>SetRelativePosition</Identifier>
+        <DisplayName>Set Relative Position</DisplayName>
+        <Description>
+            Moves the arm by relative offsets from its current position (jog).
+            All values are deltas added to the current pose.
+        </Description>
+        <Observable>No</Observable>
+        <Parameter>
+            <Identifier>DeltaX</Identifier>
+            <DisplayName>Delta X (mm)</DisplayName>
+            <Description>Relative X offset in mm.</Description>
+            <DataType><Basic>Real</Basic></DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>DeltaY</Identifier>
+            <DisplayName>Delta Y (mm)</DisplayName>
+            <Description>Relative Y offset in mm.</Description>
+            <DataType><Basic>Real</Basic></DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>DeltaZ</Identifier>
+            <DisplayName>Delta Z (mm)</DisplayName>
+            <Description>Relative Z offset in mm.</Description>
+            <DataType><Basic>Real</Basic></DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>DeltaRoll</Identifier>
+            <DisplayName>Delta Roll (deg)</DisplayName>
+            <Description>Relative roll offset in degrees.</Description>
+            <DataType><Basic>Real</Basic></DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>DeltaPitch</Identifier>
+            <DisplayName>Delta Pitch (deg)</DisplayName>
+            <Description>Relative pitch offset in degrees.</Description>
+            <DataType><Basic>Real</Basic></DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>DeltaYaw</Identifier>
+            <DisplayName>Delta Yaw (deg)</DisplayName>
+            <Description>Relative yaw offset in degrees.</Description>
+            <DataType><Basic>Real</Basic></DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>Speed</Identifier>
+            <DisplayName>Speed (mm/s)</DisplayName>
+            <Description>Motion speed in mm/s.</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>Real</Basic></DataType>
+                    <Constraints>
+                        <MinimalInclusive>1</MinimalInclusive>
+                        <MaximalInclusive>1000</MaximalInclusive>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <DefinedExecutionErrors>
+            <Identifier>NotConnected</Identifier>
+            <Identifier>ArmError</Identifier>
+        </DefinedExecutionErrors>
+    </Command>
+
+    <Command>
+        <Identifier>GoHome</Identifier>
+        <DisplayName>Go Home</DisplayName>
+        <Description>Moves all joints to their home (zero) positions.</Description>
+        <Observable>No</Observable>
+        <DefinedExecutionErrors>
+            <Identifier>NotConnected</Identifier>
+            <Identifier>ArmError</Identifier>
+        </DefinedExecutionErrors>
+    </Command>
+
+    <Command>
+        <Identifier>SetGripperPosition</Identifier>
+        <DisplayName>Set Gripper Position</DisplayName>
+        <Description>
+            Sets the xArm gripper to a specific opening position (0-850).
+            0 is fully closed, 850 is fully open.
+        </Description>
+        <Observable>No</Observable>
+        <Parameter>
+            <Identifier>Position</Identifier>
+            <DisplayName>Position</DisplayName>
+            <Description>Gripper position (0=closed, 850=open).</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>Real</Basic></DataType>
+                    <Constraints>
+                        <MinimalInclusive>0</MinimalInclusive>
+                        <MaximalInclusive>850</MaximalInclusive>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>Speed</Identifier>
+            <DisplayName>Speed</DisplayName>
+            <Description>Gripper speed (1-5000).</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>Real</Basic></DataType>
+                    <Constraints>
+                        <MinimalInclusive>1</MinimalInclusive>
+                        <MaximalInclusive>5000</MaximalInclusive>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <DefinedExecutionErrors>
+            <Identifier>NotConnected</Identifier>
+            <Identifier>ArmError</Identifier>
+        </DefinedExecutionErrors>
+    </Command>
+
+    <Command>
+        <Identifier>ClearErrors</Identifier>
+        <DisplayName>Clear Errors</DisplayName>
+        <Description>
+            Clears arm errors and warnings, then re-enables motion.
+        </Description>
+        <Observable>No</Observable>
+        <DefinedExecutionErrors>
+            <Identifier>NotConnected</Identifier>
+        </DefinedExecutionErrors>
+    </Command>
+
+    <Command>
+        <Identifier>EmergencyStop</Identifier>
+        <DisplayName>Emergency Stop</DisplayName>
+        <Description>
+            Immediately stops all arm motion by setting state to emergency stop.
+        </Description>
+        <Observable>No</Observable>
+        <DefinedExecutionErrors>
+            <Identifier>NotConnected</Identifier>
+        </DefinedExecutionErrors>
+    </Command>
+
+    <!-- ============================================================ -->
+    <!-- PROPERTIES                                                    -->
+    <!-- ============================================================ -->
+
+    <Property>
+        <Identifier>IsConnected</Identifier>
+        <DisplayName>Is Connected</DisplayName>
+        <Description>Whether the arm controller is currently connected.</Description>
+        <Observable>No</Observable>
+        <DataType><Basic>Boolean</Basic></DataType>
+    </Property>
+
+    <Property>
+        <Identifier>CurrentPosition</Identifier>
+        <DisplayName>Current Position</DisplayName>
+        <Description>
+            Current tool position as a JSON string: {"x", "y", "z", "roll", "pitch", "yaw"}.
+            Coordinates in mm, angles in degrees.
+        </Description>
+        <Observable>No</Observable>
+        <DataType><Basic>String</Basic></DataType>
+    </Property>
+
+    <Property>
+        <Identifier>ArmState</Identifier>
+        <DisplayName>Arm State</DisplayName>
+        <Description>
+            Current arm state: 1=moving, 2=ready/idle, 3=paused, 4=error.
+        </Description>
+        <Observable>No</Observable>
+        <DataType><Basic>Integer</Basic></DataType>
+    </Property>
+
+    <Property>
+        <Identifier>ErrorCode</Identifier>
+        <DisplayName>Error Code</DisplayName>
+        <Description>Current error code (0=no error).</Description>
+        <Observable>No</Observable>
+        <DataType><Basic>Integer</Basic></DataType>
+    </Property>
+
+    <Property>
+        <Identifier>DisplayIcon</Identifier>
+        <DisplayName>Display Icon</DisplayName>
+        <Description>PNG icon representing this instrument, for display in client UIs.</Description>
+        <Observable>No</Observable>
+        <DataType><Basic>Binary</Basic></DataType>
+    </Property>
+
+    <Property>
+        <Identifier>DeviceDescription</Identifier>
+        <DisplayName>Device Description</DisplayName>
+        <Description>Rich text description of device capabilities for LLM system prompts.</Description>
+        <Observable>No</Observable>
+        <DataType><Basic>String</Basic></DataType>
+    </Property>
+
+    <!-- ============================================================ -->
+    <!-- DEFINED EXECUTION ERRORS                                      -->
+    <!-- ============================================================ -->
+
+    <DefinedExecutionError>
+        <Identifier>NotConnected</Identifier>
+        <DisplayName>Not Connected</DisplayName>
+        <Description>The arm is not connected. Call Connect first.</Description>
+    </DefinedExecutionError>
+
+    <DefinedExecutionError>
+        <Identifier>ArmError</Identifier>
+        <DisplayName>Arm Error</DisplayName>
+        <Description>
+            The arm reported an error during the operation. The error message
+            includes the error code and description.
+        </Description>
+    </DefinedExecutionError>
+
+    <DefinedExecutionError>
+        <Identifier>CommunicationError</Identifier>
+        <DisplayName>Communication Error</DisplayName>
+        <Description>Failed to connect to the arm controller at the specified IP.</Description>
+    </DefinedExecutionError>
+
+</Feature>

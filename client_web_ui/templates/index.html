@@ -1,0 +1,243 @@
+{% extends "base.html" %}
+{% block title %}SiLA 2 Servers{% endblock %}
+{% block content %}
+<div class="learning-banner">
+    This is a <strong>learning tool</strong> for exploring SiLA 2 concepts.
+    It connects to local SiLA servers and lets you browse features, execute commands, and view properties.
+</div>
+
+<h2 class="mb-3">SiLA 2 Servers</h2>
+
+<div class="row" id="server-grid">
+{% for server in servers %}
+    <div class="col-md-4" id="card-col-{{ server.host }}-{{ server.port }}">
+        <div class="card server-card" id="server-{{ server.host }}-{{ server.port }}">
+            <div class="card-body">
+                <h5 class="card-title d-flex align-items-center">
+                    <span class="status-dot" id="dot-{{ server.host }}-{{ server.port }}"></span>
+                    <span class="server-icon-slot me-2" id="icon-{{ server.host }}-{{ server.port }}"></span>
+                    {{ server.name }}
+                    {% if server.get('custom') %}
+                    <button class="btn btn-sm btn-outline-danger ms-auto" title="Remove"
+                            onclick="removeServer('{{ server.host }}', {{ server.port }})">&times;</button>
+                    {% endif %}
+                </h5>
+                <div id="status-{{ server.host }}-{{ server.port }}">
+                    <p class="card-text text-muted"><small>{{ server.host }}:{{ server.port }}</small></p>
+                    <p class="card-text placeholder-glow">
+                        <span class="placeholder col-8"></span>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endfor %}
+    <div class="col-md-4" id="add-server-col">
+        <div class="card server-card border-dashed" id="add-server-card" style="border-style: dashed; cursor: pointer;"
+             onclick="showAddForm()">
+            <div class="card-body text-center text-muted" id="add-server-body">
+                <h5 class="card-title mt-3">+ Add New Device</h5>
+                <p class="card-text"><small>Connect to a SiLA 2 server on the network</small></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="mt-4">
+    <h5>Quick Start</h5>
+    <p class="text-muted">Start the servers in separate terminals:</p>
+    <pre class="response">python -m temperature_controller --insecure --port 50052
+python -m pump_controller --insecure --port 50053
+python -m plate_reader --insecure --port 50054</pre>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const servers = [
+{% for server in servers %}
+    {name: {{ server.name|tojson }}, host: {{ server.host|tojson }}, port: {{ server.port }}},
+{% endfor %}
+];
+
+function renderOnline(srv, info) {
+    const dot = document.getElementById(`dot-${srv.host}-${srv.port}`);
+    const iconSlot = document.getElementById(`icon-${srv.host}-${srv.port}`);
+    const status = document.getElementById(`status-${srv.host}-${srv.port}`);
+
+    dot.classList.add('online');
+
+    const img = document.createElement('img');
+    img.src = `/api/icon/${srv.host}/${srv.port}`;
+    img.className = 'server-icon';
+    img.alt = '';
+    img.onerror = function() { this.style.display = 'none'; };
+    iconSlot.appendChild(img);
+
+    const features = info.features || [];
+    const badges = features.map(fqi => {
+        const parts = fqi.split('/');
+        const name = parts.length >= 3 ? parts[parts.length - 2] : fqi;
+        return `<span class="badge bg-secondary me-1">${name}</span>`;
+    }).join('');
+
+    status.innerHTML = `
+        <p class="card-text text-muted mb-1">${info.description || ''}</p>
+        <p class="card-text">
+            <small class="text-muted">
+                ${srv.host}:${srv.port} &bull;
+                ${info.type || ''} &bull;
+                ${features.length} features
+            </small>
+        </p>
+        <div class="mb-2">${badges}</div>
+        <a href="/server/${srv.host}/${srv.port}" class="btn btn-primary btn-sm">Browse Features</a>
+        <a href="/chat/${srv.host}/${srv.port}" class="btn btn-outline-primary btn-sm ms-1">Chat</a>
+    `;
+}
+
+function renderOffline(srv, info) {
+    const dot = document.getElementById(`dot-${srv.host}-${srv.port}`);
+    const status = document.getElementById(`status-${srv.host}-${srv.port}`);
+
+    dot.classList.add('offline');
+    const errMsg = info.error ? `<br><small>${info.error}</small>` : '';
+    status.innerHTML = `
+        <p class="card-text text-danger">Not connected${errMsg}</p>
+        <p class="card-text"><small class="text-muted">${srv.host}:${srv.port}</small></p>
+        <button class="btn btn-outline-secondary btn-sm" onclick="fetchServer(servers.find(s => s.host==='${srv.host}' && s.port===${srv.port}))">Retry</button>
+    `;
+}
+
+function fetchServer(srv) {
+    const dot = document.getElementById(`dot-${srv.host}-${srv.port}`);
+    const status = document.getElementById(`status-${srv.host}-${srv.port}`);
+
+    // Reset to loading state
+    dot.className = 'status-dot';
+    status.innerHTML = `
+        <p class="card-text text-muted"><small>${srv.host}:${srv.port}</small></p>
+        <p class="card-text placeholder-glow"><span class="placeholder col-8"></span></p>
+    `;
+
+    fetch(`/api/server-info/${srv.host}/${srv.port}`)
+        .then(r => r.json())
+        .then(info => {
+            if (info.connected) {
+                renderOnline(srv, info);
+            } else {
+                renderOffline(srv, info);
+            }
+        })
+        .catch(() => renderOffline(srv, {error: 'Fetch failed'}));
+}
+
+// Fire all requests in parallel on page load
+servers.forEach(fetchServer);
+
+function showAddForm() {
+    const card = document.getElementById('add-server-card');
+    card.style.cursor = 'default';
+    card.onclick = null;
+    document.getElementById('add-server-body').innerHTML = `
+        <h5 class="card-title text-start">Add New Device</h5>
+        <div class="text-start">
+            <div class="mb-2">
+                <input type="text" class="form-control form-control-sm" id="add-host"
+                       placeholder="Hostname or IP (e.g. kl-w11-2272)">
+            </div>
+            <div class="mb-2">
+                <input type="number" class="form-control form-control-sm" id="add-port"
+                       placeholder="Port (e.g. 50059)" value="50052">
+            </div>
+            <div class="mb-2">
+                <input type="text" class="form-control form-control-sm" id="add-name"
+                       placeholder="Name (optional, auto-detected)">
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="addServer()">Connect</button>
+            <button class="btn btn-outline-secondary btn-sm ms-1" onclick="cancelAdd()">Cancel</button>
+            <div id="add-error" class="text-danger mt-1" style="font-size: 0.85em;"></div>
+        </div>
+    `;
+    document.getElementById('add-host').focus();
+}
+
+function cancelAdd() {
+    const card = document.getElementById('add-server-card');
+    card.style.cursor = 'pointer';
+    card.onclick = showAddForm;
+    document.getElementById('add-server-body').innerHTML = `
+        <h5 class="card-title mt-3">+ Add New Device</h5>
+        <p class="card-text"><small>Connect to a SiLA 2 server on the network</small></p>
+    `;
+}
+
+function addServer() {
+    const host = document.getElementById('add-host').value.trim();
+    const port = parseInt(document.getElementById('add-port').value);
+    const name = document.getElementById('add-name').value.trim();
+    const errDiv = document.getElementById('add-error');
+
+    if (!host) { errDiv.textContent = 'Host is required'; return; }
+    if (!port || isNaN(port)) { errDiv.textContent = 'Valid port is required'; return; }
+    errDiv.textContent = 'Connecting...';
+
+    fetch('/api/servers/add', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({host, port, name}),
+    })
+    .then(r => r.json().then(data => ({status: r.status, data})))
+    .then(({status, data}) => {
+        if (status >= 400) {
+            errDiv.textContent = data.error || 'Failed to add server';
+            return;
+        }
+        // Add new server card before the "Add" card
+        const srv = {name: data.name, host: data.host, port: data.port, custom: true};
+        servers.push(srv);
+        const grid = document.getElementById('server-grid');
+        const addCol = document.getElementById('add-server-col');
+        const col = document.createElement('div');
+        col.className = 'col-md-4';
+        col.id = `card-col-${srv.host}-${srv.port}`;
+        col.innerHTML = `
+            <div class="card server-card" id="server-${srv.host}-${srv.port}">
+                <div class="card-body">
+                    <h5 class="card-title d-flex align-items-center">
+                        <span class="status-dot" id="dot-${srv.host}-${srv.port}"></span>
+                        <span class="server-icon-slot me-2" id="icon-${srv.host}-${srv.port}"></span>
+                        ${srv.name}
+                        <button class="btn btn-sm btn-outline-danger ms-auto" title="Remove"
+                                onclick="removeServer('${srv.host}', ${srv.port})">&times;</button>
+                    </h5>
+                    <div id="status-${srv.host}-${srv.port}">
+                        <p class="card-text text-muted"><small>${srv.host}:${srv.port}</small></p>
+                        <p class="card-text placeholder-glow"><span class="placeholder col-8"></span></p>
+                    </div>
+                </div>
+            </div>
+        `;
+        grid.insertBefore(col, addCol);
+        cancelAdd();
+        fetchServer(srv);
+    })
+    .catch(() => { errDiv.textContent = 'Network error'; });
+}
+
+function removeServer(host, port) {
+    if (!confirm(`Remove ${host}:${port}?`)) return;
+    fetch('/api/servers/remove', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({host, port}),
+    })
+    .then(r => {
+        if (r.ok) {
+            const col = document.getElementById(`card-col-${host}-${port}`);
+            if (col) col.remove();
+        }
+    });
+}
+</script>
+{% endblock %}

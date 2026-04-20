@@ -1,0 +1,29 @@
+[project]
+name = "sila_server_common"
+version = "1.0.0"
+description = "Shared library for SiLA 2 instrument servers — transports, feature implementations, and scaffolding tools"
+requires-python = ">=3.10"
+dependencies = [
+    "sila2",
+    "typer",
+    "requests",
+    "websockets",
+    "Pillow",
+]
+
+[project.optional-dependencies]
+win32 = [
+    "pywin32",
+    "opencv-python",
+    "numpy",
+]
+
+[build-system]
+requires = ["setuptools>=61.0.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["sila_server_common*"]
+
+[tool.setuptools.package-data]
+"sila_server_common.fdl" = ["*.sila.xml"]

@@ -1,0 +1,39 @@
+---
+# Deploy SiLA 2 servers from the host's sila_servers list.
+#
+# When using -l with a server group name (e.g. -l multidrop_combi),
+# only that server is deployed. When using -l with a hostname or no
+# limit, all servers on the host are deployed.
+
+# ── Per-host setup (screen capture helper, runs once) ────────────
+- name: Include Windows host setup
+  include_tasks: windows_host.yml
+  when: ansible_os_family == "Windows"
+
+# ── Determine which servers to deploy ────────────────────────────
+- name: Filter servers to deploy
+  set_fact:
+    _sila_servers_to_deploy: "{{ sila_servers | selectattr('package', 'equalto', ansible_limit) | list if (ansible_limit is defined and ansible_limit in sila_servers | map(attribute='package') | list) else sila_servers }}"
+
+# ── Per-server deployment (loops over servers) ───────────────────
+- name: Deploy each Windows server
+  include_tasks: windows_server.yml
+  loop: "{{ _sila_servers_to_deploy }}"
+  loop_control:
+    loop_var: server
+  vars:
+    sila_package: "{{ server.package }}"
+    sila_port: "{{ server.port }}"
+    sila_extra_args: "{{ server.extra_args | default('') }}"
+  when: ansible_os_family == "Windows"
+
+- name: Deploy each Linux server
+  include_tasks: linux_server.yml
+  loop: "{{ _sila_servers_to_deploy }}"
+  loop_control:
+    loop_var: server
+  vars:
+    sila_package: "{{ server.package }}"
+    sila_port: "{{ server.port }}"
+    sila_extra_args: "{{ server.extra_args | default('') }}"
+  when: ansible_os_family != "Windows"

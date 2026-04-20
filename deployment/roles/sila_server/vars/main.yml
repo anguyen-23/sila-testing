@@ -1,0 +1,7 @@
+# Role defaults
+
+# Service name prefix — actual service name is "sila-<package_name>"
+sila_service_prefix: "sila"
+
+# Requirements file relative to server package dir
+sila_requirements_file: "pyproject.toml"

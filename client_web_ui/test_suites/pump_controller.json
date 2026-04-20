@@ -1,0 +1,893 @@
+{
+  "name": "Pump Controller — Production Readiness Test Suite",
+  "description": "Test suite for the Pump Controller SiLA 2 server. Covers basic commands, prerequisite pattern (prime-before-dispense), parameter validation, volume tracking, and standard features. All tests run in simulation mode (no SimulationController on this server).",
+  "server": {
+    "default_host": "127.0.0.1",
+    "default_port": 50053,
+    "feature_id": "PumpController",
+    "connection": null,
+    "variables": {}
+  },
+  "categories": [
+    {
+      "id": "basic",
+      "name": "Basic Commands",
+      "description": "Core pump operations: status, prime, dispense, reset",
+      "tests": [
+        {
+          "id": "basic_get_status",
+          "name": "GetPumpStatus returns status",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Query pump status. Should return a StatusMessage.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "PumpController", "command": "GetPumpStatus", "params": {}, "expect": "success"},
+              {"action": "check_response", "field": "StatusMessage", "condition": "not_empty"}
+            ]
+          }
+        },
+        {
+          "id": "basic_prime",
+          "name": "Prime pump",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Prime the pump. Should succeed and set IsPrimed.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "PumpController", "command": "ResetPump", "params": {}, "expect": "any"},
+              {"action": "command", "feature": "PumpController", "command": "Prime", "params": {}, "expect": "success"},
+              {"action": "check_response", "field": "PrimeSuccessful", "condition": "not_empty"}
+            ]
+          }
+        },
+        {
+          "id": "basic_dispense",
+          "name": "Dispense after prime",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Prime then dispense. Should succeed and return ActualVolumeDispensed.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "PumpController", "command": "ResetPump", "params": {}, "expect": "any"},
+              {"action": "command", "feature": "PumpController", "command": "Prime", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "PumpController", "command": "Dispense", "params": {"Volume": 5.0, "FlowRate": 2.0}, "expect": "success"},
+              {"action": "check_response", "field": "ActualVolumeDispensed", "condition": "not_empty"}
+            ]
+          }
+        },
+        {
+          "id": "basic_reset",
+          "name": "ResetPump succeeds",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Reset the pump. Should succeed.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "PumpController", "command": "ResetPump", "params": {}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "basic_dispense_after_reset",
+          "name": "Dispense after reset fails",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Reset clears the primed state. Dispense should fail with PumpNotPrimed.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "PumpController", "command": "Prime", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "PumpController", "command": "ResetPump", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "PumpController", "command": "Dispense", "params": {"Volume": 5.0, "FlowRate": 2.0}, "expect": "error", "error_type": "PumpNotPrimed"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "prereq",
+      "name": "Prerequisite Pattern",
+      "description": "Prime-before-dispense requirement and reset behavior",
+      "tests": [
+        {
+          "id": "prereq_dispense_without_prime",
+          "name": "Dispense without prime fails",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Attempting to dispense without priming should fail with PumpNotPrimed.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "PumpController", "command": "ResetPump", "params": {}, "expect": "any"},
+              {"action": "command", "feature": "PumpController", "command": "Dispense", "params": {"Volume": 5.0, "FlowRate": 2.0}, "expect": "error", "error_type": "PumpNotPrimed"}
+            ]
+          }
+        },
+        {
+          "id": "prereq_prime_then_dispense",
+          "name": "Prime then dispense succeeds",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Prime, then dispense. Should succeed.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "PumpController", "command": "ResetPump", "params": {}, "expect": "any"},
+              {"action": "command", "feature": "PumpController", "command": "Prime", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "PumpController", "command": "Dispense", "params": {"Volume": 5.0, "FlowRate": 2.0}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "prereq_reset_clears_prime",
+          "name": "Reset clears primed state",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Prime, reset, then dispense should fail because reset clears the primed state.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "PumpController", "command": "Prime", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "PumpController", "command": "ResetPump", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "PumpController", "command": "Dispense", "params": {"Volume": 5.0, "FlowRate": 2.0}, "expect": "error", "error_type": "PumpNotPrimed"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "validation",
+      "name": "Parameter Validation",
+      "description": "Volume and flow rate boundary testing",
+      "tests": [
+        {
+          "id": "val_volume_zero",
+          "name": "Volume = 0 rejected (min is >0)",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Dispense with Volume=0 should fail (min is exclusive >0).",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "PumpController", "command": "Prime", "params": {}, "expect": "any"},
+              {"action": "command", "feature": "PumpController", "command": "Dispense", "params": {"Volume": 0, "FlowRate": 2.0}, "expect": "error"}
+            ]
+          }
+        },
+        {
+          "id": "val_volume_max",
+          "name": "Volume = 50 accepted (max)",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Dispense with Volume=50 (max) should succeed.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "PumpController", "command": "ResetPump", "params": {}, "expect": "any"},
+              {"action": "command", "feature": "PumpController", "command": "Prime", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "PumpController", "command": "Dispense", "params": {"Volume": 50.0, "FlowRate": 2.0}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "val_volume_over",
+          "name": "Volume = 51 rejected (over max)",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Dispense with Volume=51 should fail (over max 50).",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "PumpController", "command": "Prime", "params": {}, "expect": "any"},
+              {"action": "command", "feature": "PumpController", "command": "Dispense", "params": {"Volume": 51.0, "FlowRate": 2.0}, "expect": "error"}
+            ]
+          }
+        },
+        {
+          "id": "val_flowrate_over",
+          "name": "FlowRate = 11 rejected (over max)",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Dispense with FlowRate=11 should fail (over max 10).",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "PumpController", "command": "Prime", "params": {}, "expect": "any"},
+              {"action": "command", "feature": "PumpController", "command": "Dispense", "params": {"Volume": 5.0, "FlowRate": 11.0}, "expect": "error"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "tracking",
+      "name": "Volume Tracking",
+      "description": "Total volume accumulation and reset",
+      "tests": [
+        {
+          "id": "track_accumulates",
+          "name": "Volume accumulates across dispenses",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Dispense twice and verify status reflects accumulated volume.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "PumpController", "command": "ResetPump", "params": {}, "expect": "any"},
+              {"action": "command", "feature": "PumpController", "command": "Prime", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "PumpController", "command": "Dispense", "params": {"Volume": 5.0, "FlowRate": 2.0}, "expect": "success"},
+              {"action": "command", "feature": "PumpController", "command": "Dispense", "params": {"Volume": 3.0, "FlowRate": 2.0}, "expect": "success"},
+              {"action": "command", "feature": "PumpController", "command": "GetPumpStatus", "params": {}, "expect": "success"},
+              {"action": "check_response", "field": "StatusMessage", "condition": "not_empty"}
+            ]
+          }
+        },
+        {
+          "id": "track_reset_clears",
+          "name": "Reset clears accumulated volume",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Reset pump and verify status reflects cleared state.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "PumpController", "command": "ResetPump", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "PumpController", "command": "GetPumpStatus", "params": {}, "expect": "success"},
+              {"action": "check_response", "field": "StatusMessage", "condition": "not_empty"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "webui",
+      "name": "WebUI Integration",
+      "description": "Visual verification of WebUI functionality",
+      "tests": [
+        {
+          "id": "ui_prime_dispense",
+          "name": "Prime and dispense flow in WebUI",
+          "type": "guided",
+          "modes": ["simulation"],
+          "description": "Verify the prime/dispense workflow is visible in the WebUI.",
+          "script": {
+            "steps": [
+              {"action": "prompt", "message": "Open the Pump Controller WebUI in your browser."},
+              {"action": "command", "feature": "PumpController", "command": "ResetPump", "params": {}, "expect": "any"},
+              {"action": "command", "feature": "PumpController", "command": "Prime", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "PumpController", "command": "Dispense", "params": {"Volume": 10.0, "FlowRate": 2.0}, "expect": "success"},
+              {"action": "confirm", "message": "Did the WebUI show the dispense progress and completion?", "pass_label": "Yes, progress visible", "fail_label": "No, not visible"}
+            ]
+          }
+        },
+        {
+          "id": "ui_volume_tracking",
+          "name": "Volume tracking display",
+          "type": "guided",
+          "modes": ["simulation"],
+          "description": "Verify the total dispensed volume updates in the WebUI.",
+          "script": {
+            "steps": [
+              {"action": "prompt", "message": "Open the Pump Controller WebUI and observe the total volume display."},
+              {"action": "command", "feature": "PumpController", "command": "ResetPump", "params": {}, "expect": "any"},
+              {"action": "command", "feature": "PumpController", "command": "Prime", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "PumpController", "command": "Dispense", "params": {"Volume": 5.0, "FlowRate": 2.0}, "expect": "success"},
+              {"action": "confirm", "message": "Did the total volume update in the WebUI?", "pass_label": "Yes, updated", "fail_label": "No update"}
+            ]
+          }
+        },
+        {
+          "id": "ui_error_display",
+          "name": "Error display in WebUI",
+          "type": "guided",
+          "modes": ["simulation"],
+          "description": "Trigger an error and verify it displays in the WebUI.",
+          "script": {
+            "steps": [
+              {"action": "prompt", "message": "Open the Pump Controller WebUI."},
+              {"action": "command", "feature": "PumpController", "command": "ResetPump", "params": {}, "expect": "any"},
+              {"action": "command", "feature": "PumpController", "command": "Dispense", "params": {"Volume": 5.0, "FlowRate": 2.0}, "expect": "error"},
+              {"action": "confirm", "message": "Did the WebUI show the PumpNotPrimed error?", "pass_label": "Yes, error shown", "fail_label": "No error display"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "lock",
+      "name": "LockController",
+      "description": "Server locking for exclusive access control",
+      "tests": [
+        {
+          "id": "lock_lock_unlock",
+          "name": "Lock and unlock server",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Lock the server with a token, then unlock it.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "LockController", "command": "LockServer", "params": {"LockIdentifier": "test-token-123", "Timeout": 30}, "expect": "success"},
+              {"action": "command", "feature": "LockController", "command": "UnlockServer", "params": {"LockIdentifier": "test-token-123"}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "lock_already_locked",
+          "name": "Lock when already locked",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Lock the server, then try to lock again with a different token.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "LockController", "command": "LockServer", "params": {"LockIdentifier": "token-A", "Timeout": 30}, "expect": "success"},
+              {"action": "command", "feature": "LockController", "command": "LockServer", "params": {"LockIdentifier": "token-B", "Timeout": 30}, "expect": "error", "error_type": "ServerAlreadyLocked"},
+              {"action": "command", "feature": "LockController", "command": "UnlockServer", "params": {"LockIdentifier": "token-A"}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "lock_wrong_token",
+          "name": "Unlock with wrong token",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Lock the server, then try to unlock with a different token.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "LockController", "command": "LockServer", "params": {"LockIdentifier": "correct-token", "Timeout": 30}, "expect": "success"},
+              {"action": "command", "feature": "LockController", "command": "UnlockServer", "params": {"LockIdentifier": "wrong-token"}, "expect": "error", "error_type": "InvalidLockIdentifier"},
+              {"action": "command", "feature": "LockController", "command": "UnlockServer", "params": {"LockIdentifier": "correct-token"}, "expect": "success"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "logging",
+      "name": "Structured Logging",
+      "description": "ServerLogProvider feature: structured log queries with filters",
+      "tests": [
+        {
+          "id": "log_get_logs_no_filter",
+          "name": "GetLogs with no filters returns entries",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Query logs with no filters. Server should have logged startup entries.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ServerLogProvider", "command": "GetLogs", "params": {"StartTime": "", "EndTime": "", "MinSeverity": "", "Feature": "", "MaxEntries": 10}, "expect": "success"},
+              {"action": "check_response", "field": "LogEntries", "condition": "not_empty"}
+            ]
+          }
+        },
+        {
+          "id": "log_get_logs_severity_filter",
+          "name": "GetLogs with MinSeverity=ERROR",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Query logs filtered to ERROR and above.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ServerLogProvider", "command": "GetLogs", "params": {"StartTime": "", "EndTime": "", "MinSeverity": "ERROR", "Feature": "", "MaxEntries": 100}, "expect": "success"},
+              {"action": "check_response", "field": "LogEntries", "condition": "not_empty"}
+            ]
+          }
+        },
+        {
+          "id": "log_get_logs_feature_filter",
+          "name": "GetLogs with Feature=Server",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Query logs filtered to the Server feature.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ServerLogProvider", "command": "GetLogs", "params": {"StartTime": "", "EndTime": "", "MinSeverity": "", "Feature": "Server", "MaxEntries": 10}, "expect": "success"},
+              {"action": "check_response", "field": "LogEntries", "condition": "not_empty"}
+            ]
+          }
+        },
+        {
+          "id": "log_get_logs_max_entries",
+          "name": "GetLogs with MaxEntries=5 returns at most 5",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Query with MaxEntries=5 and verify entries are returned.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ServerLogProvider", "command": "GetLogs", "params": {"StartTime": "", "EndTime": "", "MinSeverity": "", "Feature": "", "MaxEntries": 5}, "expect": "success"},
+              {"action": "check_response", "field": "LogEntries", "condition": "not_empty"}
+            ]
+          }
+        },
+        {
+          "id": "log_get_features",
+          "name": "GetLogFeatures returns feature list",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "GetLogFeatures should return a list containing at least 'Server'.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ServerLogProvider", "command": "GetLogFeatures", "params": {}, "expect": "success"},
+              {"action": "check_response", "field": "Features", "condition": "not_empty"}
+            ]
+          }
+        },
+        {
+          "id": "log_stats",
+          "name": "LogStats returns valid data",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Query log stats via GetLogs with minimal entries.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ServerLogProvider", "command": "GetLogs", "params": {"StartTime": "", "EndTime": "", "MinSeverity": "", "Feature": "", "MaxEntries": 1}, "expect": "success"},
+              {"action": "check_response", "field": "LogEntries", "condition": "not_empty"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "script_exec",
+      "name": "Script Runner — Execution",
+      "description": "Core script execution: output capture, exit codes, error handling, and the device helper preamble",
+      "tests": [
+        {
+          "id": "exec_hello",
+          "name": "Simple print output",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Run a one-liner that prints 'hello' and verify it appears in FullOutput with exit code 0.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_hello", "ScriptCode": "print('hello')"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "hello"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "exec_multiline",
+          "name": "Multi-line output",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Run a script with multiple print statements.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_multi", "ScriptCode": "print('line_one')\nprint('line_two')\nprint('line_three')"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "line_one"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "line_two"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "line_three"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "exec_computation",
+          "name": "Computation and formatted output",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Run a script that does arithmetic and string formatting.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_compute", "ScriptCode": "x = 6 * 7\nprint(f'result={x}')"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "result=42"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "exec_stdlib_import",
+          "name": "Standard library imports",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Verify scripts can import standard library modules.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_imports", "ScriptCode": "import json, math, datetime\nprint('imports_ok')\nprint(json.dumps({'pi': round(math.pi, 2)}))"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "imports_ok"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "3.14"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "exec_loop",
+          "name": "Loop output",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Run a script with a for loop.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_loop", "ScriptCode": "for i in range(5):\n    print(f'iter_{i}')"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "iter_0"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "iter_4"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "exec_syntax_error",
+          "name": "Syntax error produces non-zero exit code",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Run code with a syntax error.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_syntax", "ScriptCode": "this is not valid python!!!"}, "expect": "success"},
+              {"action": "check_response", "field": "ExitCode", "condition": "not_equals", "value": 0},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "SyntaxError"}
+            ]
+          }
+        },
+        {
+          "id": "exec_runtime_error",
+          "name": "Runtime exception produces non-zero exit code",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Run code that raises a runtime exception.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_runtime", "ScriptCode": "print('before')\nx = 1 / 0\nprint('after')"}, "expect": "success"},
+              {"action": "check_response", "field": "ExitCode", "condition": "not_equals", "value": 0},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "before"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "ZeroDivisionError"},
+              {"action": "check_response", "field": "FullOutput", "condition": "not_contains", "value": "after"}
+            ]
+          }
+        },
+        {
+          "id": "exec_empty_script",
+          "name": "Empty script succeeds with exit code 0",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Run an empty script.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_empty", "ScriptCode": "# nothing here\n"}, "expect": "success"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "exec_preamble_banner",
+          "name": "FullOutput contains ScriptRunner banner",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Verify ScriptRunner injects its banners.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_banner", "ScriptCode": "pass"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "[ScriptRunner] Started"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "[ScriptRunner] Finished: exit_code=0"}
+            ]
+          }
+        },
+        {
+          "id": "exec_consecutive",
+          "name": "Consecutive script executions",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Run two scripts back-to-back. Verify independent output.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_run1", "ScriptCode": "print('first_run')"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "first_run"},
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_run2", "ScriptCode": "print('second_run')"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "second_run"},
+              {"action": "check_response", "field": "FullOutput", "condition": "not_contains", "value": "first_run"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "script_device",
+      "name": "Script Runner — Device Helper",
+      "description": "Verify the injected `device` helper object works: introspection, print, sleep",
+      "tests": [
+        {
+          "id": "dev_available",
+          "name": "device object is available",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Verify the `device` object exists and is a DeviceHelper instance.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_devobj", "ScriptCode": "print(type(device).__name__)\nprint(repr(device))"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "DeviceHelper"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "dev_print",
+          "name": "device.print() writes to output",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Verify device.print() sends text to the captured output stream.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_devprint", "ScriptCode": "device.print('device_says_hi')"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "device_says_hi"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "dev_features",
+          "name": "device.features lists server features",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Verify device.features returns a list that includes PumpController and ScriptRunner.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_devfeat", "ScriptCode": "feats = device.features\nfor f in feats:\n    print(f)"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "PumpController"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "ScriptRunner"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "dev_commands_list",
+          "name": "device.commands() lists feature commands",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Verify device.commands('ScriptRunner') returns known command names.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_devcmds", "ScriptCode": "cmds = device.commands('ScriptRunner')\nfor c in cmds:\n    print(c)"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "RunScript"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "ListScripts"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "dev_properties_list",
+          "name": "device.properties() lists feature properties",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Verify device.properties('ScriptRunner') returns IsRunning.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_devprops", "ScriptCode": "props = device.properties('ScriptRunner')\nfor p in props:\n    print(p)"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "IsRunning"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "dev_read_property",
+          "name": "device.property() reads a SiLA property",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Use device.property() to read the DeviceDescription property.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_devprop", "ScriptCode": "val = device.property('PumpController', 'DeviceDescription')\nprint(f'type={type(val).__name__}')\nprint(f'len={len(val)}')"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "type=str"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "dev_command_sim",
+          "name": "device.command() calls SiLA command (simulation)",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Use device.command() to call GetPumpStatus and verify the response.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_devcmd", "ScriptCode": "import json\nresult = device.command('PumpController', 'GetPumpStatus')\nprint(json.dumps(result))"}, "expect": "success"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "script_persist",
+      "name": "Script Runner — Persistence",
+      "description": "Save, load, list, delete, and overwrite scripts stored on the server",
+      "tests": [
+        {
+          "id": "persist_crud",
+          "name": "Full CRUD round-trip",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Save a script, verify it appears in list, load it back, then delete it.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "SaveScript", "params": {"ScriptName": "test_crud_abc", "ScriptCode": "print('crud_marker')"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "ListScripts", "params": {}, "expect": "success"},
+              {"action": "check_response", "field": "Scripts", "condition": "contains", "value": "test_crud_abc"},
+              {"action": "command", "feature": "ScriptRunner", "command": "LoadScript", "params": {"ScriptName": "test_crud_abc"}, "expect": "success"},
+              {"action": "check_response", "field": "ScriptCode", "condition": "contains", "value": "crud_marker"},
+              {"action": "command", "feature": "ScriptRunner", "command": "DeleteScript", "params": {"ScriptName": "test_crud_abc"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "LoadScript", "params": {"ScriptName": "test_crud_abc"}, "expect": "error", "error_type": "ScriptNotFound"}
+            ]
+          }
+        },
+        {
+          "id": "persist_overwrite",
+          "name": "Save overwrites existing script",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Save a script, then save again with the same name but different code.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "SaveScript", "params": {"ScriptName": "test_overwrite", "ScriptCode": "print('version_one')"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "SaveScript", "params": {"ScriptName": "test_overwrite", "ScriptCode": "print('version_two')"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "LoadScript", "params": {"ScriptName": "test_overwrite"}, "expect": "success"},
+              {"action": "check_response", "field": "ScriptCode", "condition": "contains", "value": "version_two"},
+              {"action": "check_response", "field": "ScriptCode", "condition": "not_contains", "value": "version_one"},
+              {"action": "command", "feature": "ScriptRunner", "command": "DeleteScript", "params": {"ScriptName": "test_overwrite"}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "persist_multiple",
+          "name": "Save and list multiple scripts",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Save three scripts and verify ListScripts returns all of them.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "SaveScript", "params": {"ScriptName": "test_multi_a", "ScriptCode": "pass"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "SaveScript", "params": {"ScriptName": "test_multi_b", "ScriptCode": "pass"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "SaveScript", "params": {"ScriptName": "test_multi_c", "ScriptCode": "pass"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "ListScripts", "params": {}, "expect": "success"},
+              {"action": "check_response", "field": "Scripts", "condition": "contains", "value": "test_multi_a"},
+              {"action": "check_response", "field": "Scripts", "condition": "contains", "value": "test_multi_b"},
+              {"action": "check_response", "field": "Scripts", "condition": "contains", "value": "test_multi_c"},
+              {"action": "command", "feature": "ScriptRunner", "command": "DeleteScript", "params": {"ScriptName": "test_multi_a"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "DeleteScript", "params": {"ScriptName": "test_multi_b"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "DeleteScript", "params": {"ScriptName": "test_multi_c"}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "persist_save_then_run",
+          "name": "Save a script then run it by loading",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Save a script, load it back, then execute the loaded code via RunScript.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "SaveScript", "params": {"ScriptName": "test_save_run", "ScriptCode": "print('saved_and_ran')"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "LoadScript", "params": {"ScriptName": "test_save_run"}, "expect": "success"},
+              {"action": "check_response", "field": "ScriptCode", "condition": "contains", "value": "saved_and_ran"},
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "test_save_run", "ScriptCode": "print('saved_and_ran')"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "saved_and_ran"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0},
+              {"action": "command", "feature": "ScriptRunner", "command": "DeleteScript", "params": {"ScriptName": "test_save_run"}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "persist_load_not_found",
+          "name": "LoadScript with nonexistent name",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Attempt to load a script that doesn't exist.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "LoadScript", "params": {"ScriptName": "nonexistent_script_xyz"}, "expect": "error", "error_type": "ScriptNotFound"}
+            ]
+          }
+        },
+        {
+          "id": "persist_delete_not_found",
+          "name": "DeleteScript with nonexistent name",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Attempt to delete a script that doesn't exist.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "DeleteScript", "params": {"ScriptName": "nonexistent_script_xyz"}, "expect": "error", "error_type": "ScriptNotFound"}
+            ]
+          }
+        },
+        {
+          "id": "persist_delete_idempotent",
+          "name": "Double-delete returns ScriptNotFound",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Save a script, delete it, then try to delete again.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "SaveScript", "params": {"ScriptName": "test_dbldelete", "ScriptCode": "pass"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "DeleteScript", "params": {"ScriptName": "test_dbldelete"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "DeleteScript", "params": {"ScriptName": "test_dbldelete"}, "expect": "error", "error_type": "ScriptNotFound"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "script_errors",
+      "name": "Script Runner — Error Handling",
+      "description": "Error conditions: StopScript when idle, AlreadyRunning guard, and graceful failures",
+      "tests": [
+        {
+          "id": "err_stop_idle",
+          "name": "StopScript when no script running",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Attempt to stop a script when none is running.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "StopScript", "params": {}, "expect": "error", "error_type": "ScriptError"}
+            ]
+          }
+        },
+        {
+          "id": "err_name_error",
+          "name": "NameError (undefined variable)",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Run a script referencing an undefined variable.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_name_err", "ScriptCode": "print(undefined_variable)"}, "expect": "success"},
+              {"action": "check_response", "field": "ExitCode", "condition": "not_equals", "value": 0},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "NameError"}
+            ]
+          }
+        },
+        {
+          "id": "err_type_error",
+          "name": "TypeError (wrong argument type)",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Run a script that causes a TypeError.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_type_err", "ScriptCode": "x = 'hello' + 42"}, "expect": "success"},
+              {"action": "check_response", "field": "ExitCode", "condition": "not_equals", "value": 0},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "TypeError"}
+            ]
+          }
+        },
+        {
+          "id": "err_partial_output",
+          "name": "Output captured before exception",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Verify output printed before an exception is still captured.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_partial", "ScriptCode": "print('before_crash')\nraise RuntimeError('boom')\nprint('after_crash')"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "before_crash"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "RuntimeError"},
+              {"action": "check_response", "field": "FullOutput", "condition": "not_contains", "value": "after_crash"},
+              {"action": "check_response", "field": "ExitCode", "condition": "not_equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "err_sys_exit",
+          "name": "sys.exit() produces matching exit code",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Verify that calling sys.exit(2) sets ExitCode to 2.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_exit", "ScriptCode": "import sys\nprint('exiting')\nsys.exit(2)"}, "expect": "success"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 2},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "exiting"}
+            ]
+          }
+        },
+        {
+          "id": "err_clean_after_error",
+          "name": "Server stable after script error",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "After a failed script, verify the server is still responsive.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_err", "ScriptCode": "raise Exception('intentional')"}, "expect": "success"},
+              {"action": "check_response", "field": "ExitCode", "condition": "not_equals", "value": 0},
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_ok", "ScriptCode": "print('recovered')"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "recovered"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

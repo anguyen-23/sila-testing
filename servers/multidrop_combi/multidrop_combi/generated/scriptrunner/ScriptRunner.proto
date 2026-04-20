@@ -1,0 +1,104 @@
+syntax = "proto3";
+
+import "SiLAFramework.proto";
+
+package sila2.calico.automation.extended.scriptrunner.v1;
+
+/* Runs Python automation scripts on the server. Scripts get a pre-built `device` helper for calling commands and reading properties on this server. Only one script can run at a time. Auto-acquires LockController lock during execution. */
+service ScriptRunner {
+  /* 
+            Execute a Python script. Output is streamed as intermediate responses.
+            The script gets a `device` helper for calling commands on this server.
+         */
+  rpc RunScript (sila2.calico.automation.extended.scriptrunner.v1.RunScript_Parameters) returns (sila2.org.silastandard.CommandConfirmation) {}
+  /* Monitor the state of RunScript */
+  rpc RunScript_Info (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.org.silastandard.ExecutionInfo) {}
+  /* Retrieve intermediate responses of RunScript */
+  rpc RunScript_Intermediate (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.calico.automation.extended.scriptrunner.v1.RunScript_IntermediateResponses) {}
+  /* Retrieve result of RunScript */
+  rpc RunScript_Result(sila2.org.silastandard.CommandExecutionUUID) returns (sila2.calico.automation.extended.scriptrunner.v1.RunScript_Responses) {}
+  /* Kill the currently running script. */
+  rpc StopScript (sila2.calico.automation.extended.scriptrunner.v1.StopScript_Parameters) returns (sila2.calico.automation.extended.scriptrunner.v1.StopScript_Responses) {}
+  /* List all saved script names. */
+  rpc ListScripts (sila2.calico.automation.extended.scriptrunner.v1.ListScripts_Parameters) returns (sila2.calico.automation.extended.scriptrunner.v1.ListScripts_Responses) {}
+  /* Save a script to the server's script storage. */
+  rpc SaveScript (sila2.calico.automation.extended.scriptrunner.v1.SaveScript_Parameters) returns (sila2.calico.automation.extended.scriptrunner.v1.SaveScript_Responses) {}
+  /* Load a saved script by name. */
+  rpc LoadScript (sila2.calico.automation.extended.scriptrunner.v1.LoadScript_Parameters) returns (sila2.calico.automation.extended.scriptrunner.v1.LoadScript_Responses) {}
+  /* Delete a saved script by name. */
+  rpc DeleteScript (sila2.calico.automation.extended.scriptrunner.v1.DeleteScript_Parameters) returns (sila2.calico.automation.extended.scriptrunner.v1.DeleteScript_Responses) {}
+  /* Whether a script is currently executing. */
+  rpc Get_IsRunning (sila2.calico.automation.extended.scriptrunner.v1.Get_IsRunning_Parameters) returns (sila2.calico.automation.extended.scriptrunner.v1.Get_IsRunning_Responses) {}
+}
+
+/* Parameters for RunScript */
+message RunScript_Parameters {
+  sila2.org.silastandard.String ScriptName = 1;  /* A name for this script execution (for logging). */
+  sila2.org.silastandard.String ScriptCode = 2;  /* Python source code to execute. */
+}
+
+/* Responses of RunScript */
+message RunScript_Responses {
+  sila2.org.silastandard.Integer ExitCode = 1;  /* Process exit code (0 = success). */
+  sila2.org.silastandard.String FullOutput = 2;  /* Complete script output as a single string. */
+}
+
+/* Intermediate responses of RunScript */
+message RunScript_IntermediateResponses {
+  sila2.org.silastandard.String OutputLine = 1;  /* A line of script output (stdout/stderr). */
+}
+
+/* Parameters for StopScript */
+message StopScript_Parameters {
+}
+
+/* Responses of StopScript */
+message StopScript_Responses {
+}
+
+/* Parameters for ListScripts */
+message ListScripts_Parameters {
+}
+
+/* Responses of ListScripts */
+message ListScripts_Responses {
+  repeated sila2.org.silastandard.String Scripts = 1;  /* List of saved script names. */
+}
+
+/* Parameters for SaveScript */
+message SaveScript_Parameters {
+  sila2.org.silastandard.String ScriptName = 1;  /* Name for the saved script. */
+  sila2.org.silastandard.String ScriptCode = 2;  /* Python source code to save. */
+}
+
+/* Responses of SaveScript */
+message SaveScript_Responses {
+}
+
+/* Parameters for LoadScript */
+message LoadScript_Parameters {
+  sila2.org.silastandard.String ScriptName = 1;  /* Name of the script to load. */
+}
+
+/* Responses of LoadScript */
+message LoadScript_Responses {
+  sila2.org.silastandard.String ScriptCode = 1;  /* The saved Python source code. */
+}
+
+/* Parameters for DeleteScript */
+message DeleteScript_Parameters {
+  sila2.org.silastandard.String ScriptName = 1;  /* Name of the script to delete. */
+}
+
+/* Responses of DeleteScript */
+message DeleteScript_Responses {
+}
+
+/* Parameters for IsRunning */
+message Get_IsRunning_Parameters {
+}
+
+/* Responses of IsRunning */
+message Get_IsRunning_Responses {
+  sila2.org.silastandard.Boolean IsRunning = 1;  /* Whether a script is currently executing. */
+}

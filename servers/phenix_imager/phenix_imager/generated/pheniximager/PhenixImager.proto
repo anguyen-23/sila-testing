@@ -1,0 +1,191 @@
+syntax = "proto3";
+
+import "SiLAFramework.proto";
+
+package sila2.calico.automation.extended.pheniximager.v1;
+
+/* Controls a PerkinElmer Opera Phenix high-content screening imager via its RCI (Remote Control Interface) protocol. Supports connecting, stage movement, acquisition protocol execution with progress tracking, and device state monitoring. This is a learning feature wrapping the RCI socket-based protocol. */
+service PhenixImager {
+  /* Connects to the Phenix imager via the RCI protocol. Queries device status and retrieves the list of available acquisition protocols. */
+  rpc Connect (sila2.calico.automation.extended.pheniximager.v1.Connect_Parameters) returns (sila2.calico.automation.extended.pheniximager.v1.Connect_Responses) {}
+  /* Disconnects from the Phenix imager and releases the RCI connection. */
+  rpc Disconnect (sila2.calico.automation.extended.pheniximager.v1.Disconnect_Parameters) returns (sila2.calico.automation.extended.pheniximager.v1.Disconnect_Responses) {}
+  /* Moves the stage from the Transfer position to the Operate position (LOAD command). The plate must be placed on the stage before calling this. */
+  rpc StageIn (sila2.calico.automation.extended.pheniximager.v1.StageIn_Parameters) returns (sila2.calico.automation.extended.pheniximager.v1.StageIn_Responses) {}
+  /* Moves the stage from the Operate position to the Transfer position (EJECT command) so the plate can be removed by a robot or operator. */
+  rpc StageOut (sila2.calico.automation.extended.pheniximager.v1.StageOut_Parameters) returns (sila2.calico.automation.extended.pheniximager.v1.StageOut_Responses) {}
+  /* Stops the currently running acquisition protocol. */
+  rpc Stop (sila2.calico.automation.extended.pheniximager.v1.Stop_Parameters) returns (sila2.calico.automation.extended.pheniximager.v1.Stop_Responses) {}
+  /* Returns the device to the Idle state (IDLE command). */
+  rpc GoIdle (sila2.calico.automation.extended.pheniximager.v1.GoIdle_Parameters) returns (sila2.calico.automation.extended.pheniximager.v1.GoIdle_Responses) {}
+  /* Puts the device into Standby mode for a specified duration (STANDBY command). */
+  rpc GoStandby (sila2.calico.automation.extended.pheniximager.v1.GoStandby_Parameters) returns (sila2.calico.automation.extended.pheniximager.v1.GoStandby_Responses) {}
+  /* 
+            Runs an acquisition protocol on the Phenix imager. The stage must
+            be in the Operate position (will auto-StageIn if needed). Reports
+            progress 0-100% and well-by-well status as intermediate responses.
+            Auto-ejects the stage when complete.
+         */
+  rpc RunAcquisitionProtocol (sila2.calico.automation.extended.pheniximager.v1.RunAcquisitionProtocol_Parameters) returns (sila2.org.silastandard.CommandConfirmation) {}
+  /* Monitor the state of RunAcquisitionProtocol */
+  rpc RunAcquisitionProtocol_Info (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.org.silastandard.ExecutionInfo) {}
+  /* Retrieve intermediate responses of RunAcquisitionProtocol */
+  rpc RunAcquisitionProtocol_Intermediate (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.calico.automation.extended.pheniximager.v1.RunAcquisitionProtocol_IntermediateResponses) {}
+  /* Retrieve result of RunAcquisitionProtocol */
+  rpc RunAcquisitionProtocol_Result(sila2.org.silastandard.CommandExecutionUUID) returns (sila2.calico.automation.extended.pheniximager.v1.RunAcquisitionProtocol_Responses) {}
+  /* Whether the RCI connection to the Phenix is active. */
+  rpc Get_IsConnected (sila2.calico.automation.extended.pheniximager.v1.Get_IsConnected_Parameters) returns (sila2.calico.automation.extended.pheniximager.v1.Get_IsConnected_Responses) {}
+  /* Current device state: Operate, Idle, Standby, Offline, or Service. */
+  rpc Get_DeviceState (sila2.calico.automation.extended.pheniximager.v1.Get_DeviceState_Parameters) returns (sila2.calico.automation.extended.pheniximager.v1.Get_DeviceState_Responses) {}
+  /* Current stage position: Transfer, Operate, Service, or Home. */
+  rpc Get_StagePosition (sila2.calico.automation.extended.pheniximager.v1.Get_StagePosition_Parameters) returns (sila2.calico.automation.extended.pheniximager.v1.Get_StagePosition_Responses) {}
+  /* Whether a plate is currently detected on the stage. */
+  rpc Get_PlateDetected (sila2.calico.automation.extended.pheniximager.v1.Get_PlateDetected_Parameters) returns (sila2.calico.automation.extended.pheniximager.v1.Get_PlateDetected_Responses) {}
+  /* List of acquisition protocol names available on the instrument. */
+  rpc Get_AvailableProtocols (sila2.calico.automation.extended.pheniximager.v1.Get_AvailableProtocols_Parameters) returns (sila2.calico.automation.extended.pheniximager.v1.Get_AvailableProtocols_Responses) {}
+  /* PNG icon representing this instrument, for display in client UIs. */
+  rpc Get_DisplayIcon (sila2.calico.automation.extended.pheniximager.v1.Get_DisplayIcon_Parameters) returns (sila2.calico.automation.extended.pheniximager.v1.Get_DisplayIcon_Responses) {}
+  /* Rich text description of device capabilities for LLM system prompts. */
+  rpc Get_DeviceDescription (sila2.calico.automation.extended.pheniximager.v1.Get_DeviceDescription_Parameters) returns (sila2.calico.automation.extended.pheniximager.v1.Get_DeviceDescription_Responses) {}
+}
+
+/* Parameters for Connect */
+message Connect_Parameters {
+  sila2.org.silastandard.String PhenixHost = 1;  /* Hostname or IP address of the Phenix instrument. */
+}
+
+/* Responses of Connect */
+message Connect_Responses {
+  sila2.org.silastandard.String DeviceName = 1;  /* The instrument name reported by the device. */
+}
+
+/* Parameters for Disconnect */
+message Disconnect_Parameters {
+}
+
+/* Responses of Disconnect */
+message Disconnect_Responses {
+}
+
+/* Parameters for StageIn */
+message StageIn_Parameters {
+  sila2.org.silastandard.String PlateBarcode = 1;  /* Barcode identifier for the plate on the stage. */
+}
+
+/* Responses of StageIn */
+message StageIn_Responses {
+}
+
+/* Parameters for StageOut */
+message StageOut_Parameters {
+  sila2.org.silastandard.String PlateBarcode = 1;  /* Barcode identifier for the plate on the stage. */
+}
+
+/* Responses of StageOut */
+message StageOut_Responses {
+}
+
+/* Parameters for Stop */
+message Stop_Parameters {
+}
+
+/* Responses of Stop */
+message Stop_Responses {
+}
+
+/* Parameters for GoIdle */
+message GoIdle_Parameters {
+}
+
+/* Responses of GoIdle */
+message GoIdle_Responses {
+}
+
+/* Parameters for GoStandby */
+message GoStandby_Parameters {
+  sila2.org.silastandard.Integer DurationSeconds = 1;  /* Duration in seconds to remain in standby before auto-wakeup. */
+}
+
+/* Responses of GoStandby */
+message GoStandby_Responses {
+}
+
+/* Parameters for RunAcquisitionProtocol */
+message RunAcquisitionProtocol_Parameters {
+  sila2.org.silastandard.String ProtocolName = 1;  /* Name of the acquisition protocol to run (from AvailableProtocols). */
+  sila2.org.silastandard.String PlateBarcode = 2;  /* Barcode identifier for the plate being imaged. */
+  sila2.org.silastandard.Integer TimeoutMinutes = 3;  /* Maximum acquisition duration in minutes (default 600). */
+}
+
+/* Responses of RunAcquisitionProtocol */
+message RunAcquisitionProtocol_Responses {
+  sila2.org.silastandard.String Status = 1;  /* Final status message after acquisition completes. */
+}
+
+/* Intermediate responses of RunAcquisitionProtocol */
+message RunAcquisitionProtocol_IntermediateResponses {
+  sila2.org.silastandard.String ProgressInfo = 1;  /* Current acquisition progress (e.g. "Well R1C1 - 15%"). */
+}
+
+/* Parameters for IsConnected */
+message Get_IsConnected_Parameters {
+}
+
+/* Responses of IsConnected */
+message Get_IsConnected_Responses {
+  sila2.org.silastandard.Boolean IsConnected = 1;  /* Whether the RCI connection to the Phenix is active. */
+}
+
+/* Parameters for DeviceState */
+message Get_DeviceState_Parameters {
+}
+
+/* Responses of DeviceState */
+message Get_DeviceState_Responses {
+  sila2.org.silastandard.String DeviceState = 1;  /* Current device state: Operate, Idle, Standby, Offline, or Service. */
+}
+
+/* Parameters for StagePosition */
+message Get_StagePosition_Parameters {
+}
+
+/* Responses of StagePosition */
+message Get_StagePosition_Responses {
+  sila2.org.silastandard.String StagePosition = 1;  /* Current stage position: Transfer, Operate, Service, or Home. */
+}
+
+/* Parameters for PlateDetected */
+message Get_PlateDetected_Parameters {
+}
+
+/* Responses of PlateDetected */
+message Get_PlateDetected_Responses {
+  sila2.org.silastandard.Boolean PlateDetected = 1;  /* Whether a plate is currently detected on the stage. */
+}
+
+/* Parameters for AvailableProtocols */
+message Get_AvailableProtocols_Parameters {
+}
+
+/* Responses of AvailableProtocols */
+message Get_AvailableProtocols_Responses {
+  repeated sila2.org.silastandard.String AvailableProtocols = 1;  /* List of acquisition protocol names available on the instrument. */
+}
+
+/* Parameters for DisplayIcon */
+message Get_DisplayIcon_Parameters {
+}
+
+/* Responses of DisplayIcon */
+message Get_DisplayIcon_Responses {
+  sila2.org.silastandard.Binary DisplayIcon = 1;  /* PNG icon representing this instrument, for display in client UIs. */
+}
+
+/* Parameters for DeviceDescription */
+message Get_DeviceDescription_Parameters {
+}
+
+/* Responses of DeviceDescription */
+message Get_DeviceDescription_Responses {
+  sila2.org.silastandard.String DeviceDescription = 1;  /* Rich text description of device capabilities for LLM system prompts. */
+}

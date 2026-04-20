@@ -1,0 +1,629 @@
+{% extends "base.html" %}
+{% block title %}{{ info.name }}{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="/">Servers</a></li>
+        <li class="breadcrumb-item active">{{ info.name }}</li>
+    </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-start mb-3">
+    <div>
+        <h2 class="d-flex align-items-center">
+            <img src="/api/icon/{{ info.host }}/{{ info.port }}"
+                 class="server-icon me-2" alt=""
+                 onerror="this.style.display='none'">
+            {{ info.name }}
+        </h2>
+        <p class="text-muted">{{ info.description }}</p>
+        <p class="text-muted mb-0">
+            <small>{{ info.host }}:{{ info.port }} &bull; Type: {{ info.type }} &bull; UUID: {{ info.uuid[:8] }}...</small>
+        </p>
+    </div>
+    <div class="text-end">
+        <a href="/chat/{{ info.host }}/{{ info.port }}" class="btn btn-outline-primary btn-sm mb-2">Chat with this device</a>
+        <button class="btn btn-outline-secondary btn-sm mb-2" onclick="reconnectServer()">Reconnect</button>
+        <div id="lock-controls" class="mb-2"></div>
+        <div id="sim-controls"></div>
+    </div>
+</div>
+
+<hr>
+
+{% if has_custom_ui or has_user_manual or has_camera %}
+<div class="mb-3">
+    <div class="btn-group" role="group">
+        {% if has_custom_ui %}
+        <button class="btn btn-primary btn-sm active" id="btn-view-custom" onclick="showView('custom')">Device UI</button>
+        {% endif %}
+        <button class="btn btn-outline-secondary btn-sm" id="btn-view-dynamic" onclick="showView('dynamic')">Dynamic View</button>
+        {% if has_user_manual %}
+        <button class="btn btn-outline-secondary btn-sm" id="btn-view-manual" onclick="showView('manual')">Manual</button>
+        {% endif %}
+        {% if has_camera %}
+        <button class="btn btn-outline-secondary btn-sm" id="btn-view-camera" onclick="showView('camera')">Camera</button>
+        {% endif %}
+    </div>
+</div>
+
+{% if has_custom_ui %}
+<div id="custom-ui-container" class="mb-3">
+    <iframe id="custom-ui-frame"
+            src="/api/custom-ui/{{ info.host }}/{{ info.port }}"
+            sandbox="allow-scripts allow-same-origin"
+            style="width:100%; height:700px; border:1px solid #444; border-radius:8px; background:#1e1e2e;">
+    </iframe>
+</div>
+{% endif %}
+
+{% if has_user_manual %}
+<div id="manual-container" class="mb-3" style="display:none;">
+    <iframe id="manual-frame"
+            style="width:100%; height:700px; border:1px solid #444; border-radius:8px; background:#fff;">
+    </iframe>
+</div>
+{% endif %}
+
+{% if has_camera %}
+<div id="camera-container" class="mb-3" style="display:none;">
+    <div class="d-flex align-items-center mb-2">
+        <input type="text" id="camera-source" class="form-control form-control-sm me-2"
+               style="max-width:400px;" placeholder="Camera source (URL or device index, e.g. 0)">
+        <button class="btn btn-success btn-sm me-1" id="btn-camera-start" onclick="cameraStart()">Start</button>
+        <button class="btn btn-danger btn-sm" id="btn-camera-stop" onclick="cameraStop()" disabled>Stop</button>
+        <span id="camera-status" class="ms-2 text-muted"></span>
+    </div>
+    <div id="camera-feed" style="text-align:center;">
+        <img id="camera-img"
+             style="max-width:100%; max-height:600px; border:1px solid #444; border-radius:8px; display:none;"
+             alt="Camera feed">
+        <p id="camera-placeholder" class="text-muted mt-4">Enter a camera source and click Start to begin streaming.</p>
+    </div>
+</div>
+{% endif %}
+{% endif %}
+
+<div id="dynamic-ui-container" {% if has_custom_ui %}style="display:none;"{% endif %}>
+<div class="mb-3">
+    <button class="btn btn-outline-secondary btn-sm" onclick="loadMcpTools()" id="btn-mcp-tools">
+        Show MCP Tool Definitions
+    </button>
+    <div id="mcp-tools-section" style="display:none;" class="mt-2">
+        <pre class="response" style="max-height:500px; overflow:auto;"><code id="mcp-tools-json">Loading...</code></pre>
+    </div>
+</div>
+
+<div class="accordion" id="features-accordion">
+{% for feature in features %}
+{% if feature.get('error') %}
+    <div class="alert alert-warning">{{ feature.error }}</div>
+{% else %}
+    <div class="accordion-item" id="feature-{{ feature.identifier }}">
+        <h2 class="accordion-header">
+            <button class="accordion-button" type="button"
+                    data-bs-toggle="collapse" data-bs-target="#collapse-{{ feature.identifier }}"
+                    aria-expanded="true" aria-controls="collapse-{{ feature.identifier }}">
+                <span class="me-2">{{ feature.display_name }}</span>
+                <small class="text-muted">{{ feature.fqi }}</small>
+            </button>
+        </h2>
+        <div id="collapse-{{ feature.identifier }}" class="accordion-collapse collapse show"
+             data-bs-parent="">
+            <div class="accordion-body">
+        <p class="text-muted">{{ feature.description }}</p>
+
+        {% if feature.properties %}
+        <h5>Properties</h5>
+        <div class="table-responsive">
+        <table class="table table-sm table-hover prop-table">
+            <thead><tr>
+                <th class="col-prop">Property</th>
+                <th class="col-type">Type</th>
+                <th class="col-obs">Observable</th>
+                <th class="col-val">Value</th>
+            </tr></thead>
+            <tbody>
+            {% for prop in feature.properties %}
+                <tr>
+                    <td>
+                        <strong data-bs-toggle="tooltip" data-bs-placement="top"
+                                title="{{ prop.description }}">{{ prop.display_name }}</strong>
+                        <br><small class="text-muted">{{ prop.description }}</small>
+                    </td>
+                    <td><code data-bs-toggle="tooltip" data-bs-placement="top"
+                              title="SiLA data type: {{ prop.type }}">{{ prop.type }}</code></td>
+                    <td>
+                        {% if prop.observable %}
+                            <span class="badge badge-observable text-white"
+                                  data-bs-toggle="tooltip" title="Server pushes updates when value changes">Observable</span>
+                        {% else %}
+                            <span class="badge badge-unobservable text-white"
+                                  data-bs-toggle="tooltip" title="Value must be polled manually">Static</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span id="prop-{{ feature.identifier }}-{{ prop.identifier }}" class="text-muted prop-value">--</span>
+                        <button class="btn btn-outline-primary btn-sm ms-1"
+                                onclick="readProperty('{{ feature.identifier }}', '{{ prop.identifier }}')"
+                                data-bs-toggle="tooltip" title="Fetch current value from server">
+                            Read
+                        </button>
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+        {% endif %}
+
+        {% if feature.commands %}
+        <h5>Commands</h5>
+        {% for cmd in feature.commands %}
+        <div class="card mb-2">
+            <div class="card-body py-2">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong data-bs-toggle="tooltip" data-bs-placement="top"
+                                title="{{ cmd.description }}">{{ cmd.display_name }}</strong>
+                        {% if cmd.observable %}
+                            <span class="badge badge-observable text-white ms-1"
+                                  data-bs-toggle="tooltip" title="Long-running command with progress updates">Observable</span>
+                        {% endif %}
+                        <br><small class="text-muted">{{ cmd.description }}</small>
+                    </div>
+                    <button class="btn btn-primary btn-sm"
+                            onclick="executeCommand('{{ feature.identifier }}', '{{ cmd.identifier }}')"
+                            id="btn-{{ feature.identifier }}-{{ cmd.identifier }}">
+                        Execute
+                    </button>
+                </div>
+                {% if cmd.parameters %}
+                <div class="mt-2">
+                    {% for param in cmd.parameters %}
+                    <div class="d-inline-block me-2 mb-1">
+                        <label class="form-label mb-0" data-bs-toggle="tooltip"
+                               title="{{ param.description }}">
+                            <small>{{ param.display_name }} <code>({{ param.type }})</code></small>
+                        </label>
+                        <input type="text" class="form-control form-control-sm param-input"
+                               id="param-{{ feature.identifier }}-{{ cmd.identifier }}-{{ param.identifier }}"
+                               placeholder="{{ param.identifier }}"
+                               title="{{ param.description }}">
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                <div id="result-{{ feature.identifier }}-{{ cmd.identifier }}" class="mt-2" style="display:none;">
+                    <pre class="response mb-0"><code></code></pre>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+        {% endif %}
+            </div>
+        </div>
+    </div>
+{% endif %}
+{% endfor %}
+</div>
+</div>{# end dynamic-ui-container #}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const HOST = "{{ info.host }}";
+const PORT = {{ info.port }};
+const API_BASE = `/api`;
+const HAS_CUSTOM_UI = {{ 'true' if has_custom_ui else 'false' }};
+const HAS_USER_MANUAL = {{ 'true' if has_user_manual else 'false' }};
+const HAS_CAMERA = {{ 'true' if has_camera else 'false' }};
+
+// ── View toggle (custom UI / dynamic / manual / camera) ──
+function showView(view) {
+    const containers = {
+        custom: document.getElementById("custom-ui-container"),
+        dynamic: document.getElementById("dynamic-ui-container"),
+        manual: document.getElementById("manual-container"),
+        camera: document.getElementById("camera-container"),
+    };
+    const buttons = {
+        custom: document.getElementById("btn-view-custom"),
+        dynamic: document.getElementById("btn-view-dynamic"),
+        manual: document.getElementById("btn-view-manual"),
+        camera: document.getElementById("btn-view-camera"),
+    };
+    for (const [key, el] of Object.entries(containers)) {
+        if (el) el.style.display = (key === view) ? "" : "none";
+    }
+    for (const [key, btn] of Object.entries(buttons)) {
+        if (btn) {
+            btn.className = (key === view)
+                ? "btn btn-primary btn-sm active"
+                : "btn btn-outline-secondary btn-sm";
+        }
+    }
+    // Lazy-load the manual iframe src on first view
+    if (view === "manual") {
+        const frame = document.getElementById("manual-frame");
+        if (frame && !frame.getAttribute("data-loaded")) {
+            frame.src = `${API_BASE}/user-manual/${HOST}/${PORT}`;
+            frame.setAttribute("data-loaded", "1");
+        }
+    }
+}
+
+// ── Camera stream controls ──
+let _cameraPolling = null;
+
+function cameraInit() {
+    // Fetch camera config and pre-fill source; auto-show feed if already streaming
+    fetch(`${API_BASE}/camera-config/${HOST}/${PORT}`)
+    .then(r => r.json())
+    .then(data => {
+        if (data.source) {
+            document.getElementById("camera-source").value = data.source;
+        }
+        if (data.is_streaming) {
+            // Already streaming (auto_start or previously started) — show feed
+            document.getElementById("camera-status").textContent = "Streaming";
+            document.getElementById("camera-status").className = "ms-2 text-success fw-bold";
+            document.getElementById("btn-camera-start").disabled = true;
+            document.getElementById("btn-camera-stop").disabled = false;
+            document.getElementById("camera-placeholder").style.display = "none";
+            const img = document.getElementById("camera-img");
+            img.style.display = "";
+            _cameraPolling = setInterval(() => {
+                img.src = `${API_BASE}/camera-frame/${HOST}/${PORT}?t=${Date.now()}`;
+            }, 150);
+        }
+    })
+    .catch(() => {});
+}
+
+function cameraStart() {
+    const source = document.getElementById("camera-source").value.trim();
+    if (!source) { alert("Enter a camera source"); return; }
+
+    const btn = document.getElementById("btn-camera-start");
+    const status = document.getElementById("camera-status");
+    btn.disabled = true;
+    status.textContent = "Starting...";
+
+    fetch(`${API_BASE}/command/${HOST}/${PORT}/CameraStreamProvider/StartStream`, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({Source: source}),
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.status === "error") {
+            status.textContent = `Error: ${data.message}`;
+            btn.disabled = false;
+            return;
+        }
+        status.textContent = "Streaming";
+        status.className = "ms-2 text-success fw-bold";
+        document.getElementById("btn-camera-stop").disabled = false;
+        document.getElementById("camera-placeholder").style.display = "none";
+
+        // Start polling frames
+        const img = document.getElementById("camera-img");
+        img.style.display = "";
+        _cameraPolling = setInterval(() => {
+            // Append timestamp to bust cache
+            img.src = `${API_BASE}/camera-frame/${HOST}/${PORT}?t=${Date.now()}`;
+        }, 150);  // ~7 fps
+    })
+    .catch(err => {
+        status.textContent = `Error: ${err}`;
+        btn.disabled = false;
+    });
+}
+
+function cameraStop() {
+    if (_cameraPolling) {
+        clearInterval(_cameraPolling);
+        _cameraPolling = null;
+    }
+    fetch(`${API_BASE}/command/${HOST}/${PORT}/CameraStreamProvider/StopStream`, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({}),
+    })
+    .then(r => r.json())
+    .then(() => {
+        document.getElementById("camera-img").style.display = "none";
+        document.getElementById("camera-placeholder").style.display = "";
+        document.getElementById("camera-status").textContent = "Stopped";
+        document.getElementById("camera-status").className = "ms-2 text-muted";
+        document.getElementById("btn-camera-start").disabled = false;
+        document.getElementById("btn-camera-stop").disabled = true;
+    });
+}
+
+// ── postMessage bridge for custom UI iframe ──
+window.addEventListener("message", function(e) {
+    if (!e.data || !e.data.type) return;
+    const { type, id, featureId, commandId, propertyId, params } = e.data;
+    const iframe = document.getElementById("custom-ui-frame");
+    if (!iframe) return;
+
+    function respond(result, error) {
+        iframe.contentWindow.postMessage({
+            type: "sila-response", id: id,
+            result: result || null,
+            error: error || null,
+        }, "*");
+    }
+
+    if (type === "execute-command") {
+        fetch(`${API_BASE}/command/${HOST}/${PORT}/${featureId}/${commandId}`, {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify(params || {}),
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.status === "error") respond(null, `${data.error_type}: ${data.message}`);
+            else respond(data);
+        })
+        .catch(err => { try { respond(null, err.message); } catch(e) { console.error("Bridge respond error:", e); } });
+    } else if (type === "read-property") {
+        fetch(`${API_BASE}/property/${HOST}/${PORT}/${featureId}/${propertyId}`)
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) respond(null, data.error);
+            else respond(data);
+        })
+        .catch(err => { try { respond(null, err.message); } catch(e) { console.error("Bridge respond error:", e); } });
+    }
+});
+
+function reconnectServer() {
+    fetch(`${API_BASE}/reconnect/${HOST}/${PORT}`, {method: 'POST'})
+        .then(r => r.json())
+        .then(() => location.reload())
+        .catch(e => alert('Reconnect failed: ' + e));
+}
+
+// Recursively parse string values that contain JSON
+function deepParseJson(obj) {
+    if (typeof obj === 'string') {
+        try {
+            const parsed = JSON.parse(obj);
+            if (typeof parsed === 'object' && parsed !== null) return deepParseJson(parsed);
+        } catch (e) {}
+        return obj;
+    }
+    if (Array.isArray(obj)) return obj.map(deepParseJson);
+    if (typeof obj === 'object' && obj !== null) {
+        const result = {};
+        for (const [k, v] of Object.entries(obj)) result[k] = deepParseJson(v);
+        return result;
+    }
+    return obj;
+}
+
+// Find a data:image URI in a response object (searches recursively)
+function _findImageUri(obj) {
+    if (typeof obj === 'string' && obj.startsWith('data:image/')) return obj;
+    if (Array.isArray(obj)) {
+        for (const item of obj) { const r = _findImageUri(item); if (r) return r; }
+    }
+    if (typeof obj === 'object' && obj !== null) {
+        for (const v of Object.values(obj)) { const r = _findImageUri(v); if (r) return r; }
+    }
+    return null;
+}
+
+// ── Property reading ──
+function readProperty(featureId, propertyId) {
+    const el = document.getElementById(`prop-${featureId}-${propertyId}`);
+    el.textContent = "loading...";
+    fetch(`${API_BASE}/property/${HOST}/${PORT}/${featureId}/${propertyId}`)
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) {
+                el.textContent = `Error: ${data.error}`;
+                el.className = "text-danger prop-value";
+            } else if (typeof data.value === 'string' && data.value.startsWith('data:image/')) {
+                el.innerHTML = `<img src="${data.value}" class="server-icon" alt="icon">`;
+                el.className = "";
+            } else {
+                const val = typeof data.value === 'object' ? JSON.stringify(data.value) : data.value;
+                el.textContent = val;
+                el.className = "text-success fw-bold prop-value";
+            }
+        })
+        .catch(err => { el.textContent = `Error: ${err}`; el.className = "text-danger prop-value"; });
+}
+
+// ── Command execution ──
+function executeCommand(featureId, commandId) {
+    const btn = document.getElementById(`btn-${featureId}-${commandId}`);
+    const resultDiv = document.getElementById(`result-${featureId}-${commandId}`);
+    const resultCode = resultDiv.querySelector("code");
+
+    // Collect parameters
+    const params = {};
+    document.querySelectorAll(`[id^="param-${featureId}-${commandId}-"]`).forEach(input => {
+        const paramId = input.id.split("-").slice(3).join("-");
+        if (input.value) params[paramId] = input.value;
+    });
+
+    btn.disabled = true;
+    btn.textContent = "Running...";
+    resultDiv.style.display = "block";
+    resultCode.textContent = "Executing...";
+
+    fetch(`${API_BASE}/command/${HOST}/${PORT}/${featureId}/${commandId}`, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(params),
+    })
+    .then(r => r.json())
+    .then(data => {
+        const parsed = deepParseJson(data);
+        // Check if any response value is a data:image URI
+        const imageUri = _findImageUri(parsed);
+        if (imageUri) {
+            resultCode.innerHTML = '';
+            const container = resultCode.parentElement;
+            // Remove any previous image viewer
+            const prev = container.querySelector('.cmd-image-viewer');
+            if (prev) prev.remove();
+            const viewer = document.createElement('div');
+            viewer.className = 'cmd-image-viewer mt-1';
+            viewer.innerHTML = `<img src="${imageUri}" style="max-width:100%; border:1px solid #444; border-radius:4px;" alt="Response image">`;
+            container.after(viewer);
+        } else {
+            // Remove any leftover image viewer
+            const prev = resultDiv.parentElement.querySelector('.cmd-image-viewer');
+            if (prev) prev.remove();
+            resultCode.textContent = JSON.stringify(parsed, null, 2);
+        }
+        btn.disabled = false;
+        btn.textContent = "Execute";
+    })
+    .catch(err => {
+        resultCode.textContent = `Error: ${err}`;
+        btn.disabled = false;
+        btn.textContent = "Execute";
+    });
+}
+
+// ── Auto-read all properties on page load ──
+document.addEventListener("DOMContentLoaded", () => {
+    document.querySelectorAll("[id^='prop-']").forEach(el => {
+        const parts = el.id.replace("prop-", "").split("-");
+        if (parts.length >= 2) {
+            readProperty(parts[0], parts.slice(1).join("-"));
+        }
+    });
+
+    // Initialize Bootstrap tooltips
+    document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+        new bootstrap.Tooltip(el);
+    });
+
+    // Load lock/sim controls if features exist
+    loadLockControls();
+    loadSimControls();
+
+    // Initialize camera if available
+    if (document.getElementById("camera-container")) {
+        cameraInit();
+    }
+});
+
+// ── Lock controls ──
+function loadLockControls() {
+    const div = document.getElementById("lock-controls");
+    fetch(`${API_BASE}/lock/${HOST}/${PORT}`, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({action: "status"}),
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.error) { div.innerHTML = ""; return; }
+        renderLockUI(div, data.locked);
+    })
+    .catch(() => { div.innerHTML = ""; });
+}
+
+function renderLockUI(div, locked) {
+    if (locked) {
+        div.innerHTML = `
+            <span class="badge bg-warning text-dark me-1">Locked</span>
+            <input type="text" id="unlock-token" class="form-control form-control-sm d-inline-block" style="width:120px" placeholder="token" value="webui-lock">
+            <button class="btn btn-outline-success btn-sm" onclick="lockAction('unlock')">Unlock</button>`;
+    } else {
+        div.innerHTML = `
+            <span class="badge bg-success me-1">Unlocked</span>
+            <button class="btn btn-outline-warning btn-sm" onclick="lockAction('lock')">Lock</button>`;
+    }
+}
+
+function lockAction(action) {
+    const token = document.getElementById("unlock-token")?.value || "webui-lock";
+    fetch(`${API_BASE}/lock/${HOST}/${PORT}`, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({action, token, timeout: 300}),
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.error) alert(data.error);
+        else loadLockControls();
+    });
+}
+
+// ── Simulation controls ──
+function loadSimControls() {
+    const div = document.getElementById("sim-controls");
+    fetch(`${API_BASE}/simulation/${HOST}/${PORT}`, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({action: "status"}),
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.error) { div.innerHTML = ""; return; }
+        renderSimUI(div, data.simulation);
+    })
+    .catch(() => { div.innerHTML = ""; });
+}
+
+function renderSimUI(div, simMode) {
+    const label = simMode ? "Simulation ON" : "Simulation OFF";
+    const badgeClass = simMode ? "bg-info" : "bg-secondary";
+    const btnAction = simMode ? "stop" : "start";
+    const btnLabel = simMode ? "Switch to Real" : "Switch to Simulation";
+    div.innerHTML = `
+        <span class="badge ${badgeClass} me-1">${label}</span>
+        <button class="btn btn-outline-info btn-sm" onclick="simAction('${btnAction}')">${btnLabel}</button>`;
+}
+
+// ── MCP Tools ──
+function loadMcpTools() {
+    const section = document.getElementById("mcp-tools-section");
+    const code = document.getElementById("mcp-tools-json");
+    const btn = document.getElementById("btn-mcp-tools");
+
+    if (section.style.display !== "none") {
+        section.style.display = "none";
+        btn.textContent = "Show MCP Tool Definitions";
+        return;
+    }
+
+    section.style.display = "block";
+    btn.textContent = "Hide MCP Tool Definitions";
+    code.textContent = "Loading...";
+
+    fetch(`${API_BASE}/mcp-tools/${HOST}/${PORT}`)
+        .then(r => r.json())
+        .then(data => {
+            code.textContent = JSON.stringify(data, null, 2);
+        })
+        .catch(err => {
+            code.textContent = `Error: ${err}`;
+        });
+}
+
+function simAction(action) {
+    fetch(`${API_BASE}/simulation/${HOST}/${PORT}`, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({action}),
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.error) alert(data.error);
+        else loadSimControls();
+    });
+}
+</script>
+{% endblock %}

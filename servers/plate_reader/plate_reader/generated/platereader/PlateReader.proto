@@ -1,0 +1,100 @@
+syntax = "proto3";
+
+import "SiLAFramework.proto";
+
+package sila2.calico.automation.extended.platereader.v1;
+
+/* Simulates a microplate reader that measures absorbance/fluorescence across a multi-well plate. Demonstrates complex data types (lists of structures), observable commands with well-by-well intermediate responses, and binary data transfer (results as CSV). This is a learning feature, not intended for production use. */
+service PlateReader {
+  /* 
+            Reads all wells on the plate at the specified wavelength.
+            Reports well-by-well intermediate results as it scans across the plate.
+         */
+  rpc RunMeasurement (sila2.calico.automation.extended.platereader.v1.RunMeasurement_Parameters) returns (sila2.org.silastandard.CommandConfirmation) {}
+  /* Monitor the state of RunMeasurement */
+  rpc RunMeasurement_Info (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.org.silastandard.ExecutionInfo) {}
+  /* Retrieve intermediate responses of RunMeasurement */
+  rpc RunMeasurement_Intermediate (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.calico.automation.extended.platereader.v1.RunMeasurement_IntermediateResponses) {}
+  /* Retrieve result of RunMeasurement */
+  rpc RunMeasurement_Result(sila2.org.silastandard.CommandExecutionUUID) returns (sila2.calico.automation.extended.platereader.v1.RunMeasurement_Responses) {}
+  /* Returns a human-readable status of the plate reader. */
+  rpc GetReaderStatus (sila2.calico.automation.extended.platereader.v1.GetReaderStatus_Parameters) returns (sila2.calico.automation.extended.platereader.v1.GetReaderStatus_Responses) {}
+  /* Simulates inserting a plate into the reader. */
+  rpc InsertPlate (sila2.calico.automation.extended.platereader.v1.InsertPlate_Parameters) returns (sila2.calico.automation.extended.platereader.v1.InsertPlate_Responses) {}
+  /* Simulates ejecting the plate from the reader. */
+  rpc EjectPlate (sila2.calico.automation.extended.platereader.v1.EjectPlate_Parameters) returns (sila2.calico.automation.extended.platereader.v1.EjectPlate_Responses) {}
+  /* Whether a plate is currently loaded in the reader. */
+  rpc Get_IsPlateInserted (sila2.calico.automation.extended.platereader.v1.Get_IsPlateInserted_Parameters) returns (sila2.calico.automation.extended.platereader.v1.Get_IsPlateInserted_Responses) {}
+  /* List of wavelengths (nm) this reader supports. */
+  rpc Get_SupportedWavelengths (sila2.calico.automation.extended.platereader.v1.Get_SupportedWavelengths_Parameters) returns (sila2.calico.automation.extended.platereader.v1.Get_SupportedWavelengths_Responses) {}
+  /* Timestamp of the last completed measurement, or empty string if none. */
+  rpc Get_LastMeasurementTimestamp (sila2.calico.automation.extended.platereader.v1.Get_LastMeasurementTimestamp_Parameters) returns (sila2.calico.automation.extended.platereader.v1.Get_LastMeasurementTimestamp_Responses) {}
+}
+
+/* Parameters for RunMeasurement */
+message RunMeasurement_Parameters {
+  sila2.org.silastandard.Integer Wavelength = 1;  /* Measurement wavelength in nanometers (nm). */
+  sila2.org.silastandard.Integer PlateFormat = 2;  /* Number of wells on the plate (e.g. 96, 384). */
+}
+
+/* Responses of RunMeasurement */
+message RunMeasurement_Responses {
+  sila2.org.silastandard.String ResultsCsv = 1;  /* Complete measurement results as a CSV-formatted string. Columns: WellId, Row, Column, Absorbance. */
+}
+
+/* Intermediate responses of RunMeasurement */
+message RunMeasurement_IntermediateResponses {
+  sila2.org.silastandard.String WellResult = 1;  /* Result for a single well as "WellId,Absorbance" (e.g. "A1,0.342"). */
+}
+
+/* Parameters for GetReaderStatus */
+message GetReaderStatus_Parameters {
+}
+
+/* Responses of GetReaderStatus */
+message GetReaderStatus_Responses {
+  sila2.org.silastandard.String StatusMessage = 1;  /* Current reader status. */
+}
+
+/* Parameters for InsertPlate */
+message InsertPlate_Parameters {
+}
+
+/* Responses of InsertPlate */
+message InsertPlate_Responses {
+}
+
+/* Parameters for EjectPlate */
+message EjectPlate_Parameters {
+}
+
+/* Responses of EjectPlate */
+message EjectPlate_Responses {
+}
+
+/* Parameters for IsPlateInserted */
+message Get_IsPlateInserted_Parameters {
+}
+
+/* Responses of IsPlateInserted */
+message Get_IsPlateInserted_Responses {
+  sila2.org.silastandard.Boolean IsPlateInserted = 1;  /* Whether a plate is currently loaded in the reader. */
+}
+
+/* Parameters for SupportedWavelengths */
+message Get_SupportedWavelengths_Parameters {
+}
+
+/* Responses of SupportedWavelengths */
+message Get_SupportedWavelengths_Responses {
+  repeated sila2.org.silastandard.Integer SupportedWavelengths = 1;  /* List of wavelengths (nm) this reader supports. */
+}
+
+/* Parameters for LastMeasurementTimestamp */
+message Get_LastMeasurementTimestamp_Parameters {
+}
+
+/* Responses of LastMeasurementTimestamp */
+message Get_LastMeasurementTimestamp_Responses {
+  sila2.org.silastandard.String LastMeasurementTimestamp = 1;  /* Timestamp of the last completed measurement, or empty string if none. */
+}

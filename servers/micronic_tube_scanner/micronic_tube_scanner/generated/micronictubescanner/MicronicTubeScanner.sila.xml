@@ -1,0 +1,323 @@
+<Feature xmlns="http://www.sila-standard.org" Category="extended" FeatureVersion="1.0" MaturityLevel="Draft" Originator="calico.automation" SiLA2Version="1.1">
+  <Identifier>MicronicTubeScanner</Identifier>
+  <DisplayName>Micronic Tube Scanner</DisplayName>
+  <Description>Controls a Micronic 2D tube-rack barcode scanner via its REST API.
+        Supports rack scanning, single tube scanning, layout management,
+        and decode retry/rescan operations. This is a learning feature
+        wrapping the Micronic HTTP API (port 2500).</Description>
+  <!-- ============================================================ -->
+  <!-- UNOBSERVABLE COMMANDS                                         -->
+  <!-- ============================================================ -->
+  <Command>
+    <Identifier>Connect</Identifier>
+    <DisplayName>Connect</DisplayName>
+    <Description>Sets the base URL of the Micronic scanner REST API and verifies
+            connectivity by querying the device state.</Description>
+    <Observable>No</Observable>
+    <Parameter>
+      <Identifier>BaseUrl</Identifier>
+      <DisplayName>Base URL</DisplayName>
+      <Description>Base URL of the Micronic API (e.g. "http://10.11.63.32:2500").</Description>
+      <DataType>
+        <Basic>String</Basic>
+      </DataType>
+    </Parameter>
+    <DefinedExecutionErrors>
+      <Identifier>CommunicationError</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <Command>
+    <Identifier>Disconnect</Identifier>
+    <DisplayName>Disconnect</DisplayName>
+    <Description>Clears the connection to the Micronic scanner.</Description>
+    <Observable>No</Observable>
+    <DefinedExecutionErrors>
+      <Identifier>NotConnected</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <Command>
+    <Identifier>SetLayout</Identifier>
+    <DisplayName>Set Layout</DisplayName>
+    <Description>Changes the active rack layout used by the scanner software.</Description>
+    <Observable>No</Observable>
+    <Parameter>
+      <Identifier>LayoutName</Identifier>
+      <DisplayName>Layout Name</DisplayName>
+      <Description>Name of the layout to activate (must be from AvailableLayouts).</Description>
+      <DataType>
+        <Basic>String</Basic>
+      </DataType>
+    </Parameter>
+    <DefinedExecutionErrors>
+      <Identifier>NotConnected</Identifier>
+      <Identifier>CommunicationError</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <Command>
+    <Identifier>ScanTube</Identifier>
+    <DisplayName>Scan Tube</DisplayName>
+    <Description>Initiates a single tube scan and decode operation.</Description>
+    <Observable>No</Observable>
+    <Response>
+      <Identifier>ScanResult</Identifier>
+      <DisplayName>Scan Result</DisplayName>
+      <Description>JSON scan result for the single tube.</Description>
+      <DataType>
+        <Basic>String</Basic>
+      </DataType>
+    </Response>
+    <DefinedExecutionErrors>
+      <Identifier>NotConnected</Identifier>
+      <Identifier>CommunicationError</Identifier>
+      <Identifier>ScanError</Identifier>
+      <Identifier>DeviceBusy</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <Command>
+    <Identifier>GetScanResult</Identifier>
+    <DisplayName>Get Scan Result</DisplayName>
+    <Description>Returns the scan results of the most recent scan in JSON format.</Description>
+    <Observable>No</Observable>
+    <Response>
+      <Identifier>ScanResult</Identifier>
+      <DisplayName>Scan Result</DisplayName>
+      <Description>JSON scan result data.</Description>
+      <DataType>
+        <Basic>String</Basic>
+      </DataType>
+    </Response>
+    <DefinedExecutionErrors>
+      <Identifier>NotConnected</Identifier>
+      <Identifier>CommunicationError</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <Command>
+    <Identifier>GetScanResultCsv</Identifier>
+    <DisplayName>Get Scan Result CSV</DisplayName>
+    <Description>Returns the scan results of the most recent scan in CSV format.</Description>
+    <Observable>No</Observable>
+    <Response>
+      <Identifier>CsvData</Identifier>
+      <DisplayName>CSV Data</DisplayName>
+      <Description>Scan result data in CSV format.</Description>
+      <DataType>
+        <Basic>String</Basic>
+      </DataType>
+    </Response>
+    <DefinedExecutionErrors>
+      <Identifier>NotConnected</Identifier>
+      <Identifier>CommunicationError</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <Command>
+    <Identifier>RetryDecode</Identifier>
+    <DisplayName>Retry Decode</DisplayName>
+    <Description>Retries decoding a specified tube with new image parameters
+            without rescanning.</Description>
+    <Observable>No</Observable>
+    <Parameter>
+      <Identifier>Position</Identifier>
+      <DisplayName>Position</DisplayName>
+      <Description>Tube position in the rack.</Description>
+      <DataType>
+        <Basic>String</Basic>
+      </DataType>
+    </Parameter>
+    <Parameter>
+      <Identifier>Brightness</Identifier>
+      <DisplayName>Brightness</DisplayName>
+      <Description>Brightness value for decoding.</Description>
+      <DataType>
+        <Basic>Integer</Basic>
+      </DataType>
+    </Parameter>
+    <Parameter>
+      <Identifier>Contrast</Identifier>
+      <DisplayName>Contrast</DisplayName>
+      <Description>Contrast value for decoding.</Description>
+      <DataType>
+        <Basic>Integer</Basic>
+      </DataType>
+    </Parameter>
+    <Parameter>
+      <Identifier>Threshold</Identifier>
+      <DisplayName>Threshold</DisplayName>
+      <Description>Threshold value for decoding.</Description>
+      <DataType>
+        <Basic>Integer</Basic>
+      </DataType>
+    </Parameter>
+    <DefinedExecutionErrors>
+      <Identifier>NotConnected</Identifier>
+      <Identifier>CommunicationError</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <Command>
+    <Identifier>RescanTube</Identifier>
+    <DisplayName>Rescan Tube</DisplayName>
+    <Description>Rescans and decodes a specified tube with new image parameters.</Description>
+    <Observable>No</Observable>
+    <Parameter>
+      <Identifier>Position</Identifier>
+      <DisplayName>Position</DisplayName>
+      <Description>Tube position in the rack.</Description>
+      <DataType>
+        <Basic>String</Basic>
+      </DataType>
+    </Parameter>
+    <Parameter>
+      <Identifier>Brightness</Identifier>
+      <DisplayName>Brightness</DisplayName>
+      <Description>Brightness value for decoding.</Description>
+      <DataType>
+        <Basic>Integer</Basic>
+      </DataType>
+    </Parameter>
+    <Parameter>
+      <Identifier>Contrast</Identifier>
+      <DisplayName>Contrast</DisplayName>
+      <Description>Contrast value for decoding.</Description>
+      <DataType>
+        <Basic>Integer</Basic>
+      </DataType>
+    </Parameter>
+    <Parameter>
+      <Identifier>Threshold</Identifier>
+      <DisplayName>Threshold</DisplayName>
+      <Description>Threshold value for decoding.</Description>
+      <DataType>
+        <Basic>Integer</Basic>
+      </DataType>
+    </Parameter>
+    <DefinedExecutionErrors>
+      <Identifier>NotConnected</Identifier>
+      <Identifier>CommunicationError</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <!-- ============================================================ -->
+  <!-- OBSERVABLE COMMANDS                                           -->
+  <!-- ============================================================ -->
+  <Command>
+    <Identifier>ScanBox</Identifier>
+    <DisplayName>Scan Box</DisplayName>
+    <Description>Initiates a full rack scan and decode operation. Polls the device
+            state until scanning completes and results are available.</Description>
+    <Observable>Yes</Observable>
+    <Response>
+      <Identifier>ScanResult</Identifier>
+      <DisplayName>Scan Result</DisplayName>
+      <Description>JSON scan result data for the entire rack.</Description>
+      <DataType>
+        <Basic>String</Basic>
+      </DataType>
+    </Response>
+    <IntermediateResponse>
+      <Identifier>ProgressInfo</Identifier>
+      <DisplayName>Progress Info</DisplayName>
+      <Description>Status update during scanning.</Description>
+      <DataType>
+        <Basic>String</Basic>
+      </DataType>
+    </IntermediateResponse>
+    <DefinedExecutionErrors>
+      <Identifier>NotConnected</Identifier>
+      <Identifier>CommunicationError</Identifier>
+      <Identifier>ScanError</Identifier>
+      <Identifier>DeviceBusy</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <!-- ============================================================ -->
+  <!-- PROPERTIES                                                    -->
+  <!-- ============================================================ -->
+  <Property>
+    <Identifier>IsConnected</Identifier>
+    <DisplayName>Is Connected</DisplayName>
+    <Description>Whether the scanner API connection is established.</Description>
+    <Observable>No</Observable>
+    <DataType>
+      <Basic>Boolean</Basic>
+    </DataType>
+  </Property>
+  <Property>
+    <Identifier>State</Identifier>
+    <DisplayName>State</DisplayName>
+    <Description>Current state of the scanner: idle, scanning, or dataready.</Description>
+    <Observable>No</Observable>
+    <DataType>
+      <Basic>String</Basic>
+    </DataType>
+  </Property>
+  <Property>
+    <Identifier>CurrentLayout</Identifier>
+    <DisplayName>Current Layout</DisplayName>
+    <Description>The currently active rack layout name.</Description>
+    <Observable>No</Observable>
+    <DataType>
+      <Basic>String</Basic>
+    </DataType>
+  </Property>
+  <Property>
+    <Identifier>AvailableLayouts</Identifier>
+    <DisplayName>Available Layouts</DisplayName>
+    <Description>List of rack layout names supported by the scanner software.</Description>
+    <Observable>No</Observable>
+    <DataType>
+      <List>
+        <DataType>
+          <Basic>String</Basic>
+        </DataType>
+      </List>
+    </DataType>
+  </Property>
+  <Property>
+    <Identifier>RackId</Identifier>
+    <DisplayName>Rack ID</DisplayName>
+    <Description>The rack ID read from the current rack.</Description>
+    <Observable>No</Observable>
+    <DataType>
+      <Basic>String</Basic>
+    </DataType>
+  </Property>
+  <!-- &#9472;&#9472; Standard Properties (REQUIRED for all servers) &#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472; -->
+  <Property>
+    <Identifier>DisplayIcon</Identifier>
+    <DisplayName>Display Icon</DisplayName>
+    <Description>PNG icon representing this instrument, for display in client UIs.</Description>
+    <Observable>No</Observable>
+    <DataType>
+      <Basic>Binary</Basic>
+    </DataType>
+  </Property>
+  <Property>
+    <Identifier>DeviceDescription</Identifier>
+    <DisplayName>Device Description</DisplayName>
+    <Description>Rich text description of device capabilities for LLM system prompts.</Description>
+    <Observable>No</Observable>
+    <DataType>
+      <Basic>String</Basic>
+    </DataType>
+  </Property>
+  <!-- ============================================================ -->
+  <!-- DEFINED EXECUTION ERRORS                                      -->
+  <!-- ============================================================ -->
+  <DefinedExecutionError>
+    <Identifier>NotConnected</Identifier>
+    <DisplayName>Not Connected</DisplayName>
+    <Description>The scanner API connection is not established. Call Connect first.</Description>
+  </DefinedExecutionError>
+  <DefinedExecutionError>
+    <Identifier>CommunicationError</Identifier>
+    <DisplayName>Communication Error</DisplayName>
+    <Description>An HTTP communication failure occurred (connection refused, timeout, etc.).</Description>
+  </DefinedExecutionError>
+  <DefinedExecutionError>
+    <Identifier>ScanError</Identifier>
+    <DisplayName>Scan Error</DisplayName>
+    <Description>The scan operation failed or returned an error.</Description>
+  </DefinedExecutionError>
+  <DefinedExecutionError>
+    <Identifier>DeviceBusy</Identifier>
+    <DisplayName>Device Busy</DisplayName>
+    <Description>The scanner is currently busy (e.g. already scanning).</Description>
+  </DefinedExecutionError>
+</Feature>

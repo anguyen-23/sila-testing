@@ -1,0 +1,8 @@
+---
+- name: restart headscale
+  systemd:
+    name: headscale
+    state: restarted
+    daemon_reload: true
+  become: true
+  when: systemd_check.rc == 0

@@ -1,0 +1,1089 @@
+{
+  "name": "Micronic Tube Scanner — Production Readiness Test Suite",
+  "description": "Comprehensive test checklist for validating the Micronic Tube Scanner SiLA 2 server prior to production deployment. Covers communication, layout management, scanning operations, error recovery, and physical hardware tests. Tests can be run in Simulation mode (no hardware) or Real mode (requires instrument).",
+  "server": {
+    "default_host": "127.0.0.1",
+    "default_port": 50059,
+    "feature_id": "MicronicTubeScanner",
+    "connection": {
+      "feature": "MicronicTubeScanner",
+      "command": "Connect",
+      "sim_params": {"BaseUrl": "SIM"},
+      "real_params": {"BaseUrl": "$SCANNER_URL"}
+    },
+    "variables": {"SCANNER_URL": "http://10.11.63.32:2500"}
+  },
+  "categories": [
+    {
+      "id": "comm",
+      "name": "Communication & Connection",
+      "description": "REST API connection, URL validation, reconnection robustness",
+      "tests": [
+        {
+          "id": "comm_connect_sim",
+          "name": "Connect in simulation mode",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Connect to the simulated scanner. Verifies Connect succeeds.",
+          "expected": "Connect succeeds",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StartSimulationMode", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "MicronicTubeScanner", "command": "Disconnect", "params": {}, "expect": "any"},
+              {"action": "wait", "ms": 500},
+              {"action": "command", "feature": "MicronicTubeScanner", "command": "Connect", "params": {"BaseUrl": "SIM"}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "comm_connect_real",
+          "name": "Connect to real scanner",
+          "type": "scripted",
+          "modes": ["real"],
+          "description": "Connect to the scanner via REST API. Verifies connection succeeds and layouts are available.",
+          "expected": "Connect succeeds, AvailableLayouts not empty",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StopSimulationMode", "params": {}, "expect": "any"},
+              {"action": "command", "feature": "MicronicTubeScanner", "command": "Disconnect", "params": {}, "expect": "any"},
+              {"action": "wait", "ms": 500},
+              {"action": "command", "feature": "MicronicTubeScanner", "command": "Connect", "params": {"BaseUrl": "$SCANNER_URL"}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "comm_connect_invalid_url",
+          "name": "Connect with invalid URL",
+          "type": "scripted",
+          "modes": ["real"],
+          "description": "Attempt to connect with a non-existent URL. Should return a CommunicationError, not crash.",
+          "expected": "CommunicationError returned gracefully",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StopSimulationMode", "params": {}, "expect": "any"},
+              {"action": "command", "feature": "MicronicTubeScanner", "command": "Connect", "params": {"BaseUrl": "http://192.0.2.1:9999"}, "expect": "error", "error_type": "CommunicationError"}
+            ]
+          }
+        },
+        {
+          "id": "comm_disconnect",
+          "name": "Disconnect cleanly",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Disconnect from the scanner.",
+          "expected": "Disconnect succeeds, IsConnected becomes false",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "MicronicTubeScanner", "command": "Disconnect", "params": {}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "comm_reconnect",
+          "name": "Reconnect after disconnect",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Disconnect then immediately reconnect. Tests connection state handling.",
+          "expected": "Second connect succeeds",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "MicronicTubeScanner", "command": "Disconnect", "params": {}, "expect": "any"},
+              {"action": "wait", "ms": 500},
+              {"action": "ensure_connected"}
+            ]
+          }
+        },
+        {
+          "id": "comm_command_while_disconnected",
+          "name": "Command while disconnected",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Send a command (SetLayout) while not connected. Should return NotConnected error.",
+          "expected": "NotConnected error returned",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "MicronicTubeScanner", "command": "Disconnect", "params": {}, "expect": "any"},
+              {"action": "command", "feature": "MicronicTubeScanner", "command": "SetLayout", "params": {"LayoutName": "96-well"}, "expect": "error", "error_type": "NotConnected"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "sim",
+      "name": "Simulation Mode Switching",
+      "description": "SimulationController mode switching and observable property updates",
+      "tests": [
+        {
+          "id": "sim_start",
+          "name": "Start simulation mode",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Start simulation mode and verify the IsSimulated property updates.",
+          "expected": "StartSimulationMode succeeds, IsSimulated becomes true",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StartSimulationMode", "params": {}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "sim_stop",
+          "name": "Stop simulation mode",
+          "type": "scripted",
+          "modes": ["real"],
+          "description": "Stop simulation mode and verify the IsSimulated property updates.",
+          "expected": "StopSimulationMode succeeds, IsSimulated becomes false",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StopSimulationMode", "params": {}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "sim_switch_disconnects",
+          "name": "Mode switch disconnects active connection",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Connect in simulation mode, then stop simulation. Connection should be dropped.",
+          "expected": "After StopSimulationMode, IsConnected becomes false",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StartSimulationMode", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "MicronicTubeScanner", "command": "Connect", "params": {"BaseUrl": "SIM"}, "expect": "success"},
+              {"action": "command", "feature": "SimulationController", "command": "StopSimulationMode", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "MicronicTubeScanner", "command": "SetLayout", "params": {"LayoutName": "96-well"}, "expect": "error", "error_type": "NotConnected"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "layout",
+      "name": "Layout Management",
+      "description": "Layout selection and validation",
+      "tests": [
+        {
+          "id": "layout_set_96well",
+          "name": "Set 96-well layout",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Set the layout to 96-well. Verifies CurrentLayout updates.",
+          "expected": "SetLayout succeeds, CurrentLayout updates",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "MicronicTubeScanner", "command": "SetLayout", "params": {"LayoutName": "96-well"}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "layout_set_48well",
+          "name": "Set 48-well layout",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Set the layout to 48-well. Verifies CurrentLayout updates.",
+          "expected": "SetLayout succeeds, CurrentLayout updates",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "MicronicTubeScanner", "command": "SetLayout", "params": {"LayoutName": "48-well"}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "layout_not_connected",
+          "name": "SetLayout while not connected",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Attempt to set layout without connecting first. Should return NotConnected error.",
+          "expected": "NotConnected error returned",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "MicronicTubeScanner", "command": "Disconnect", "params": {}, "expect": "any"},
+              {"action": "command", "feature": "MicronicTubeScanner", "command": "SetLayout", "params": {"LayoutName": "96-well"}, "expect": "error", "error_type": "NotConnected"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "scanning",
+      "name": "Scanning Operations",
+      "description": "Single tube and box scanning, result retrieval",
+      "tests": [
+        {
+          "id": "scan_tube",
+          "name": "ScanTube returns ScanResult",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Scan a single tube and verify ScanResult is returned as JSON.",
+          "expected": "ScanTube succeeds, ScanResult not empty",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "MicronicTubeScanner", "command": "SetLayout", "params": {"LayoutName": "96-well"}, "expect": "success"},
+              {"action": "command", "feature": "MicronicTubeScanner", "command": "ScanTube", "params": {}, "expect": "success"},
+              {"action": "check_response", "field": "ScanResult", "condition": "not_empty"}
+            ]
+          }
+        },
+        {
+          "id": "scan_box",
+          "name": "ScanBox (observable) returns ScanResult",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Scan a full box and verify ScanResult is returned with intermediate progress updates.",
+          "expected": "ScanBox succeeds, ScanResult not empty",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "MicronicTubeScanner", "command": "SetLayout", "params": {"LayoutName": "96-well"}, "expect": "success"},
+              {"action": "command", "feature": "MicronicTubeScanner", "command": "ScanBox", "params": {}, "expect": "success"},
+              {"action": "check_response", "field": "ScanResult", "condition": "not_empty"}
+            ]
+          }
+        },
+        {
+          "id": "scan_get_result",
+          "name": "GetScanResult returns last scan",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Scan a tube, then retrieve the result using GetScanResult.",
+          "expected": "GetScanResult returns the same result",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "MicronicTubeScanner", "command": "SetLayout", "params": {"LayoutName": "96-well"}, "expect": "success"},
+              {"action": "command", "feature": "MicronicTubeScanner", "command": "ScanTube", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "MicronicTubeScanner", "command": "GetScanResult", "params": {}, "expect": "success"},
+              {"action": "check_response", "field": "ScanResult", "condition": "not_empty"}
+            ]
+          }
+        },
+        {
+          "id": "scan_get_csv",
+          "name": "GetScanResultCsv returns CSV data",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Scan a tube, then retrieve CSV formatted results.",
+          "expected": "GetScanResultCsv returns CSV data",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "MicronicTubeScanner", "command": "SetLayout", "params": {"LayoutName": "96-well"}, "expect": "success"},
+              {"action": "command", "feature": "MicronicTubeScanner", "command": "ScanTube", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "MicronicTubeScanner", "command": "GetScanResultCsv", "params": {}, "expect": "success"},
+              {"action": "check_response", "field": "CsvData", "condition": "not_empty"}
+            ]
+          }
+        },
+        {
+          "id": "scan_not_connected",
+          "name": "ScanTube while not connected",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Attempt to scan without connecting first. Should return NotConnected error.",
+          "expected": "NotConnected error returned",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "MicronicTubeScanner", "command": "Disconnect", "params": {}, "expect": "any"},
+              {"action": "command", "feature": "MicronicTubeScanner", "command": "ScanTube", "params": {}, "expect": "error", "error_type": "NotConnected"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "physical",
+      "name": "Physical Hardware Tests",
+      "description": "Tests requiring physical interaction with the scanner. The test runner automates setup and commands while prompting the user for physical actions.",
+      "tests": [
+        {
+          "id": "phys_full_rack_scan",
+          "name": "Full rack scan (96-well)",
+          "type": "guided",
+          "modes": ["real"],
+          "description": "Scan a full 96-tube rack and verify all positions are decoded.",
+          "expected": "All 96 positions scanned, barcodes decoded successfully",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "MicronicTubeScanner", "command": "SetLayout", "params": {"LayoutName": "96-well"}, "expect": "success"},
+              {"action": "prompt", "message": "Place a FULL 96-tube rack in the scanner."},
+              {"action": "command", "feature": "MicronicTubeScanner", "command": "ScanBox", "params": {}, "expect": "success"},
+              {"action": "confirm", "message": "Were all 96 positions scanned successfully? Check the WebUI for scan results.", "pass_label": "Yes, all scanned", "fail_label": "No, some failed"}
+            ]
+          }
+        },
+        {
+          "id": "phys_partial_rack",
+          "name": "Partial rack scan",
+          "type": "guided",
+          "modes": ["real"],
+          "description": "Scan a rack with only some tubes present. Verify empty positions are handled correctly.",
+          "expected": "Occupied positions scanned, empty positions reported as no-read",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "MicronicTubeScanner", "command": "SetLayout", "params": {"LayoutName": "96-well"}, "expect": "success"},
+              {"action": "prompt", "message": "Place a PARTIALLY FILLED rack in the scanner (e.g., tubes in first 12 positions only)."},
+              {"action": "command", "feature": "MicronicTubeScanner", "command": "ScanBox", "params": {}, "expect": "success"},
+              {"action": "confirm", "message": "Were occupied positions scanned and empty positions reported correctly?", "pass_label": "Yes, correct", "fail_label": "No, incorrect"}
+            ]
+          }
+        },
+        {
+          "id": "phys_single_tube",
+          "name": "Single tube scan",
+          "type": "guided",
+          "modes": ["real"],
+          "description": "Scan a single tube and verify the barcode is decoded.",
+          "expected": "Single tube barcode returned",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "MicronicTubeScanner", "command": "SetLayout", "params": {"LayoutName": "96-well"}, "expect": "success"},
+              {"action": "prompt", "message": "Place a rack with a SINGLE tube in position A1."},
+              {"action": "command", "feature": "MicronicTubeScanner", "command": "ScanTube", "params": {}, "expect": "success"},
+              {"action": "confirm", "message": "Was the barcode decoded successfully?", "pass_label": "Yes, barcode shown", "fail_label": "No, no-read or error"}
+            ]
+          }
+        },
+        {
+          "id": "phys_retry_decode",
+          "name": "RetryDecode with adjusted parameters",
+          "type": "guided",
+          "modes": ["real"],
+          "description": "Scan a tube that fails to decode, then retry with adjusted brightness/contrast.",
+          "expected": "RetryDecode succeeds after parameter adjustment",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "MicronicTubeScanner", "command": "SetLayout", "params": {"LayoutName": "96-well"}, "expect": "success"},
+              {"action": "prompt", "message": "Place a rack with a difficult-to-read tube (e.g., poor print quality)."},
+              {"action": "command", "feature": "MicronicTubeScanner", "command": "ScanTube", "params": {}, "expect": "any"},
+              {"action": "confirm", "message": "Did the initial scan fail or produce a no-read?", "pass_label": "Yes, no-read", "fail_label": "No, scanned OK"},
+              {"action": "command", "feature": "MicronicTubeScanner", "command": "RetryDecode", "params": {"Position": "A1", "Brightness": 50, "Contrast": 50, "Threshold": 128}, "expect": "success"},
+              {"action": "confirm", "message": "Did RetryDecode succeed with adjusted parameters?", "pass_label": "Yes, decoded", "fail_label": "No, still failed"}
+            ]
+          }
+        },
+        {
+          "id": "phys_layout_switch",
+          "name": "Switch layouts (96 to 48)",
+          "type": "guided",
+          "modes": ["real"],
+          "description": "Scan with 96-well layout, switch to 48-well, scan again. Verify layout change is applied.",
+          "expected": "Layout switch updates scan positions correctly",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "MicronicTubeScanner", "command": "SetLayout", "params": {"LayoutName": "96-well"}, "expect": "success"},
+              {"action": "prompt", "message": "Place a 96-tube rack in the scanner."},
+              {"action": "command", "feature": "MicronicTubeScanner", "command": "ScanBox", "params": {}, "expect": "success"},
+              {"action": "confirm", "message": "Did the scan use 96 positions (A1-H12)?", "pass_label": "Yes, 96 positions", "fail_label": "No, wrong layout"},
+              {"action": "command", "feature": "MicronicTubeScanner", "command": "SetLayout", "params": {"LayoutName": "48-well"}, "expect": "success"},
+              {"action": "prompt", "message": "Replace with a 48-tube rack."},
+              {"action": "command", "feature": "MicronicTubeScanner", "command": "ScanBox", "params": {}, "expect": "success"},
+              {"action": "confirm", "message": "Did the scan use 48 positions (A1-H6)?", "pass_label": "Yes, 48 positions", "fail_label": "No, wrong layout"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "webui",
+      "name": "WebUI Integration",
+      "description": "Tests for the React WebUI, SSE streaming, and user interface correctness",
+      "tests": [
+        {
+          "id": "ui_sse_badge",
+          "name": "SSE connection indicator",
+          "type": "guided",
+          "modes": ["simulation", "real"],
+          "description": "Verify the SSE LIVE/OFF badge by running commands and observing the WebUI.",
+          "expected": "Badge shows LIVE, observable properties update in real-time",
+          "script": {
+            "steps": [
+              {"action": "prompt", "message": "Open the Micronic Tube Scanner WebUI in your browser. Verify that the 'SSE LIVE' badge is visible (green)."},
+              {"action": "confirm", "message": "Is the SSE LIVE badge visible and green?", "pass_label": "Yes, LIVE badge visible", "fail_label": "No badge or shows OFF"},
+              {"action": "ensure_connected"},
+              {"action": "confirm", "message": "Did the WebUI update to show the scanner as connected?", "pass_label": "Yes, status updated", "fail_label": "No update visible"}
+            ]
+          }
+        },
+        {
+          "id": "ui_scan_progress",
+          "name": "Scan progress updates",
+          "type": "guided",
+          "modes": ["simulation"],
+          "description": "Run ScanBox and verify intermediate progress updates appear in the WebUI.",
+          "expected": "Progress updates show scan position in real-time",
+          "script": {
+            "steps": [
+              {"action": "prompt", "message": "Open the Micronic Tube Scanner WebUI. Watch for scan progress updates during the next step."},
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "MicronicTubeScanner", "command": "SetLayout", "params": {"LayoutName": "96-well"}, "expect": "success"},
+              {"action": "command", "feature": "MicronicTubeScanner", "command": "ScanBox", "params": {}, "expect": "success"},
+              {"action": "confirm", "message": "Did the WebUI show intermediate progress updates during the scan (e.g., 'Scanning position A1', 'A2', etc.)?", "pass_label": "Yes, progress shown", "fail_label": "No progress updates"}
+            ]
+          }
+        },
+        {
+          "id": "ui_sim_real_badge",
+          "name": "SIM/REAL badge accuracy",
+          "type": "guided",
+          "modes": ["simulation", "real"],
+          "description": "Toggle simulation mode and verify the badge updates in the WebUI.",
+          "expected": "Badge accurately reflects current mode after each switch",
+          "script": {
+            "steps": [
+              {"action": "prompt", "message": "Open the Micronic Tube Scanner WebUI. The server should be in simulation mode. Verify the 'SIM' badge is visible (blue)."},
+              {"action": "confirm", "message": "Is the SIM badge visible and blue?", "pass_label": "Yes, SIM badge visible", "fail_label": "No badge or wrong badge"},
+              {"action": "command", "feature": "SimulationController", "command": "StopSimulationMode", "params": {}, "expect": "success"},
+              {"action": "confirm", "message": "Did the badge change to 'REAL' (orange/red)?", "pass_label": "Yes, REAL badge visible", "fail_label": "No change or wrong badge"},
+              {"action": "command", "feature": "SimulationController", "command": "StartSimulationMode", "params": {}, "expect": "success"},
+              {"action": "confirm", "message": "Did the badge change back to 'SIM' (blue)?", "pass_label": "Yes, SIM badge returned", "fail_label": "No change or wrong badge"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "lock",
+      "name": "Lock Controller",
+      "description": "Server locking and unlocking with token validation",
+      "tests": [
+        {
+          "id": "lock_lock_unlock",
+          "name": "Lock and unlock server",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Lock the server with a token, then unlock it.",
+          "expected": "Lock succeeds, unlock succeeds",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "LockController", "command": "LockServer", "params": {"LockIdentifier": "test-token-123", "Timeout": 30}, "expect": "success"},
+              {"action": "command", "feature": "LockController", "command": "UnlockServer", "params": {"LockIdentifier": "test-token-123"}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "lock_already_locked",
+          "name": "Lock when already locked",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Lock the server, then try to lock again with a different token.",
+          "expected": "Second lock attempt returns ServerAlreadyLocked error",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "LockController", "command": "LockServer", "params": {"LockIdentifier": "token-A", "Timeout": 30}, "expect": "success"},
+              {"action": "command", "feature": "LockController", "command": "LockServer", "params": {"LockIdentifier": "token-B", "Timeout": 30}, "expect": "error", "error_type": "ServerAlreadyLocked"},
+              {"action": "command", "feature": "LockController", "command": "UnlockServer", "params": {"LockIdentifier": "token-A"}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "lock_wrong_token",
+          "name": "Unlock with wrong token",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Lock the server, then try to unlock with a different token.",
+          "expected": "InvalidLockIdentifier error",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "LockController", "command": "LockServer", "params": {"LockIdentifier": "correct-token", "Timeout": 30}, "expect": "success"},
+              {"action": "command", "feature": "LockController", "command": "UnlockServer", "params": {"LockIdentifier": "wrong-token"}, "expect": "error", "error_type": "InvalidLockIdentifier"},
+              {"action": "command", "feature": "LockController", "command": "UnlockServer", "params": {"LockIdentifier": "correct-token"}, "expect": "success"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "logging",
+      "name": "Structured Logging",
+      "description": "ServerLogProvider feature: structured log queries with filters",
+      "tests": [
+        {
+          "id": "log_get_logs_no_filter",
+          "name": "GetLogs with no filters returns entries",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Query logs with no filters. Server should have logged startup entries.",
+          "expected": "Non-empty array of log entries returned",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ServerLogProvider", "command": "GetLogs", "params": {"StartTime": "", "EndTime": "", "MinSeverity": "", "Feature": "", "MaxEntries": 10}, "expect": "success"},
+              {"action": "check_response", "field": "LogEntries", "condition": "not_empty"}
+            ]
+          }
+        },
+        {
+          "id": "log_get_logs_severity_filter",
+          "name": "GetLogs with MinSeverity=ERROR",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Query logs filtered to ERROR and above. All returned entries should be ERROR or CRITICAL.",
+          "expected": "All entries have level ERROR or CRITICAL (or empty if none)",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ServerLogProvider", "command": "GetLogs", "params": {"StartTime": "", "EndTime": "", "MinSeverity": "ERROR", "Feature": "", "MaxEntries": 100}, "expect": "success"},
+              {"action": "check_response", "field": "LogEntries", "condition": "not_empty"}
+            ]
+          }
+        },
+        {
+          "id": "log_get_logs_feature_filter",
+          "name": "GetLogs with Feature=Server",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Query logs filtered to a specific feature. Verifies Feature filter works.",
+          "expected": "All returned entries are from the Server feature",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ServerLogProvider", "command": "GetLogs", "params": {"StartTime": "", "EndTime": "", "MinSeverity": "", "Feature": "Server", "MaxEntries": 10}, "expect": "success"},
+              {"action": "check_response", "field": "LogEntries", "condition": "not_empty"}
+            ]
+          }
+        },
+        {
+          "id": "log_max_entries",
+          "name": "MaxEntries parameter limits output",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Request logs with MaxEntries=3. Should return at most 3 entries.",
+          "expected": "LogEntries array length <= 3",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ServerLogProvider", "command": "GetLogs", "params": {"StartTime": "", "EndTime": "", "MinSeverity": "", "Feature": "", "MaxEntries": 3}, "expect": "success"},
+              {"action": "check_response", "field": "LogEntries", "condition": "not_empty"}
+            ]
+          }
+        },
+        {
+          "id": "log_clear_logs",
+          "name": "ClearLogs empties log database",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Clear all logs, then verify GetLogs returns empty (or only new startup entries).",
+          "expected": "After clear, log count is reset",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ServerLogProvider", "command": "ClearLogs", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "ServerLogProvider", "command": "GetLogs", "params": {"StartTime": "", "EndTime": "", "MinSeverity": "", "Feature": "", "MaxEntries": 100}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "log_get_features",
+          "name": "GetLogFeatures returns feature list",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "GetLogFeatures should return a list containing at least 'Server' (from startup logs).",
+          "expected": "List of feature names including 'Server'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ServerLogProvider", "command": "GetLogFeatures", "params": {}, "expect": "success"},
+              {"action": "check_response", "field": "Features", "condition": "not_empty"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "script_exec",
+      "name": "Script Runner — Execution",
+      "description": "Core script execution: output capture, exit codes, error handling, and the device helper preamble",
+      "tests": [
+        {
+          "id": "exec_hello",
+          "name": "Simple print output",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Run a one-liner that prints 'hello' and verify it appears in FullOutput with exit code 0.",
+          "expected": "FullOutput contains 'hello', ExitCode == 0",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_hello", "ScriptCode": "print('hello')"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "hello"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "exec_multiline",
+          "name": "Multi-line output",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Run a script with multiple print statements and verify all lines appear in FullOutput.",
+          "expected": "FullOutput contains 'line_one', 'line_two', and 'line_three'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_multi", "ScriptCode": "print('line_one')\nprint('line_two')\nprint('line_three')"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "line_one"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "line_two"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "line_three"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "exec_computation",
+          "name": "Computation and formatted output",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Run a script that does arithmetic and string formatting, verify computed result in output.",
+          "expected": "FullOutput contains 'result=42'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_compute", "ScriptCode": "x = 6 * 7\nprint(f'result={x}')"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "result=42"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "exec_stdlib_import",
+          "name": "Standard library imports",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Verify scripts can import standard library modules (json, math, datetime).",
+          "expected": "FullOutput contains 'imports_ok'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_imports", "ScriptCode": "import json, math, datetime\nprint('imports_ok')\nprint(json.dumps({'pi': round(math.pi, 2)}))"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "imports_ok"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "3.14"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "exec_loop",
+          "name": "Loop output",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Run a script with a for loop and verify output from each iteration.",
+          "expected": "FullOutput contains 'iter_0' through 'iter_4'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_loop", "ScriptCode": "for i in range(5):\n    print(f'iter_{i}')"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "iter_0"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "iter_4"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "exec_syntax_error",
+          "name": "Syntax error produces non-zero exit code",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Run code with a syntax error. Should complete (not crash the server) with non-zero exit code and traceback in output.",
+          "expected": "ExitCode != 0, FullOutput contains 'SyntaxError'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_syntax", "ScriptCode": "this is not valid python!!!"}, "expect": "success"},
+              {"action": "check_response", "field": "ExitCode", "condition": "not_equals", "value": 0},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "SyntaxError"}
+            ]
+          }
+        },
+        {
+          "id": "exec_runtime_error",
+          "name": "Runtime exception produces non-zero exit code",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Run code that raises a runtime exception. Should produce non-zero exit code with traceback.",
+          "expected": "ExitCode != 0, FullOutput contains 'ZeroDivisionError'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_runtime", "ScriptCode": "print('before')\nx = 1 / 0\nprint('after')"}, "expect": "success"},
+              {"action": "check_response", "field": "ExitCode", "condition": "not_equals", "value": 0},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "before"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "ZeroDivisionError"},
+              {"action": "check_response", "field": "FullOutput", "condition": "not_contains", "value": "after"}
+            ]
+          }
+        },
+        {
+          "id": "exec_empty_script",
+          "name": "Empty script succeeds with exit code 0",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Run an empty (whitespace-only) script. Should succeed without error.",
+          "expected": "ExitCode == 0",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_empty", "ScriptCode": "# nothing here\n"}, "expect": "success"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "exec_preamble_banner",
+          "name": "FullOutput contains ScriptRunner banner",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Verify that ScriptRunner injects its own [ScriptRunner] Started and Finished banners into the output.",
+          "expected": "FullOutput contains '[ScriptRunner] Started' and '[ScriptRunner] Finished'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_banner", "ScriptCode": "pass"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "[ScriptRunner] Started"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "[ScriptRunner] Finished: exit_code=0"}
+            ]
+          }
+        },
+        {
+          "id": "exec_consecutive",
+          "name": "Consecutive script executions",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Run two scripts back-to-back. Verify each produces independent output (no bleed-over).",
+          "expected": "First output contains 'first_run', second contains 'second_run' and not 'first_run'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_run1", "ScriptCode": "print('first_run')"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "first_run"},
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_run2", "ScriptCode": "print('second_run')"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "second_run"},
+              {"action": "check_response", "field": "FullOutput", "condition": "not_contains", "value": "first_run"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "script_device",
+      "name": "Script Runner — Device Helper",
+      "description": "Verify the injected `device` helper object works: introspection, print, sleep",
+      "tests": [
+        {
+          "id": "dev_available",
+          "name": "device object is available",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Verify the `device` object exists and is a DeviceHelper instance.",
+          "expected": "FullOutput contains 'DeviceHelper'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_devobj", "ScriptCode": "print(type(device).__name__)\nprint(repr(device))"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "DeviceHelper"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "dev_print",
+          "name": "device.print() writes to output",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Verify device.print() sends text to the captured output stream.",
+          "expected": "FullOutput contains 'device_says_hi'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_devprint", "ScriptCode": "device.print('device_says_hi')"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "device_says_hi"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "dev_features",
+          "name": "device.features lists server features",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Verify device.features returns a list that includes MicronicTubeScanner and ScriptRunner.",
+          "expected": "FullOutput contains 'MicronicTubeScanner' and 'ScriptRunner'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_devfeat", "ScriptCode": "feats = device.features\nfor f in feats:\n    print(f)"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "MicronicTubeScanner"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "ScriptRunner"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "dev_commands_list",
+          "name": "device.commands() lists feature commands",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Verify device.commands('ScriptRunner') returns known command names.",
+          "expected": "FullOutput contains 'RunScript' and 'ListScripts'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_devcmds", "ScriptCode": "cmds = device.commands('ScriptRunner')\nfor c in cmds:\n    print(c)"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "RunScript"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "ListScripts"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "dev_properties_list",
+          "name": "device.properties() lists feature properties",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Verify device.properties('ScriptRunner') returns IsRunning.",
+          "expected": "FullOutput contains 'IsRunning'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_devprops", "ScriptCode": "props = device.properties('ScriptRunner')\nfor p in props:\n    print(p)"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "IsRunning"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "dev_read_property",
+          "name": "device.property() reads a SiLA property",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Use device.property() to read the DeviceDescription property (string). Should not crash.",
+          "expected": "FullOutput contains 'type=str', ExitCode == 0",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_devprop", "ScriptCode": "val = device.property('MicronicTubeScanner', 'DeviceDescription')\nprint(f'type={type(val).__name__}')\nprint(f'len={len(val)}')"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "type=str"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "dev_command_sim",
+          "name": "device.command() calls SiLA command (simulation)",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Use device.command() to call Connect in simulation mode and verify the response.",
+          "expected": "Command succeeds, FullOutput shows result",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StartSimulationMode", "params": {}, "expect": "any"},
+              {"action": "command", "feature": "MicronicTubeScanner", "command": "Disconnect", "params": {}, "expect": "any"},
+              {"action": "wait", "ms": 300},
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_devcmd", "ScriptCode": "import json\nresult = device.command('MicronicTubeScanner', 'Connect', BaseUrl='SIM')\nprint(json.dumps(result))"}, "expect": "success"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "script_persist",
+      "name": "Script Runner — Persistence",
+      "description": "Save, load, list, delete, and overwrite scripts stored on the server",
+      "tests": [
+        {
+          "id": "persist_crud",
+          "name": "Full CRUD round-trip",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Save a script, verify it appears in list, load it back, then delete it and verify it's gone.",
+          "expected": "Save/list/load/delete all succeed, code matches after load, gone after delete",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "SaveScript", "params": {"ScriptName": "test_crud_abc", "ScriptCode": "print('crud_marker')"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "ListScripts", "params": {}, "expect": "success"},
+              {"action": "check_response", "field": "ScriptNames", "condition": "contains", "value": "test_crud_abc"},
+              {"action": "command", "feature": "ScriptRunner", "command": "LoadScript", "params": {"ScriptName": "test_crud_abc"}, "expect": "success"},
+              {"action": "check_response", "field": "ScriptCode", "condition": "contains", "value": "crud_marker"},
+              {"action": "command", "feature": "ScriptRunner", "command": "DeleteScript", "params": {"ScriptName": "test_crud_abc"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "ListScripts", "params": {}, "expect": "success"},
+              {"action": "check_response", "field": "ScriptNames", "condition": "not_contains", "value": "test_crud_abc"}
+            ]
+          }
+        },
+        {
+          "id": "persist_overwrite",
+          "name": "SaveScript overwrites existing",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Save a script, save it again with different code, verify it's overwritten.",
+          "expected": "Second save replaces the first",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "SaveScript", "params": {"ScriptName": "test_overwrite", "ScriptCode": "print('v1')"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "SaveScript", "params": {"ScriptName": "test_overwrite", "ScriptCode": "print('v2')"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "LoadScript", "params": {"ScriptName": "test_overwrite"}, "expect": "success"},
+              {"action": "check_response", "field": "ScriptCode", "condition": "contains", "value": "v2"},
+              {"action": "check_response", "field": "ScriptCode", "condition": "not_contains", "value": "v1"},
+              {"action": "command", "feature": "ScriptRunner", "command": "DeleteScript", "params": {"ScriptName": "test_overwrite"}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "persist_load_nonexistent",
+          "name": "LoadScript of non-existent script",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Try to load a script that doesn't exist. Should return an error.",
+          "expected": "ScriptNotFound or similar error",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "LoadScript", "params": {"ScriptName": "does_not_exist_xyz"}, "expect": "error"}
+            ]
+          }
+        },
+        {
+          "id": "persist_delete_nonexistent",
+          "name": "DeleteScript of non-existent script",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Try to delete a script that doesn't exist. Should return an error.",
+          "expected": "ScriptNotFound or similar error",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "DeleteScript", "params": {"ScriptName": "does_not_exist_xyz"}, "expect": "error"}
+            ]
+          }
+        },
+        {
+          "id": "persist_list_empty",
+          "name": "ListScripts when no scripts saved",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "List scripts after deleting all saved ones. Should return empty list or only built-in scripts.",
+          "expected": "ScriptNames is empty or contains only built-in scripts",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "ListScripts", "params": {}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "persist_multiline_code",
+          "name": "Save and load multi-line script",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Save a script with multiple lines including loops and conditionals, then load it back.",
+          "expected": "Loaded code matches original",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "SaveScript", "params": {"ScriptName": "test_multiline", "ScriptCode": "for i in range(3):\n    if i > 0:\n        print(f'iter_{i}')"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "LoadScript", "params": {"ScriptName": "test_multiline"}, "expect": "success"},
+              {"action": "check_response", "field": "ScriptCode", "condition": "contains", "value": "for i in range(3)"},
+              {"action": "check_response", "field": "ScriptCode", "condition": "contains", "value": "if i > 0"},
+              {"action": "command", "feature": "ScriptRunner", "command": "DeleteScript", "params": {"ScriptName": "test_multiline"}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "persist_special_chars",
+          "name": "Save script with special characters",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Save a script with quotes, backslashes, and other special characters. Verify it loads correctly.",
+          "expected": "Special characters are preserved",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "SaveScript", "params": {"ScriptName": "test_special", "ScriptCode": "s = \"hello\\nworld\"\nprint(s)"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "LoadScript", "params": {"ScriptName": "test_special"}, "expect": "success"},
+              {"action": "check_response", "field": "ScriptCode", "condition": "contains", "value": "hello"},
+              {"action": "command", "feature": "ScriptRunner", "command": "DeleteScript", "params": {"ScriptName": "test_special"}, "expect": "success"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "script_errors",
+      "name": "Script Runner — Error Handling",
+      "description": "Script execution error scenarios: timeouts, concurrent runs, resource limits",
+      "tests": [
+        {
+          "id": "err_concurrent_not_allowed",
+          "name": "Concurrent RunScript attempts",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Start a long-running script, then try to start another while the first is still running. Should reject the second.",
+          "expected": "Second RunScript returns error (script already running)",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_sleep", "ScriptCode": "import time\ntime.sleep(2)"}, "expect": "any"},
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_second", "ScriptCode": "print('second')"}, "expect": "error"}
+            ]
+          }
+        },
+        {
+          "id": "err_save_while_running",
+          "name": "SaveScript while script is running",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Run a script, then try to save a script while it's executing. Should succeed (save is independent).",
+          "expected": "SaveScript succeeds even during execution",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_sleep", "ScriptCode": "import time\ntime.sleep(2)"}, "expect": "any"},
+              {"action": "command", "feature": "ScriptRunner", "command": "SaveScript", "params": {"ScriptName": "test_concurrent_save", "ScriptCode": "pass"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "DeleteScript", "params": {"ScriptName": "test_concurrent_save"}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "err_infinite_loop",
+          "name": "Infinite loop script",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Run a script with an infinite loop. Verify it can be stopped (manually or via timeout if implemented).",
+          "expected": "Script runs indefinitely or times out gracefully",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_infinite", "ScriptCode": "import time\nwhile True:\n    time.sleep(0.1)"}, "expect": "any"}
+            ]
+          }
+        },
+        {
+          "id": "err_import_nonexistent",
+          "name": "Import non-existent module",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Try to import a module that doesn't exist. Should produce ModuleNotFoundError with non-zero exit code.",
+          "expected": "ExitCode != 0, FullOutput contains 'ModuleNotFoundError'",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_badimport", "ScriptCode": "import nonexistent_module_xyz"}, "expect": "success"},
+              {"action": "check_response", "field": "ExitCode", "condition": "not_equals", "value": 0},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "ModuleNotFoundError"}
+            ]
+          }
+        },
+        {
+          "id": "err_large_output",
+          "name": "Large output script",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Run a script that produces a large amount of output. Verify it completes without truncation errors.",
+          "expected": "Script completes, FullOutput contains output",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_largeout", "ScriptCode": "for i in range(100):\n    print(f'line_{i:03d}_' + 'x' * 80)"}, "expect": "success"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "line_099"}
+            ]
+          }
+        },
+        {
+          "id": "err_unicode_output",
+          "name": "Unicode characters in output",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Run a script that prints Unicode characters (emoji, non-ASCII). Verify they're captured correctly.",
+          "expected": "FullOutput contains Unicode characters",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_unicode", "ScriptCode": "print('Hello 世界 🌍')"}, "expect": "success"},
+              {"action": "check_response", "field": "FullOutput", "condition": "contains", "value": "世界"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

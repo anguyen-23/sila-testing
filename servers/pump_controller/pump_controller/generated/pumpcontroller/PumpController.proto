@@ -1,0 +1,102 @@
+syntax = "proto3";
+
+import "SiLAFramework.proto";
+
+package sila2.calico.automation.extended.pumpcontroller.v1;
+
+/* Controls a simulated syringe/peristaltic pump for liquid handling. Demonstrates multiple commands with validation, state management (pump must be primed before dispensing), and volume tracking. This is a learning feature, not intended for production use. */
+service PumpController {
+  /* 
+            Dispenses the specified volume of liquid at the given flow rate.
+            This is observable so the client can track dispensing progress
+            and see intermediate volume readings.
+         */
+  rpc Dispense (sila2.calico.automation.extended.pumpcontroller.v1.Dispense_Parameters) returns (sila2.org.silastandard.CommandConfirmation) {}
+  /* Monitor the state of Dispense */
+  rpc Dispense_Info (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.org.silastandard.ExecutionInfo) {}
+  /* Retrieve intermediate responses of Dispense */
+  rpc Dispense_Intermediate (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.calico.automation.extended.pumpcontroller.v1.Dispense_IntermediateResponses) {}
+  /* Retrieve result of Dispense */
+  rpc Dispense_Result(sila2.org.silastandard.CommandExecutionUUID) returns (sila2.calico.automation.extended.pumpcontroller.v1.Dispense_Responses) {}
+  /* Primes the pump by filling the tubing with liquid. Must be called before dispensing. Demonstrates a prerequisite command pattern. */
+  rpc Prime (sila2.calico.automation.extended.pumpcontroller.v1.Prime_Parameters) returns (sila2.calico.automation.extended.pumpcontroller.v1.Prime_Responses) {}
+  /* Returns a human-readable status string for the pump. */
+  rpc GetPumpStatus (sila2.calico.automation.extended.pumpcontroller.v1.GetPumpStatus_Parameters) returns (sila2.calico.automation.extended.pumpcontroller.v1.GetPumpStatus_Responses) {}
+  /* Resets the pump state: clears errors, resets total dispensed volume, and marks the pump as not primed. */
+  rpc ResetPump (sila2.calico.automation.extended.pumpcontroller.v1.ResetPump_Parameters) returns (sila2.calico.automation.extended.pumpcontroller.v1.ResetPump_Responses) {}
+  /* Total volume dispensed since last reset, in mL. */
+  rpc Get_TotalVolumeDispensed (sila2.calico.automation.extended.pumpcontroller.v1.Get_TotalVolumeDispensed_Parameters) returns (sila2.calico.automation.extended.pumpcontroller.v1.Get_TotalVolumeDispensed_Responses) {}
+  /* Whether the pump has been primed and is ready to dispense. */
+  rpc Get_IsPrimed (sila2.calico.automation.extended.pumpcontroller.v1.Get_IsPrimed_Parameters) returns (sila2.calico.automation.extended.pumpcontroller.v1.Get_IsPrimed_Responses) {}
+  /* Maximum supported flow rate in mL/s. */
+  rpc Get_MaxFlowRate (sila2.calico.automation.extended.pumpcontroller.v1.Get_MaxFlowRate_Parameters) returns (sila2.calico.automation.extended.pumpcontroller.v1.Get_MaxFlowRate_Responses) {}
+}
+
+/* Parameters for Dispense */
+message Dispense_Parameters {
+  sila2.org.silastandard.Real Volume = 1;  /* Volume to dispense in milliliters (mL). */
+  sila2.org.silastandard.Real FlowRate = 2;  /* Flow rate in milliliters per second (mL/s). */
+}
+
+/* Responses of Dispense */
+message Dispense_Responses {
+  sila2.org.silastandard.Real ActualVolumeDispensed = 1;  /* The actual volume dispensed in mL (may differ slightly from requested). */
+}
+
+/* Intermediate responses of Dispense */
+message Dispense_IntermediateResponses {
+  sila2.org.silastandard.Real VolumeDispensedSoFar = 1;  /* Running total of volume dispensed during this operation. */
+}
+
+/* Parameters for Prime */
+message Prime_Parameters {
+}
+
+/* Responses of Prime */
+message Prime_Responses {
+  sila2.org.silastandard.Boolean PrimeSuccessful = 1;  /* Whether the priming was successful. */
+}
+
+/* Parameters for GetPumpStatus */
+message GetPumpStatus_Parameters {
+}
+
+/* Responses of GetPumpStatus */
+message GetPumpStatus_Responses {
+  sila2.org.silastandard.String StatusMessage = 1;  /* Current pump status. */
+}
+
+/* Parameters for ResetPump */
+message ResetPump_Parameters {
+}
+
+/* Responses of ResetPump */
+message ResetPump_Responses {
+}
+
+/* Parameters for TotalVolumeDispensed */
+message Get_TotalVolumeDispensed_Parameters {
+}
+
+/* Responses of TotalVolumeDispensed */
+message Get_TotalVolumeDispensed_Responses {
+  sila2.org.silastandard.Real TotalVolumeDispensed = 1;  /* Total volume dispensed since last reset, in mL. */
+}
+
+/* Parameters for IsPrimed */
+message Get_IsPrimed_Parameters {
+}
+
+/* Responses of IsPrimed */
+message Get_IsPrimed_Responses {
+  sila2.org.silastandard.Boolean IsPrimed = 1;  /* Whether the pump has been primed and is ready to dispense. */
+}
+
+/* Parameters for MaxFlowRate */
+message Get_MaxFlowRate_Parameters {
+}
+
+/* Responses of MaxFlowRate */
+message Get_MaxFlowRate_Responses {
+  sila2.org.silastandard.Real MaxFlowRate = 1;  /* Maximum supported flow rate in mL/s. */
+}

@@ -1,0 +1,274 @@
+syntax = "proto3";
+
+import "SiLAFramework.proto";
+
+package sila2.calico.automation.extended.multidropcombi.v1;
+
+/* Controls a Thermo Scientific Multidrop Combi reagent dispenser via its RS232 serial remote control protocol. Uses Observable properties for real-time state push to clients (React WebUI via SSE). */
+service MultidropCombi {
+  /* Opens a serial connection to the Multidrop Combi and sends the VER command to enter remote control mode. Returns instrument identification. */
+  rpc Connect (sila2.calico.automation.extended.multidropcombi.v1.Connect_Parameters) returns (sila2.calico.automation.extended.multidropcombi.v1.Connect_Responses) {}
+  /* Sends QIT to exit remote control mode and closes the serial connection. */
+  rpc Disconnect (sila2.calico.automation.extended.multidropcombi.v1.Disconnect_Parameters) returns (sila2.calico.automation.extended.multidropcombi.v1.Disconnect_Responses) {}
+  /* Sends an ESC character to abort the currently running operation. */
+  rpc Abort (sila2.calico.automation.extended.multidropcombi.v1.Abort_Parameters) returns (sila2.calico.automation.extended.multidropcombi.v1.Abort_Responses) {}
+  /* Primes the dispenser hoses by dispensing liquid through them (PRI command). */
+  rpc Prime (sila2.calico.automation.extended.multidropcombi.v1.Prime_Parameters) returns (sila2.calico.automation.extended.multidropcombi.v1.Prime_Responses) {}
+  /* Empties the dispenser hoses by reversing the pump (EMP command). */
+  rpc Empty (sila2.calico.automation.extended.multidropcombi.v1.Empty_Parameters) returns (sila2.calico.automation.extended.multidropcombi.v1.Empty_Responses) {}
+  /* Moves the plate carrier to the out/loading position (POU command). */
+  rpc MoveOut (sila2.calico.automation.extended.multidropcombi.v1.MoveOut_Parameters) returns (sila2.calico.automation.extended.multidropcombi.v1.MoveOut_Responses) {}
+  /* Acknowledges and clears an instrument error (EAK command). */
+  rpc AcknowledgeError (sila2.calico.automation.extended.multidropcombi.v1.AcknowledgeError_Parameters) returns (sila2.calico.automation.extended.multidropcombi.v1.AcknowledgeError_Responses) {}
+  /* Sets the plate type (SPL command). See instrument manual for plate type codes. */
+  rpc SetPlateType (sila2.calico.automation.extended.multidropcombi.v1.SetPlateType_Parameters) returns (sila2.calico.automation.extended.multidropcombi.v1.SetPlateType_Responses) {}
+  /* Sets the dispensing cassette type (SCT command). */
+  rpc SetCassetteType (sila2.calico.automation.extended.multidropcombi.v1.SetCassetteType_Parameters) returns (sila2.calico.automation.extended.multidropcombi.v1.SetCassetteType_Responses) {}
+  /* Sets the dispensing volume for a specific column (SCV command). */
+  rpc SetColumnVolume (sila2.calico.automation.extended.multidropcombi.v1.SetColumnVolume_Parameters) returns (sila2.calico.automation.extended.multidropcombi.v1.SetColumnVolume_Responses) {}
+  /* Sets the dispensing height above the plate (SDH command). */
+  rpc SetDispensingHeight (sila2.calico.automation.extended.multidropcombi.v1.SetDispensingHeight_Parameters) returns (sila2.calico.automation.extended.multidropcombi.v1.SetDispensingHeight_Responses) {}
+  /* Sets the pump speed as a percentage of maximum (SPS command). */
+  rpc SetPumpSpeed (sila2.calico.automation.extended.multidropcombi.v1.SetPumpSpeed_Parameters) returns (sila2.calico.automation.extended.multidropcombi.v1.SetPumpSpeed_Responses) {}
+  /* Restarts the instrument (RST command). The serial connection will be closed and must be re-established with Connect. */
+  rpc Restart (sila2.calico.automation.extended.multidropcombi.v1.Restart_Parameters) returns (sila2.calico.automation.extended.multidropcombi.v1.Restart_Responses) {}
+  /* 
+            Dispenses liquid into the plate (DIS command). Reports column/row
+            progress as intermediate responses during dispensing.
+         */
+  rpc Dispense (sila2.calico.automation.extended.multidropcombi.v1.Dispense_Parameters) returns (sila2.org.silastandard.CommandConfirmation) {}
+  /* Monitor the state of Dispense */
+  rpc Dispense_Info (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.org.silastandard.ExecutionInfo) {}
+  /* Retrieve intermediate responses of Dispense */
+  rpc Dispense_Intermediate (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.calico.automation.extended.multidropcombi.v1.Dispense_IntermediateResponses) {}
+  /* Retrieve result of Dispense */
+  rpc Dispense_Result(sila2.org.silastandard.CommandExecutionUUID) returns (sila2.calico.automation.extended.multidropcombi.v1.Dispense_Responses) {}
+  /* 
+            Shakes the plate for a specified duration (SHA command).
+         */
+  rpc Shake (sila2.calico.automation.extended.multidropcombi.v1.Shake_Parameters) returns (sila2.org.silastandard.CommandConfirmation) {}
+  /* Monitor the state of Shake */
+  rpc Shake_Info (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.org.silastandard.ExecutionInfo) {}
+  /* Retrieve result of Shake */
+  rpc Shake_Result(sila2.org.silastandard.CommandExecutionUUID) returns (sila2.calico.automation.extended.multidropcombi.v1.Shake_Responses) {}
+  /* Whether the instrument is currently in remote control mode. Observable for real-time UI updates. */
+  rpc Subscribe_IsConnected (sila2.calico.automation.extended.multidropcombi.v1.Subscribe_IsConnected_Parameters) returns (stream sila2.calico.automation.extended.multidropcombi.v1.Subscribe_IsConnected_Responses) {}
+  /* The instrument name from the VER response, or empty if not connected. */
+  rpc Subscribe_InstrumentName (sila2.calico.automation.extended.multidropcombi.v1.Subscribe_InstrumentName_Parameters) returns (stream sila2.calico.automation.extended.multidropcombi.v1.Subscribe_InstrumentName_Responses) {}
+  /* The firmware version from the VER response, or empty if not connected. */
+  rpc Subscribe_FirmwareVersion (sila2.calico.automation.extended.multidropcombi.v1.Subscribe_FirmwareVersion_Parameters) returns (stream sila2.calico.automation.extended.multidropcombi.v1.Subscribe_FirmwareVersion_Responses) {}
+  /* Whether the pump has been primed since the last connection. */
+  rpc Subscribe_IsPrimed (sila2.calico.automation.extended.multidropcombi.v1.Subscribe_IsPrimed_Parameters) returns (stream sila2.calico.automation.extended.multidropcombi.v1.Subscribe_IsPrimed_Responses) {}
+  /* Current device status as a JSON string with all state fields (for SSE streaming to WebUI). */
+  rpc Subscribe_DeviceStatus (sila2.calico.automation.extended.multidropcombi.v1.Subscribe_DeviceStatus_Parameters) returns (stream sila2.calico.automation.extended.multidropcombi.v1.Subscribe_DeviceStatus_Responses) {}
+  /* PNG icon representing this instrument, for display in client UIs. */
+  rpc Get_DisplayIcon (sila2.calico.automation.extended.multidropcombi.v1.Get_DisplayIcon_Parameters) returns (sila2.calico.automation.extended.multidropcombi.v1.Get_DisplayIcon_Responses) {}
+  /* Rich text description of device capabilities for LLM system prompts. */
+  rpc Get_DeviceDescription (sila2.calico.automation.extended.multidropcombi.v1.Get_DeviceDescription_Parameters) returns (sila2.calico.automation.extended.multidropcombi.v1.Get_DeviceDescription_Responses) {}
+}
+
+/* Parameters for Connect */
+message Connect_Parameters {
+  sila2.org.silastandard.String SerialPort = 1;  /* Serial port name (e.g. "COM3" on Windows, "/dev/ttyUSB0" on Linux). */
+}
+
+/* Responses of Connect */
+message Connect_Responses {
+  sila2.org.silastandard.String InstrumentName = 1;  /* The instrument name returned by VER. */
+  sila2.org.silastandard.String FirmwareVersion = 2;  /* The firmware version returned by VER. */
+  sila2.org.silastandard.String SerialNumber = 3;  /* The instrument serial number returned by VER. */
+}
+
+/* Parameters for Disconnect */
+message Disconnect_Parameters {
+}
+
+/* Responses of Disconnect */
+message Disconnect_Responses {
+}
+
+/* Parameters for Abort */
+message Abort_Parameters {
+}
+
+/* Responses of Abort */
+message Abort_Responses {
+}
+
+/* Parameters for Prime */
+message Prime_Parameters {
+  sila2.org.silastandard.Integer Volume = 1;  /* Volume in 1/10 uL units. */
+  sila2.org.silastandard.Integer Mode = 2;  /* Prime mode: 0=all tubes, 1=even tubes, 2=odd tubes, 3=by cassette. */
+}
+
+/* Responses of Prime */
+message Prime_Responses {
+}
+
+/* Parameters for Empty */
+message Empty_Parameters {
+  sila2.org.silastandard.Integer Volume = 1;  /* Volume in 1/10 uL units. */
+  sila2.org.silastandard.Integer Mode = 2;  /* Empty mode: 0=all tubes, 1=by cassette. */
+}
+
+/* Responses of Empty */
+message Empty_Responses {
+}
+
+/* Parameters for MoveOut */
+message MoveOut_Parameters {
+}
+
+/* Responses of MoveOut */
+message MoveOut_Responses {
+}
+
+/* Parameters for AcknowledgeError */
+message AcknowledgeError_Parameters {
+}
+
+/* Responses of AcknowledgeError */
+message AcknowledgeError_Responses {
+}
+
+/* Parameters for SetPlateType */
+message SetPlateType_Parameters {
+  sila2.org.silastandard.Integer PlateType = 1;  /* Plate type code (0-29). */
+}
+
+/* Responses of SetPlateType */
+message SetPlateType_Responses {
+}
+
+/* Parameters for SetCassetteType */
+message SetCassetteType_Parameters {
+  sila2.org.silastandard.Integer CassetteType = 1;  /* Cassette type code (0-3). */
+}
+
+/* Responses of SetCassetteType */
+message SetCassetteType_Responses {
+}
+
+/* Parameters for SetColumnVolume */
+message SetColumnVolume_Parameters {
+  sila2.org.silastandard.Integer Column = 1;  /* Column number (0=all columns, 1-48=specific column). */
+  sila2.org.silastandard.Integer Volume = 2;  /* Volume in 1/10 uL units (0 = do not dispense this column). */
+}
+
+/* Responses of SetColumnVolume */
+message SetColumnVolume_Responses {
+}
+
+/* Parameters for SetDispensingHeight */
+message SetDispensingHeight_Parameters {
+  sila2.org.silastandard.Integer Height = 1;  /* Dispensing height in 1/100 mm units. */
+}
+
+/* Responses of SetDispensingHeight */
+message SetDispensingHeight_Responses {
+}
+
+/* Parameters for SetPumpSpeed */
+message SetPumpSpeed_Parameters {
+  sila2.org.silastandard.Integer Speed = 1;  /* Pump speed in percent (1-100). */
+}
+
+/* Responses of SetPumpSpeed */
+message SetPumpSpeed_Responses {
+}
+
+/* Parameters for Restart */
+message Restart_Parameters {
+}
+
+/* Responses of Restart */
+message Restart_Responses {
+}
+
+/* Parameters for Dispense */
+message Dispense_Parameters {
+}
+
+/* Responses of Dispense */
+message Dispense_Responses {
+  sila2.org.silastandard.String Status = 1;  /* Final status message after dispensing completes. */
+}
+
+/* Intermediate responses of Dispense */
+message Dispense_IntermediateResponses {
+  sila2.org.silastandard.String ColumnRow = 1;  /* Current dispensing position (e.g. "Col 1 Row 1"). */
+}
+
+/* Parameters for Shake */
+message Shake_Parameters {
+  sila2.org.silastandard.Integer Time = 1;  /* Shake duration in 1/100 seconds. */
+  sila2.org.silastandard.Integer Distance = 2;  /* Shake distance in mm (1-5). */
+  sila2.org.silastandard.Integer Speed = 3;  /* Shake speed in Hz (1-20). */
+}
+
+/* Responses of Shake */
+message Shake_Responses {
+}
+
+/* Parameters for IsConnected */
+message Subscribe_IsConnected_Parameters {
+}
+
+/* Responses of IsConnected */
+message Subscribe_IsConnected_Responses {
+  sila2.org.silastandard.Boolean IsConnected = 1;  /* Whether the instrument is currently in remote control mode. Observable for real-time UI updates. */
+}
+
+/* Parameters for InstrumentName */
+message Subscribe_InstrumentName_Parameters {
+}
+
+/* Responses of InstrumentName */
+message Subscribe_InstrumentName_Responses {
+  sila2.org.silastandard.String InstrumentName = 1;  /* The instrument name from the VER response, or empty if not connected. */
+}
+
+/* Parameters for FirmwareVersion */
+message Subscribe_FirmwareVersion_Parameters {
+}
+
+/* Responses of FirmwareVersion */
+message Subscribe_FirmwareVersion_Responses {
+  sila2.org.silastandard.String FirmwareVersion = 1;  /* The firmware version from the VER response, or empty if not connected. */
+}
+
+/* Parameters for IsPrimed */
+message Subscribe_IsPrimed_Parameters {
+}
+
+/* Responses of IsPrimed */
+message Subscribe_IsPrimed_Responses {
+  sila2.org.silastandard.Boolean IsPrimed = 1;  /* Whether the pump has been primed since the last connection. */
+}
+
+/* Parameters for DeviceStatus */
+message Subscribe_DeviceStatus_Parameters {
+}
+
+/* Responses of DeviceStatus */
+message Subscribe_DeviceStatus_Responses {
+  sila2.org.silastandard.String DeviceStatus = 1;  /* Current device status as a JSON string with all state fields (for SSE streaming to WebUI). */
+}
+
+/* Parameters for DisplayIcon */
+message Get_DisplayIcon_Parameters {
+}
+
+/* Responses of DisplayIcon */
+message Get_DisplayIcon_Responses {
+  sila2.org.silastandard.Binary DisplayIcon = 1;  /* PNG icon representing this instrument, for display in client UIs. */
+}
+
+/* Parameters for DeviceDescription */
+message Get_DeviceDescription_Parameters {
+}
+
+/* Responses of DeviceDescription */
+message Get_DeviceDescription_Responses {
+  sila2.org.silastandard.String DeviceDescription = 1;  /* Rich text description of device capabilities for LLM system prompts. */
+}

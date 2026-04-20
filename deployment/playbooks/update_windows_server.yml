@@ -1,0 +1,53 @@
+---
+# Per-server Windows update tasks (included by update.yml)
+
+- name: "{{ sila_package }}: Stop service"
+  win_shell: |
+    $name = "{{ sila_service_prefix }}-{{ sila_package }}"
+    Stop-Service -Name $name -Force -ErrorAction SilentlyContinue
+    # If service is stuck (PAUSED/STOP_PENDING), kill the process
+    $svc = Get-WmiObject Win32_Service -Filter "Name='$name'" -ErrorAction SilentlyContinue
+    if ($svc -and $svc.ProcessId -gt 0) {
+      Stop-Process -Id $svc.ProcessId -Force -ErrorAction SilentlyContinue
+    }
+    Start-Sleep -Seconds 2
+  ignore_errors: true
+
+- name: "{{ sila_package }}: Sync shared library (sila_server_common)"
+  win_copy:
+    src: "{{ sila_repo_path }}/packages/sila_server_common/"
+    dest: "{{ sila_install_dir_windows }}\\{{ sila_package }}\\sila_server_common\\"
+
+- name: "{{ sila_package }}: Reinstall shared library"
+  win_command: >
+    {{ sila_install_dir_windows }}\{{ sila_package }}\{{ sila_venv_dir }}\Scripts\pip.exe
+    install -e sila_server_common
+  args:
+    chdir: "{{ sila_install_dir_windows }}\\{{ sila_package }}"
+
+- name: "{{ sila_package }}: Sync server package"
+  win_copy:
+    src: "{{ sila_repo_path }}/servers/{{ sila_package }}/"
+    dest: "{{ sila_install_dir_windows }}\\{{ sila_package }}\\"
+
+- name: "{{ sila_package }}: Reinstall sila_server_common"
+  win_command: >
+    {{ sila_install_dir_windows }}\{{ sila_package }}\{{ sila_venv_dir }}\Scripts\pip.exe
+    install -e sila_server_common
+  args:
+    chdir: "{{ sila_install_dir_windows }}\\{{ sila_package }}"
+
+- name: "{{ sila_package }}: Reinstall package (pick up code changes)"
+  win_command: >
+    {{ sila_install_dir_windows }}\{{ sila_package }}\{{ sila_venv_dir }}\Scripts\pip.exe
+    install -e .
+  args:
+    chdir: "{{ sila_install_dir_windows }}\\{{ sila_package }}"
+
+- name: "{{ sila_package }}: Start service"
+  win_shell: |
+    $name = "{{ sila_service_prefix }}-{{ sila_package }}"
+    $svc = Get-Service -Name $name -ErrorAction SilentlyContinue
+    if ($svc.Status -ne 'Running') {
+      Start-Service -Name $name
+    }

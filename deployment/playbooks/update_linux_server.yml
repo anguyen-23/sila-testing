@@ -1,0 +1,24 @@
+---
+# Per-server Linux update tasks (included by update.yml)
+
+- name: "{{ sila_package }}: Sync server package"
+  synchronize:
+    src: "{{ sila_repo_path }}/servers/{{ sila_package }}/"
+    dest: "{{ sila_install_dir_linux }}/{{ sila_package }}/"
+    delete: true
+    rsync_opts:
+      - "--exclude=__pycache__"
+      - "--exclude=*.pyc"
+      - "--exclude=.venv"
+
+- name: "{{ sila_package }}: Reinstall package (pick up code changes)"
+  pip:
+    name: "-e ."
+    chdir: "{{ sila_install_dir_linux }}/{{ sila_package }}"
+    virtualenv: "{{ sila_install_dir_linux }}/{{ sila_package }}/{{ sila_venv_dir }}"
+
+- name: "{{ sila_package }}: Restart service"
+  systemd:
+    name: "{{ sila_service_prefix }}-{{ sila_package }}"
+    state: restarted
+  become: true

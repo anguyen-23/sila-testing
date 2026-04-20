@@ -1,0 +1,874 @@
+{
+  "name": "Phenix Imager Test Suite",
+  "description": "Comprehensive test suite for the PerkinElmer Opera Phenix RCI wrapper server",
+  "server": {
+    "default_host": "127.0.0.1",
+    "default_port": 50058,
+    "feature_id": "PhenixImager",
+    "connection": {
+      "feature": "PhenixImager",
+      "command": "Connect",
+      "sim_params": {"PhenixHost": "SIM"},
+      "real_params": {"PhenixHost": "$PHENIX_HOST"}
+    },
+    "variables": {
+      "PHENIX_HOST": "10.11.63.100"
+    }
+  },
+  "categories": [
+    {
+      "id": "comm",
+      "name": "Communication & Connection",
+      "description": "Basic connection, disconnection, and error handling",
+      "tests": [
+        {
+          "id": "comm_connect_sim",
+          "name": "Connect (Simulation)",
+          "description": "Connect to simulated Phenix imager",
+          "modes": ["simulation"],
+          "type": "scripted",
+          "steps": [
+            {"action": "command", "feature": "SimulationController", "command": "StartSimulationMode"},
+            {"action": "command", "feature": "PhenixImager", "command": "Disconnect", "allow_error": true},
+            {"action": "command", "feature": "PhenixImager", "command": "Connect", "params": {"PhenixHost": "SIM"}},
+            {"action": "check_response", "field": "DeviceName", "operator": "not_empty"}
+          ]
+        },
+        {
+          "id": "comm_connect_real",
+          "name": "Connect (Real Hardware)",
+          "description": "Connect to real Phenix imager",
+          "modes": ["real"],
+          "type": "scripted",
+          "steps": [
+            {"action": "command", "feature": "SimulationController", "command": "StopSimulationMode"},
+            {"action": "command", "feature": "PhenixImager", "command": "Disconnect", "allow_error": true},
+            {"action": "command", "feature": "PhenixImager", "command": "Connect", "params": {"PhenixHost": "$PHENIX_HOST"}},
+            {"action": "check_response", "field": "DeviceName", "operator": "not_empty"}
+          ]
+        },
+        {
+          "id": "comm_connect_invalid",
+          "name": "Connect to Invalid Host",
+          "description": "Verify CommunicationError on invalid host",
+          "modes": ["real"],
+          "type": "scripted",
+          "steps": [
+            {"action": "command", "feature": "SimulationController", "command": "StopSimulationMode"},
+            {"action": "command", "feature": "PhenixImager", "command": "Connect", "params": {"PhenixHost": "invalid.host.xyz"}, "expect_error": "CommunicationError"}
+          ]
+        },
+        {
+          "id": "comm_disconnect",
+          "name": "Disconnect",
+          "description": "Disconnect from connected device",
+          "modes": ["simulation"],
+          "type": "scripted",
+          "steps": [
+            {"action": "ensure_connected"},
+            {"action": "command", "feature": "PhenixImager", "command": "Disconnect"}
+          ]
+        },
+        {
+          "id": "comm_reconnect",
+          "name": "Reconnect",
+          "description": "Disconnect and reconnect to device",
+          "modes": ["simulation"],
+          "type": "scripted",
+          "steps": [
+            {"action": "ensure_connected"},
+            {"action": "command", "feature": "PhenixImager", "command": "Disconnect"},
+            {"action": "command", "feature": "PhenixImager", "command": "Connect", "params": {"PhenixHost": "SIM"}},
+            {"action": "check_response", "field": "DeviceName", "operator": "not_empty"}
+          ]
+        },
+        {
+          "id": "comm_command_disconnected",
+          "name": "Command When Disconnected",
+          "description": "Verify NotConnected error when running commands while disconnected",
+          "modes": ["simulation", "real"],
+          "type": "scripted",
+          "steps": [
+            {"action": "command", "feature": "PhenixImager", "command": "Disconnect", "allow_error": true},
+            {"action": "command", "feature": "PhenixImager", "command": "GoIdle", "expect_error": "NotConnected"}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sim",
+      "name": "Simulation Mode Switching",
+      "description": "Start/stop simulation mode and verify connection behavior",
+      "tests": [
+        {
+          "id": "sim_start",
+          "name": "Start Simulation Mode",
+          "description": "Start simulation mode",
+          "modes": ["simulation", "real"],
+          "type": "scripted",
+          "steps": [
+            {"action": "command", "feature": "SimulationController", "command": "StartSimulationMode"}
+          ]
+        },
+        {
+          "id": "sim_stop",
+          "name": "Stop Simulation Mode",
+          "description": "Stop simulation mode",
+          "modes": ["simulation", "real"],
+          "type": "scripted",
+          "steps": [
+            {"action": "command", "feature": "SimulationController", "command": "StopSimulationMode"}
+          ]
+        },
+        {
+          "id": "sim_switch_disconnects",
+          "name": "Mode Switch Disconnects",
+          "description": "Verify that switching simulation mode disconnects active connection",
+          "modes": ["simulation"],
+          "type": "scripted",
+          "steps": [
+            {"action": "command", "feature": "SimulationController", "command": "StartSimulationMode"},
+            {"action": "command", "feature": "PhenixImager", "command": "Connect", "params": {"PhenixHost": "SIM"}},
+            {"action": "command", "feature": "SimulationController", "command": "StopSimulationMode"},
+            {"action": "command", "feature": "PhenixImager", "command": "GoIdle", "expect_error": "NotConnected"}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "stage",
+      "name": "Stage Control",
+      "description": "Stage in/out operations and error handling",
+      "tests": [
+        {
+          "id": "stage_in",
+          "name": "Stage In",
+          "description": "Load plate onto stage",
+          "modes": ["simulation"],
+          "type": "scripted",
+          "steps": [
+            {"action": "ensure_connected"},
+            {"action": "command", "feature": "PhenixImager", "command": "StageIn", "params": {"PlateBarcode": "TEST-001"}}
+          ]
+        },
+        {
+          "id": "stage_out",
+          "name": "Stage Out",
+          "description": "Unload plate from stage",
+          "modes": ["simulation"],
+          "type": "scripted",
+          "steps": [
+            {"action": "ensure_connected"},
+            {"action": "command", "feature": "PhenixImager", "command": "StageIn", "params": {"PlateBarcode": "TEST-001"}},
+            {"action": "command", "feature": "PhenixImager", "command": "StageOut", "params": {"PlateBarcode": "TEST-001"}}
+          ]
+        },
+        {
+          "id": "stage_not_connected",
+          "name": "Stage When Disconnected",
+          "description": "Verify NotConnected error when staging while disconnected",
+          "modes": ["simulation", "real"],
+          "type": "scripted",
+          "steps": [
+            {"action": "command", "feature": "PhenixImager", "command": "Disconnect", "allow_error": true},
+            {"action": "command", "feature": "PhenixImager", "command": "StageIn", "params": {"PlateBarcode": "TEST-001"}, "expect_error": "NotConnected"}
+          ]
+        },
+        {
+          "id": "stage_cycle",
+          "name": "Stage Cycle",
+          "description": "Multiple stage in/out operations",
+          "modes": ["simulation"],
+          "type": "scripted",
+          "steps": [
+            {"action": "ensure_connected"},
+            {"action": "command", "feature": "PhenixImager", "command": "StageIn", "params": {"PlateBarcode": "TEST-001"}},
+            {"action": "command", "feature": "PhenixImager", "command": "StageOut", "params": {"PlateBarcode": "TEST-001"}},
+            {"action": "command", "feature": "PhenixImager", "command": "StageIn", "params": {"PlateBarcode": "TEST-002"}},
+            {"action": "command", "feature": "PhenixImager", "command": "StageOut", "params": {"PlateBarcode": "TEST-002"}}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "acquisition",
+      "name": "Acquisition",
+      "description": "Acquisition protocol execution and state management",
+      "tests": [
+        {
+          "id": "acq_run_protocol",
+          "name": "Run Acquisition Protocol",
+          "description": "Execute an acquisition protocol",
+          "modes": ["simulation"],
+          "type": "scripted",
+          "steps": [
+            {"action": "ensure_connected"},
+            {"action": "command", "feature": "PhenixImager", "command": "RunAcquisitionProtocol", "params": {"ProtocolName": "TestProtocol", "PlateBarcode": "TEST-001", "TimeoutMinutes": 5}},
+            {"action": "check_response", "field": "Status", "operator": "not_empty"}
+          ]
+        },
+        {
+          "id": "acq_not_connected",
+          "name": "Acquisition When Disconnected",
+          "description": "Verify NotConnected error when running acquisition while disconnected",
+          "modes": ["simulation", "real"],
+          "type": "scripted",
+          "steps": [
+            {"action": "command", "feature": "PhenixImager", "command": "Disconnect", "allow_error": true},
+            {"action": "command", "feature": "PhenixImager", "command": "RunAcquisitionProtocol", "params": {"ProtocolName": "TestProtocol", "PlateBarcode": "TEST-001", "TimeoutMinutes": 5}, "expect_error": "NotConnected"}
+          ]
+        },
+        {
+          "id": "acq_go_idle",
+          "name": "Go Idle",
+          "description": "Set device to idle state",
+          "modes": ["simulation"],
+          "type": "scripted",
+          "steps": [
+            {"action": "ensure_connected"},
+            {"action": "command", "feature": "PhenixImager", "command": "GoIdle"}
+          ]
+        },
+        {
+          "id": "acq_go_standby",
+          "name": "Go Standby",
+          "description": "Set device to standby state for specified duration",
+          "modes": ["simulation"],
+          "type": "scripted",
+          "steps": [
+            {"action": "ensure_connected"},
+            {"action": "command", "feature": "PhenixImager", "command": "GoStandby", "params": {"DurationSeconds": 60}}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "physical",
+      "name": "Physical Hardware Tests",
+      "description": "Tests requiring manual interaction with real hardware",
+      "tests": [
+        {
+          "id": "phys_stage_in_out",
+          "name": "Physical Stage In/Out",
+          "description": "Manually verify stage motion with real plate",
+          "modes": ["real"],
+          "type": "guided",
+          "steps": [
+            {"action": "ensure_connected"},
+            {"action": "prompt", "message": "Place a plate near the stage inlet"},
+            {"action": "command", "feature": "PhenixImager", "command": "StageIn", "params": {"PlateBarcode": "PHYS-TEST-001"}},
+            {"action": "confirm", "message": "Did the plate move into the instrument?"},
+            {"action": "command", "feature": "PhenixImager", "command": "StageOut", "params": {"PlateBarcode": "PHYS-TEST-001"}},
+            {"action": "confirm", "message": "Did the plate move out of the instrument?"}
+          ]
+        },
+        {
+          "id": "phys_acquisition",
+          "name": "Physical Acquisition",
+          "description": "Run a real acquisition protocol",
+          "modes": ["real"],
+          "type": "guided",
+          "steps": [
+            {"action": "ensure_connected"},
+            {"action": "command", "feature": "PhenixImager", "command": "StageIn", "params": {"PlateBarcode": "PHYS-TEST-001"}},
+            {"action": "prompt", "message": "Confirm the plate is loaded in the instrument"},
+            {"action": "command", "feature": "PhenixImager", "command": "RunAcquisitionProtocol", "params": {"ProtocolName": "TestProtocol", "PlateBarcode": "PHYS-TEST-001", "TimeoutMinutes": 10}},
+            {"action": "confirm", "message": "Did the acquisition complete successfully?"}
+          ]
+        },
+        {
+          "id": "phys_stop_acquisition",
+          "name": "Stop Running Acquisition",
+          "description": "Verify Stop command during acquisition",
+          "modes": ["real"],
+          "type": "guided",
+          "steps": [
+            {"action": "ensure_connected"},
+            {"action": "command", "feature": "PhenixImager", "command": "StageIn", "params": {"PlateBarcode": "PHYS-TEST-001"}},
+            {"action": "prompt", "message": "Ready to start acquisition. You will press Stop after it begins."},
+            {"action": "command", "feature": "PhenixImager", "command": "RunAcquisitionProtocol", "params": {"ProtocolName": "TestProtocol", "PlateBarcode": "PHYS-TEST-001", "TimeoutMinutes": 10}, "allow_error": true},
+            {"action": "command", "feature": "PhenixImager", "command": "Stop"},
+            {"action": "confirm", "message": "Did the acquisition stop?"}
+          ]
+        },
+        {
+          "id": "phys_network_disconnect",
+          "name": "Network Disconnect Recovery",
+          "description": "Verify error handling when network is disconnected",
+          "modes": ["real"],
+          "type": "guided",
+          "steps": [
+            {"action": "ensure_connected"},
+            {"action": "prompt", "message": "Disconnect the network cable from the Phenix imager"},
+            {"action": "command", "feature": "PhenixImager", "command": "GoIdle", "allow_error": true},
+            {"action": "confirm", "message": "Did an error occur?"},
+            {"action": "prompt", "message": "Reconnect the network cable"},
+            {"action": "command", "feature": "PhenixImager", "command": "Connect", "params": {"PhenixHost": "$PHENIX_HOST"}}
+          ]
+        },
+        {
+          "id": "phys_standby_wakeup",
+          "name": "Standby and Wake Up",
+          "description": "Verify standby mode and wake up",
+          "modes": ["real"],
+          "type": "guided",
+          "steps": [
+            {"action": "ensure_connected"},
+            {"action": "command", "feature": "PhenixImager", "command": "GoStandby", "params": {"DurationSeconds": 60}},
+            {"action": "prompt", "message": "Verify the instrument is in standby mode (check physical indicators)"},
+            {"action": "command", "feature": "PhenixImager", "command": "GoIdle"},
+            {"action": "confirm", "message": "Did the instrument wake up from standby?"}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "webui",
+      "name": "WebUI Integration",
+      "description": "Tests for WebUI observable property streaming and display",
+      "tests": [
+        {
+          "id": "ui_sse_badge",
+          "name": "SSE Live Indicator",
+          "description": "Verify SSE LIVE badge appears in WebUI",
+          "modes": ["simulation", "real"],
+          "type": "guided",
+          "steps": [
+            {"action": "ensure_connected"},
+            {"action": "prompt", "message": "Open the Phenix Imager WebUI in the client"},
+            {"action": "confirm", "message": "Do you see a green 'SSE LIVE' badge in the top-right corner?"}
+          ]
+        },
+        {
+          "id": "ui_acquisition_progress",
+          "name": "Acquisition Progress Display",
+          "description": "Verify acquisition progress updates in WebUI",
+          "modes": ["simulation"],
+          "type": "guided",
+          "steps": [
+            {"action": "ensure_connected"},
+            {"action": "prompt", "message": "Open the Phenix Imager WebUI and watch for progress updates"},
+            {"action": "command", "feature": "PhenixImager", "command": "RunAcquisitionProtocol", "params": {"ProtocolName": "TestProtocol", "PlateBarcode": "TEST-001", "TimeoutMinutes": 5}},
+            {"action": "confirm", "message": "Did you see progress updates in the WebUI during acquisition?"}
+          ]
+        },
+        {
+          "id": "ui_sim_real_badge",
+          "name": "Simulation Mode Badge",
+          "description": "Verify simulation mode badge in WebUI",
+          "modes": ["simulation", "real"],
+          "type": "guided",
+          "steps": [
+            {"action": "command", "feature": "SimulationController", "command": "StartSimulationMode"},
+            {"action": "prompt", "message": "Open the Phenix Imager WebUI"},
+            {"action": "confirm", "message": "Do you see a 'SIMULATION' badge?"},
+            {"action": "command", "feature": "SimulationController", "command": "StopSimulationMode"},
+            {"action": "confirm", "message": "Did the simulation badge disappear or change to 'REAL'?"}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "lock",
+      "name": "LockController",
+      "description": "Device locking and lock identifier enforcement",
+      "tests": [
+        {
+          "id": "lock_request",
+          "name": "Request Lock",
+          "description": "Lock the device",
+          "modes": ["simulation", "real"],
+          "type": "scripted",
+          "steps": [
+            {"action": "command", "feature": "LockController", "command": "RequestLock"},
+            {"action": "check_response", "field": "LockIdentifier", "operator": "not_empty"}
+          ]
+        },
+        {
+          "id": "lock_release",
+          "name": "Release Lock",
+          "description": "Release a previously acquired lock",
+          "modes": ["simulation", "real"],
+          "type": "scripted",
+          "steps": [
+            {"action": "command", "feature": "LockController", "command": "RequestLock"},
+            {"action": "command", "feature": "LockController", "command": "ReleaseLock", "params": {"LockIdentifier": "$RESPONSE.LockIdentifier"}}
+          ]
+        },
+        {
+          "id": "lock_enforcement",
+          "name": "Lock Enforcement",
+          "description": "Verify commands require lock identifier when locked",
+          "modes": ["simulation", "real"],
+          "type": "scripted",
+          "steps": [
+            {"action": "command", "feature": "LockController", "command": "RequestLock"},
+            {"action": "ensure_connected"},
+            {"action": "command", "feature": "PhenixImager", "command": "GoIdle", "params": {"LockIdentifier": "$RESPONSE.LockIdentifier"}}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "logging",
+      "name": "Structured Logging",
+      "description": "ServerLogProvider query and filtering",
+      "tests": [
+        {
+          "id": "log_query_all",
+          "name": "Query All Logs",
+          "description": "Retrieve all log entries",
+          "modes": ["simulation", "real"],
+          "type": "scripted",
+          "steps": [
+            {"action": "command", "feature": "ServerLogProvider", "command": "QueryLogs", "params": {"MaxRecords": 100}},
+            {"action": "check_response", "field": "LogsJson", "operator": "not_empty"}
+          ]
+        },
+        {
+          "id": "log_query_level",
+          "name": "Query by Level",
+          "description": "Filter logs by severity level",
+          "modes": ["simulation", "real"],
+          "type": "scripted",
+          "steps": [
+            {"action": "command", "feature": "ServerLogProvider", "command": "QueryLogs", "params": {"MinLevel": "INFO", "MaxRecords": 50}},
+            {"action": "check_response", "field": "LogsJson", "operator": "not_empty"}
+          ]
+        },
+        {
+          "id": "log_query_time",
+          "name": "Query by Time Range",
+          "description": "Filter logs by timestamp",
+          "modes": ["simulation", "real"],
+          "type": "scripted",
+          "steps": [
+            {"action": "command", "feature": "ServerLogProvider", "command": "QueryLogs", "params": {"StartTime": "2024-01-01T00:00:00Z", "MaxRecords": 100}},
+            {"action": "check_response", "field": "LogsJson", "operator": "not_empty"}
+          ]
+        },
+        {
+          "id": "log_query_feature",
+          "name": "Query by Feature",
+          "description": "Filter logs by feature ID",
+          "modes": ["simulation", "real"],
+          "type": "scripted",
+          "steps": [
+            {"action": "command", "feature": "ServerLogProvider", "command": "QueryLogs", "params": {"FeatureId": "PhenixImager", "MaxRecords": 50}},
+            {"action": "check_response", "field": "LogsJson", "operator": "not_empty"}
+          ]
+        },
+        {
+          "id": "log_clear",
+          "name": "Clear Logs",
+          "description": "Delete all log entries",
+          "modes": ["simulation", "real"],
+          "type": "scripted",
+          "steps": [
+            {"action": "command", "feature": "ServerLogProvider", "command": "ClearLogs"}
+          ]
+        },
+        {
+          "id": "log_export",
+          "name": "Export Logs",
+          "description": "Export logs as CSV",
+          "modes": ["simulation", "real"],
+          "type": "scripted",
+          "steps": [
+            {"action": "command", "feature": "ServerLogProvider", "command": "ExportLogs"},
+            {"action": "check_response", "field": "CsvData", "operator": "not_empty"}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "script_exec",
+      "name": "Script Runner — Execution",
+      "description": "Basic script execution, output handling, and lifecycle",
+      "tests": [
+        {
+          "id": "exec_simple",
+          "name": "Execute Simple Script",
+          "description": "Run a minimal print script",
+          "modes": ["simulation", "real"],
+          "type": "scripted",
+          "steps": [
+            {"action": "command", "feature": "ScriptRunner", "command": "ExecuteScript", "params": {"ScriptCode": "print('hello')"}},
+            {"action": "check_response", "field": "Output", "operator": "contains", "value": "hello"},
+            {"action": "check_response", "field": "ExitCode", "operator": "equals", "value": 0}
+          ]
+        },
+        {
+          "id": "exec_multiline",
+          "name": "Execute Multi-line Script",
+          "description": "Run a script with multiple statements",
+          "modes": ["simulation", "real"],
+          "type": "scripted",
+          "steps": [
+            {"action": "command", "feature": "ScriptRunner", "command": "ExecuteScript", "params": {"ScriptCode": "for i in range(3):\n    print(f'Line {i}')\nprint('Done')"}},
+            {"action": "check_response", "field": "Output", "operator": "contains", "value": "Line 0"},
+            {"action": "check_response", "field": "Output", "operator": "contains", "value": "Line 1"},
+            {"action": "check_response", "field": "Output", "operator": "contains", "value": "Line 2"},
+            {"action": "check_response", "field": "Output", "operator": "contains", "value": "Done"},
+            {"action": "check_response", "field": "ExitCode", "operator": "equals", "value": 0}
+          ]
+        },
+        {
+          "id": "exec_syntax_error",
+          "name": "Syntax Error Handling",
+          "description": "Verify script with syntax error fails gracefully",
+          "modes": ["simulation", "real"],
+          "type": "scripted",
+          "steps": [
+            {"action": "command", "feature": "ScriptRunner", "command": "ExecuteScript", "params": {"ScriptCode": "print('missing closing quote)"}},
+            {"action": "check_response", "field": "ExitCode", "operator": "not_equals", "value": 0},
+            {"action": "check_response", "field": "Output", "operator": "not_empty"}
+          ]
+        },
+        {
+          "id": "exec_runtime_error",
+          "name": "Runtime Error Handling",
+          "description": "Verify script with runtime error fails gracefully",
+          "modes": ["simulation", "real"],
+          "type": "scripted",
+          "steps": [
+            {"action": "command", "feature": "ScriptRunner", "command": "ExecuteScript", "params": {"ScriptCode": "x = 1 / 0"}},
+            {"action": "check_response", "field": "ExitCode", "operator": "not_equals", "value": 0},
+            {"action": "check_response", "field": "Output", "operator": "contains", "value": "ZeroDivisionError"}
+          ]
+        },
+        {
+          "id": "exec_empty",
+          "name": "Execute Empty Script",
+          "description": "Run an empty script (should succeed)",
+          "modes": ["simulation", "real"],
+          "type": "scripted",
+          "steps": [
+            {"action": "command", "feature": "ScriptRunner", "command": "ExecuteScript", "params": {"ScriptCode": ""}},
+            {"action": "check_response", "field": "ExitCode", "operator": "equals", "value": 0}
+          ]
+        },
+        {
+          "id": "exec_output_order",
+          "name": "Output Order Preservation",
+          "description": "Verify stdout/stderr are captured in order",
+          "modes": ["simulation", "real"],
+          "type": "scripted",
+          "steps": [
+            {"action": "command", "feature": "ScriptRunner", "command": "ExecuteScript", "params": {"ScriptCode": "import sys\nprint('stdout1')\nprint('stderr1', file=sys.stderr)\nprint('stdout2')\nprint('stderr2', file=sys.stderr)"}},
+            {"action": "check_response", "field": "Output", "operator": "contains", "value": "stdout1"},
+            {"action": "check_response", "field": "Output", "operator": "contains", "value": "stderr1"},
+            {"action": "check_response", "field": "Output", "operator": "contains", "value": "stdout2"},
+            {"action": "check_response", "field": "Output", "operator": "contains", "value": "stderr2"},
+            {"action": "check_response", "field": "ExitCode", "operator": "equals", "value": 0}
+          ]
+        },
+        {
+          "id": "exec_long_output",
+          "name": "Long Output Handling",
+          "description": "Verify scripts with large output are captured correctly",
+          "modes": ["simulation", "real"],
+          "type": "scripted",
+          "steps": [
+            {"action": "command", "feature": "ScriptRunner", "command": "ExecuteScript", "params": {"ScriptCode": "for i in range(100):\n    print(f'Line {i:03d}')"}},
+            {"action": "check_response", "field": "Output", "operator": "contains", "value": "Line 000"},
+            {"action": "check_response", "field": "Output", "operator": "contains", "value": "Line 099"},
+            {"action": "check_response", "field": "ExitCode", "operator": "equals", "value": 0}
+          ]
+        },
+        {
+          "id": "exec_unicode",
+          "name": "Unicode Output",
+          "description": "Verify Unicode characters are handled correctly",
+          "modes": ["simulation", "real"],
+          "type": "scripted",
+          "steps": [
+            {"action": "command", "feature": "ScriptRunner", "command": "ExecuteScript", "params": {"ScriptCode": "print('Hello 世界 🌍')"}},
+            {"action": "check_response", "field": "Output", "operator": "contains", "value": "Hello 世界 🌍"},
+            {"action": "check_response", "field": "ExitCode", "operator": "equals", "value": 0}
+          ]
+        },
+        {
+          "id": "exec_import",
+          "name": "Import Standard Library",
+          "description": "Verify standard library imports work",
+          "modes": ["simulation", "real"],
+          "type": "scripted",
+          "steps": [
+            {"action": "command", "feature": "ScriptRunner", "command": "ExecuteScript", "params": {"ScriptCode": "import math\nprint(math.pi)"}},
+            {"action": "check_response", "field": "Output", "operator": "contains", "value": "3.14"},
+            {"action": "check_response", "field": "ExitCode", "operator": "equals", "value": 0}
+          ]
+        },
+        {
+          "id": "exec_return_value",
+          "name": "Explicit sys.exit",
+          "description": "Verify sys.exit() return codes",
+          "modes": ["simulation", "real"],
+          "type": "scripted",
+          "steps": [
+            {"action": "command", "feature": "ScriptRunner", "command": "ExecuteScript", "params": {"ScriptCode": "import sys\nprint('Exiting with code 42')\nsys.exit(42)"}},
+            {"action": "check_response", "field": "ExitCode", "operator": "equals", "value": 42},
+            {"action": "check_response", "field": "Output", "operator": "contains", "value": "Exiting with code 42"}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "script_device",
+      "name": "Script Runner — Device Helper",
+      "description": "DeviceHelper API for introspection and command execution",
+      "tests": [
+        {
+          "id": "dev_features",
+          "name": "List Features",
+          "description": "device.features() returns feature list",
+          "modes": ["simulation", "real"],
+          "type": "scripted",
+          "steps": [
+            {"action": "command", "feature": "ScriptRunner", "command": "ExecuteScript", "params": {"ScriptCode": "features = device.features()\nprint(features)\nassert 'PhenixImager' in features\nassert 'ScriptRunner' in features"}},
+            {"action": "check_response", "field": "ExitCode", "operator": "equals", "value": 0}
+          ]
+        },
+        {
+          "id": "dev_commands",
+          "name": "List Commands",
+          "description": "device.commands(feature) returns command list",
+          "modes": ["simulation", "real"],
+          "type": "scripted",
+          "steps": [
+            {"action": "command", "feature": "ScriptRunner", "command": "ExecuteScript", "params": {"ScriptCode": "commands = device.commands('PhenixImager')\nprint(commands)\nassert 'Connect' in commands\nassert 'Disconnect' in commands"}},
+            {"action": "check_response", "field": "ExitCode", "operator": "equals", "value": 0}
+          ]
+        },
+        {
+          "id": "dev_properties",
+          "name": "List Properties",
+          "description": "device.properties(feature) returns property list",
+          "modes": ["simulation", "real"],
+          "type": "scripted",
+          "steps": [
+            {"action": "command", "feature": "ScriptRunner", "command": "ExecuteScript", "params": {"ScriptCode": "properties = device.properties('PhenixImager')\nprint(properties)\nassert 'DeviceStatus' in properties\nassert 'IsConnected' in properties"}},
+            {"action": "check_response", "field": "ExitCode", "operator": "equals", "value": 0}
+          ]
+        },
+        {
+          "id": "dev_read_property",
+          "name": "Read Property",
+          "description": "device.property(feature, property) reads value",
+          "modes": ["simulation", "real"],
+          "type": "scripted",
+          "steps": [
+            {"action": "command", "feature": "ScriptRunner", "command": "ExecuteScript", "params": {"ScriptCode": "desc = device.property('PhenixImager', 'DeviceDescription')\nprint(f'Description: {desc}')\nassert isinstance(desc, str)\nassert len(desc) > 0"}},
+            {"action": "check_response", "field": "ExitCode", "operator": "equals", "value": 0}
+          ]
+        },
+        {
+          "id": "dev_command_sim",
+          "name": "Execute Command (Simulation)",
+          "description": "device.command() executes commands in simulation",
+          "modes": ["simulation"],
+          "type": "scripted",
+          "steps": [
+            {"action": "command", "feature": "SimulationController", "command": "StartSimulationMode"},
+            {"action": "command", "feature": "PhenixImager", "command": "Disconnect", "allow_error": true},
+            {"action": "command", "feature": "ScriptRunner", "command": "ExecuteScript", "params": {"ScriptCode": "result = device.command('PhenixImager', 'Connect', PhenixHost='SIM')\nprint(f'DeviceName: {result.DeviceName}')\nassert result.DeviceName"}},
+            {"action": "check_response", "field": "ExitCode", "operator": "equals", "value": 0}
+          ]
+        },
+        {
+          "id": "dev_command_params",
+          "name": "Command with Parameters",
+          "description": "device.command() passes parameters correctly",
+          "modes": ["simulation"],
+          "type": "scripted",
+          "steps": [
+            {"action": "ensure_connected"},
+            {"action": "command", "feature": "ScriptRunner", "command": "ExecuteScript", "params": {"ScriptCode": "device.command('PhenixImager', 'StageIn', PlateBarcode='SCRIPT-001')\nprint('StageIn succeeded')"}},
+            {"action": "check_response", "field": "Output", "operator": "contains", "value": "StageIn succeeded"},
+            {"action": "check_response", "field": "ExitCode", "operator": "equals", "value": 0}
+          ]
+        },
+        {
+          "id": "dev_command_error",
+          "name": "Command Error Handling",
+          "description": "device.command() raises exception on command error",
+          "modes": ["simulation", "real"],
+          "type": "scripted",
+          "steps": [
+            {"action": "command", "feature": "PhenixImager", "command": "Disconnect", "allow_error": true},
+            {"action": "command", "feature": "ScriptRunner", "command": "ExecuteScript", "params": {"ScriptCode": "try:\n    device.command('PhenixImager', 'GoIdle')\n    print('ERROR: Should have raised exception')\n    exit(1)\nexcept Exception as e:\n    print(f'Caught expected error: {e}')\n    exit(0)"}},
+            {"action": "check_response", "field": "ExitCode", "operator": "equals", "value": 0}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "script_persist",
+      "name": "Script Runner — Persistence",
+      "description": "SaveScript, LoadScript, ListScripts, DeleteScript",
+      "tests": [
+        {
+          "id": "persist_save",
+          "name": "Save Script",
+          "description": "SaveScript stores a script with metadata",
+          "modes": ["simulation", "real"],
+          "type": "scripted",
+          "steps": [
+            {"action": "command", "feature": "ScriptRunner", "command": "SaveScript", "params": {"ScriptName": "test_save", "ScriptCode": "print('saved script')", "Description": "Test save"}}
+          ]
+        },
+        {
+          "id": "persist_load",
+          "name": "Load Script",
+          "description": "LoadScript retrieves saved script",
+          "modes": ["simulation", "real"],
+          "type": "scripted",
+          "steps": [
+            {"action": "command", "feature": "ScriptRunner", "command": "SaveScript", "params": {"ScriptName": "test_load", "ScriptCode": "print('loaded')", "Description": "Test load"}},
+            {"action": "command", "feature": "ScriptRunner", "command": "LoadScript", "params": {"ScriptName": "test_load"}},
+            {"action": "check_response", "field": "ScriptCode", "operator": "contains", "value": "loaded"}
+          ]
+        },
+        {
+          "id": "persist_list",
+          "name": "List Scripts",
+          "description": "ListScripts returns all saved scripts",
+          "modes": ["simulation", "real"],
+          "type": "scripted",
+          "steps": [
+            {"action": "command", "feature": "ScriptRunner", "command": "SaveScript", "params": {"ScriptName": "test_list_1", "ScriptCode": "print('1')", "Description": "First"}},
+            {"action": "command", "feature": "ScriptRunner", "command": "SaveScript", "params": {"ScriptName": "test_list_2", "ScriptCode": "print('2')", "Description": "Second"}},
+            {"action": "command", "feature": "ScriptRunner", "command": "ListScripts"},
+            {"action": "check_response", "field": "ScriptsJson", "operator": "contains", "value": "test_list_1"},
+            {"action": "check_response", "field": "ScriptsJson", "operator": "contains", "value": "test_list_2"}
+          ]
+        },
+        {
+          "id": "persist_delete",
+          "name": "Delete Script",
+          "description": "DeleteScript removes a saved script",
+          "modes": ["simulation", "real"],
+          "type": "scripted",
+          "steps": [
+            {"action": "command", "feature": "ScriptRunner", "command": "SaveScript", "params": {"ScriptName": "test_delete", "ScriptCode": "print('delete me')", "Description": "To be deleted"}},
+            {"action": "command", "feature": "ScriptRunner", "command": "DeleteScript", "params": {"ScriptName": "test_delete"}},
+            {"action": "command", "feature": "ScriptRunner", "command": "LoadScript", "params": {"ScriptName": "test_delete"}, "expect_error": "ScriptNotFound"}
+          ]
+        },
+        {
+          "id": "persist_overwrite",
+          "name": "Overwrite Script",
+          "description": "SaveScript overwrites existing script",
+          "modes": ["simulation", "real"],
+          "type": "scripted",
+          "steps": [
+            {"action": "command", "feature": "ScriptRunner", "command": "SaveScript", "params": {"ScriptName": "test_overwrite", "ScriptCode": "print('v1')", "Description": "Version 1"}},
+            {"action": "command", "feature": "ScriptRunner", "command": "SaveScript", "params": {"ScriptName": "test_overwrite", "ScriptCode": "print('v2')", "Description": "Version 2"}},
+            {"action": "command", "feature": "ScriptRunner", "command": "LoadScript", "params": {"ScriptName": "test_overwrite"}},
+            {"action": "check_response", "field": "ScriptCode", "operator": "contains", "value": "v2"},
+            {"action": "check_response", "field": "Description", "operator": "contains", "value": "Version 2"}
+          ]
+        },
+        {
+          "id": "persist_execute_saved",
+          "name": "Execute Saved Script",
+          "description": "ExecuteSavedScript runs a stored script",
+          "modes": ["simulation", "real"],
+          "type": "scripted",
+          "steps": [
+            {"action": "command", "feature": "ScriptRunner", "command": "SaveScript", "params": {"ScriptName": "test_exec_saved", "ScriptCode": "print('executed from storage')", "Description": "Test"}},
+            {"action": "command", "feature": "ScriptRunner", "command": "ExecuteSavedScript", "params": {"ScriptName": "test_exec_saved"}},
+            {"action": "check_response", "field": "Output", "operator": "contains", "value": "executed from storage"},
+            {"action": "check_response", "field": "ExitCode", "operator": "equals", "value": 0}
+          ]
+        },
+        {
+          "id": "persist_load_notfound",
+          "name": "Load Non-existent Script",
+          "description": "LoadScript fails gracefully for missing script",
+          "modes": ["simulation", "real"],
+          "type": "scripted",
+          "steps": [
+            {"action": "command", "feature": "ScriptRunner", "command": "LoadScript", "params": {"ScriptName": "does_not_exist_12345"}, "expect_error": "ScriptNotFound"}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "script_errors",
+      "name": "Script Runner — Error Handling",
+      "description": "Edge cases, invalid inputs, and error propagation",
+      "tests": [
+        {
+          "id": "err_invalid_feature",
+          "name": "Invalid Feature Name",
+          "description": "device.command() with non-existent feature",
+          "modes": ["simulation", "real"],
+          "type": "scripted",
+          "steps": [
+            {"action": "command", "feature": "ScriptRunner", "command": "ExecuteScript", "params": {"ScriptCode": "try:\n    device.command('NonExistentFeature', 'SomeCommand')\n    exit(1)\nexcept Exception as e:\n    print(f'Caught: {e}')\n    exit(0)"}},
+            {"action": "check_response", "field": "ExitCode", "operator": "equals", "value": 0}
+          ]
+        },
+        {
+          "id": "err_invalid_command",
+          "name": "Invalid Command Name",
+          "description": "device.command() with non-existent command",
+          "modes": ["simulation", "real"],
+          "type": "scripted",
+          "steps": [
+            {"action": "command", "feature": "ScriptRunner", "command": "ExecuteScript", "params": {"ScriptCode": "try:\n    device.command('PhenixImager', 'NonExistentCommand')\n    exit(1)\nexcept Exception as e:\n    print(f'Caught: {e}')\n    exit(0)"}},
+            {"action": "check_response", "field": "ExitCode", "operator": "equals", "value": 0}
+          ]
+        },
+        {
+          "id": "err_invalid_property",
+          "name": "Invalid Property Name",
+          "description": "device.property() with non-existent property",
+          "modes": ["simulation", "real"],
+          "type": "scripted",
+          "steps": [
+            {"action": "command", "feature": "ScriptRunner", "command": "ExecuteScript", "params": {"ScriptCode": "try:\n    device.property('PhenixImager', 'NonExistentProperty')\n    exit(1)\nexcept Exception as e:\n    print(f'Caught: {e}')\n    exit(0)"}},
+            {"action": "check_response", "field": "ExitCode", "operator": "equals", "value": 0}
+          ]
+        },
+        {
+          "id": "err_missing_param",
+          "name": "Missing Required Parameter",
+          "description": "device.command() without required parameter",
+          "modes": ["simulation", "real"],
+          "type": "scripted",
+          "steps": [
+            {"action": "command", "feature": "ScriptRunner", "command": "ExecuteScript", "params": {"ScriptCode": "try:\n    device.command('PhenixImager', 'Connect')\n    exit(1)\nexcept Exception as e:\n    print(f'Caught: {e}')\n    exit(0)"}},
+            {"action": "check_response", "field": "ExitCode", "operator": "equals", "value": 0}
+          ]
+        },
+        {
+          "id": "err_wrong_param_type",
+          "name": "Wrong Parameter Type",
+          "description": "device.command() with wrong parameter type",
+          "modes": ["simulation", "real"],
+          "type": "scripted",
+          "steps": [
+            {"action": "ensure_connected"},
+            {"action": "command", "feature": "ScriptRunner", "command": "ExecuteScript", "params": {"ScriptCode": "try:\n    device.command('PhenixImager', 'GoStandby', DurationSeconds='not_an_integer')\n    exit(1)\nexcept Exception as e:\n    print(f'Caught: {e}')\n    exit(0)"}},
+            {"action": "check_response", "field": "ExitCode", "operator": "equals", "value": 0}
+          ]
+        },
+        {
+          "id": "err_timeout",
+          "name": "Script Timeout",
+          "description": "Long-running script handling",
+          "modes": ["simulation", "real"],
+          "type": "scripted",
+          "steps": [
+            {"action": "command", "feature": "ScriptRunner", "command": "ExecuteScript", "params": {"ScriptCode": "import time\nfor i in range(5):\n    print(f'Iteration {i}')\n    time.sleep(0.5)\nprint('Complete')"}},
+            {"action": "check_response", "field": "Output", "operator": "contains", "value": "Complete"},
+            {"action": "check_response", "field": "ExitCode", "operator": "equals", "value": 0}
+          ]
+        }
+      ]
+    }
+  ]
+}

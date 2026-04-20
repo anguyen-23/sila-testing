@@ -1,0 +1,15 @@
+[Unit]
+Description=SiLA 2 {{ sila_package }} server (port {{ sila_port }})
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory={{ sila_install_dir_linux }}/{{ sila_package }}
+ExecStart={{ sila_install_dir_linux }}/{{ sila_package }}/{{ sila_venv_dir }}/bin/python -m {{ sila_package }} {{ sila_default_args }} -a 0.0.0.0 --port {{ sila_port }} --verbose {{ sila_extra_args }}
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

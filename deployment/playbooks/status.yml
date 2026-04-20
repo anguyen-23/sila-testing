@@ -1,0 +1,66 @@
+---
+# Fleet status: check what's installed and running across all targets.
+#
+# Usage:
+#   ansible-playbook playbooks/status.yml
+#   ansible-playbook playbooks/status.yml -l venus_api
+#   ansible-playbook playbooks/status.yml -l f311-w11-2494
+
+- name: SiLA 2 Fleet Status
+  hosts: all
+  gather_facts: true
+
+  vars:
+    sila_service_prefix: "sila"
+
+  tasks:
+    - name: Filter servers to check
+      set_fact:
+        _sila_servers_to_check: "{{ sila_servers | selectattr('package', 'equalto', ansible_limit) | list if (ansible_limit is defined and ansible_limit in sila_servers | map(attribute='package') | list) else sila_servers }}"
+
+    # ── Windows status ───────────────────────────────────
+    - name: "Windows: Check server status"
+      include_tasks: status_windows_server.yml
+      loop: "{{ _sila_servers_to_check }}"
+      loop_control:
+        loop_var: server
+      vars:
+        sila_package: "{{ server.package }}"
+        sila_port: "{{ server.port }}"
+      when: ansible_os_family == "Windows"
+
+    # ── Linux status ─────────────────────────────────────
+    - name: "Linux: Check server status"
+      include_tasks: status_linux_server.yml
+      loop: "{{ _sila_servers_to_check }}"
+      loop_control:
+        loop_var: server
+      vars:
+        sila_package: "{{ server.package }}"
+        sila_port: "{{ server.port }}"
+      when: ansible_os_family != "Windows"
+
+    # ── Tailscale IP (once per host) ─────────────────────
+    - name: "Windows: Get Tailscale IP"
+      win_command: tailscale ip -4
+      register: win_ts_ip
+      failed_when: false
+      changed_when: false
+      when: ansible_os_family == "Windows"
+
+    - name: "Linux: Get Tailscale IP"
+      command: tailscale ip -4
+      register: linux_ts_ip
+      failed_when: false
+      changed_when: false
+      when: ansible_os_family != "Windows"
+
+    - name: "Tailscale IP"
+      debug:
+        msg: "Host={{ inventory_hostname }} TailscaleIP={{ (win_ts_ip.stdout | default(linux_ts_ip.stdout | default('not installed'))) | trim }}"
+
+  post_tasks:
+    - name: Fleet summary
+      debug:
+        msg: "Total hosts in play: {{ ansible_play_hosts | length }}"
+      run_once: true

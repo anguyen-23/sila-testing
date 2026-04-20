@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Test Runner{% endblock %}
+{% block content %}
+<h2 class="mb-3">Test Suites</h2>
+
+{% if suites %}
+<div class="row">
+    {% for suite in suites %}
+    <div class="col-md-6 col-lg-4">
+        <div class="card server-card">
+            <div class="card-body">
+                <h5 class="card-title">{{ suite.title }}</h5>
+                <p class="card-text text-muted small">{{ suite.description }}</p>
+                <a href="/tests/{{ suite.name }}" class="btn btn-primary btn-sm">Open Test Runner</a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="alert alert-info">
+    No test suites found. Add JSON test suite files to <code>client_web_ui/test_suites/</code>.
+</div>
+{% endif %}
+{% endblock %}

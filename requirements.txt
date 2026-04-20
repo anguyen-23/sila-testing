@@ -1,0 +1,13 @@
+sila2[full]
+flask
+pyserial
+requests
+signalrcore
+aiohttp
+google-genai
+python-dotenv
+pywin32
+opencv-python
+numpy
+Pillow
+pyyaml

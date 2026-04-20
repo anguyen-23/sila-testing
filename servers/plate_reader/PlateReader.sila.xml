@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Feature xmlns="http://www.sila-standard.org"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         SiLA2Version="1.1"
+         FeatureVersion="1.0"
+         Originator="calico.automation"
+         Category="extended"
+         MaturityLevel="Draft">
+
+    <Identifier>PlateReader</Identifier>
+    <DisplayName>Plate Reader</DisplayName>
+    <Description>
+        Simulates a microplate reader that measures absorbance/fluorescence
+        across a multi-well plate. Demonstrates complex data types (lists of
+        structures), observable commands with well-by-well intermediate
+        responses, and binary data transfer (results as CSV).
+        This is a learning feature, not intended for production use.
+    </Description>
+
+    <!-- Observable Command: run a plate measurement -->
+    <Command>
+        <Identifier>RunMeasurement</Identifier>
+        <DisplayName>Run Measurement</DisplayName>
+        <Description>
+            Reads all wells on the plate at the specified wavelength.
+            Reports well-by-well intermediate results as it scans across the plate.
+        </Description>
+        <Observable>Yes</Observable>
+        <Parameter>
+            <Identifier>Wavelength</Identifier>
+            <DisplayName>Wavelength</DisplayName>
+            <Description>Measurement wavelength in nanometers (nm).</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>Integer</Basic></DataType>
+                    <Constraints>
+                        <MinimalInclusive>200</MinimalInclusive>
+                        <MaximalInclusive>1000</MaximalInclusive>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>PlateFormat</Identifier>
+            <DisplayName>Plate Format</DisplayName>
+            <Description>Number of wells on the plate (e.g. 96, 384).</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>Integer</Basic></DataType>
+                    <Constraints>
+                        <Set>
+                            <Value>24</Value>
+                            <Value>96</Value>
+                            <Value>384</Value>
+                        </Set>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <Response>
+            <Identifier>ResultsCsv</Identifier>
+            <DisplayName>Results CSV</DisplayName>
+            <Description>
+                Complete measurement results as a CSV-formatted string.
+                Columns: WellId, Row, Column, Absorbance.
+            </Description>
+            <DataType><Basic>String</Basic></DataType>
+        </Response>
+        <IntermediateResponse>
+            <Identifier>WellResult</Identifier>
+            <DisplayName>Well Result</DisplayName>
+            <Description>Result for a single well as "WellId,Absorbance" (e.g. "A1,0.342").</Description>
+            <DataType><Basic>String</Basic></DataType>
+        </IntermediateResponse>
+        <DefinedExecutionErrors>
+            <Identifier>PlateNotInserted</Identifier>
+            <Identifier>InvalidWavelength</Identifier>
+        </DefinedExecutionErrors>
+    </Command>
+
+    <!-- Unobservable Command: get the reader status -->
+    <Command>
+        <Identifier>GetReaderStatus</Identifier>
+        <DisplayName>Get Reader Status</DisplayName>
+        <Description>Returns a human-readable status of the plate reader.</Description>
+        <Observable>No</Observable>
+        <Response>
+            <Identifier>StatusMessage</Identifier>
+            <DisplayName>Status Message</DisplayName>
+            <Description>Current reader status.</Description>
+            <DataType><Basic>String</Basic></DataType>
+        </Response>
+    </Command>
+
+    <!-- Unobservable Command: insert/eject plate (simulated) -->
+    <Command>
+        <Identifier>InsertPlate</Identifier>
+        <DisplayName>Insert Plate</DisplayName>
+        <Description>Simulates inserting a plate into the reader.</Description>
+        <Observable>No</Observable>
+    </Command>
+
+    <Command>
+        <Identifier>EjectPlate</Identifier>
+        <DisplayName>Eject Plate</DisplayName>
+        <Description>Simulates ejecting the plate from the reader.</Description>
+        <Observable>No</Observable>
+        <DefinedExecutionErrors>
+            <Identifier>PlateNotInserted</Identifier>
+        </DefinedExecutionErrors>
+    </Command>
+
+    <!-- Properties -->
+    <Property>
+        <Identifier>IsPlateInserted</Identifier>
+        <DisplayName>Is Plate Inserted</DisplayName>
+        <Description>Whether a plate is currently loaded in the reader.</Description>
+        <Observable>No</Observable>
+        <DataType><Basic>Boolean</Basic></DataType>
+    </Property>
+
+    <Property>
+        <Identifier>SupportedWavelengths</Identifier>
+        <DisplayName>Supported Wavelengths</DisplayName>
+        <Description>List of wavelengths (nm) this reader supports.</Description>
+        <Observable>No</Observable>
+        <DataType>
+            <List>
+                <DataType><Basic>Integer</Basic></DataType>
+            </List>
+        </DataType>
+    </Property>
+
+    <Property>
+        <Identifier>LastMeasurementTimestamp</Identifier>
+        <DisplayName>Last Measurement Timestamp</DisplayName>
+        <Description>Timestamp of the last completed measurement, or empty string if none.</Description>
+        <Observable>No</Observable>
+        <DataType><Basic>String</Basic></DataType>
+    </Property>
+
+    <!-- Defined Execution Errors -->
+    <DefinedExecutionError>
+        <Identifier>PlateNotInserted</Identifier>
+        <DisplayName>Plate Not Inserted</DisplayName>
+        <Description>No plate is loaded in the reader. Insert a plate before measuring.</Description>
+    </DefinedExecutionError>
+
+    <DefinedExecutionError>
+        <Identifier>InvalidWavelength</Identifier>
+        <DisplayName>Invalid Wavelength</DisplayName>
+        <Description>The requested wavelength is not supported by this reader.</Description>
+    </DefinedExecutionError>
+
+</Feature>

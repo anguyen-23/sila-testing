@@ -1,0 +1,526 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Feature xmlns="http://www.sila-standard.org"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         SiLA2Version="1.1"
+         FeatureVersion="1.0"
+         Originator="org.silalearning"
+         Category="examples"
+         MaturityLevel="Draft">
+
+    <Identifier>MultidropCombi</Identifier>
+    <DisplayName>Multidrop Combi</DisplayName>
+    <Description>
+        Controls a Thermo Scientific Multidrop Combi reagent dispenser via its
+        RS232 serial remote control protocol. Supports connecting, dispensing,
+        priming, emptying, shaking, and configuring plate/cassette settings.
+        This is a learning feature wrapping the instrument's serial command set.
+    </Description>
+
+    <!-- ============================================================ -->
+    <!-- UNOBSERVABLE COMMANDS                                         -->
+    <!-- ============================================================ -->
+
+    <Command>
+        <Identifier>Connect</Identifier>
+        <DisplayName>Connect</DisplayName>
+        <Description>
+            Opens a serial connection to the Multidrop Combi and sends the VER
+            command to enter remote control mode. Returns instrument identification.
+        </Description>
+        <Observable>No</Observable>
+        <Parameter>
+            <Identifier>SerialPort</Identifier>
+            <DisplayName>Serial Port</DisplayName>
+            <Description>Serial port name (e.g. "COM3" on Windows, "/dev/ttyUSB0" on Linux).</Description>
+            <DataType><Basic>String</Basic></DataType>
+        </Parameter>
+        <Response>
+            <Identifier>InstrumentName</Identifier>
+            <DisplayName>Instrument Name</DisplayName>
+            <Description>The instrument name returned by VER.</Description>
+            <DataType><Basic>String</Basic></DataType>
+        </Response>
+        <Response>
+            <Identifier>FirmwareVersion</Identifier>
+            <DisplayName>Firmware Version</DisplayName>
+            <Description>The firmware version returned by VER.</Description>
+            <DataType><Basic>String</Basic></DataType>
+        </Response>
+        <Response>
+            <Identifier>SerialNumber</Identifier>
+            <DisplayName>Serial Number</DisplayName>
+            <Description>The instrument serial number returned by VER.</Description>
+            <DataType><Basic>String</Basic></DataType>
+        </Response>
+        <DefinedExecutionErrors>
+            <Identifier>CommunicationError</Identifier>
+        </DefinedExecutionErrors>
+    </Command>
+
+    <Command>
+        <Identifier>Disconnect</Identifier>
+        <DisplayName>Disconnect</DisplayName>
+        <Description>
+            Sends QIT to exit remote control mode and closes the serial connection.
+        </Description>
+        <Observable>No</Observable>
+        <DefinedExecutionErrors>
+            <Identifier>NotConnected</Identifier>
+        </DefinedExecutionErrors>
+    </Command>
+
+    <Command>
+        <Identifier>Abort</Identifier>
+        <DisplayName>Abort</DisplayName>
+        <Description>
+            Sends an ESC character to abort the currently running operation.
+        </Description>
+        <Observable>No</Observable>
+        <DefinedExecutionErrors>
+            <Identifier>NotConnected</Identifier>
+        </DefinedExecutionErrors>
+    </Command>
+
+    <Command>
+        <Identifier>Prime</Identifier>
+        <DisplayName>Prime</DisplayName>
+        <Description>
+            Primes the dispenser hoses by dispensing liquid through them (PRI command).
+        </Description>
+        <Observable>No</Observable>
+        <Parameter>
+            <Identifier>Volume</Identifier>
+            <DisplayName>Volume</DisplayName>
+            <Description>Volume in 1/10 µL units.</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>Integer</Basic></DataType>
+                    <Constraints>
+                        <MinimalInclusive>1</MinimalInclusive>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>Mode</Identifier>
+            <DisplayName>Mode</DisplayName>
+            <Description>Prime mode: 0=all tubes, 1=even tubes, 2=odd tubes, 3=by cassette.</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>Integer</Basic></DataType>
+                    <Constraints>
+                        <MinimalInclusive>0</MinimalInclusive>
+                        <MaximalInclusive>3</MaximalInclusive>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <DefinedExecutionErrors>
+            <Identifier>NotConnected</Identifier>
+            <Identifier>InstrumentError</Identifier>
+        </DefinedExecutionErrors>
+    </Command>
+
+    <Command>
+        <Identifier>Empty</Identifier>
+        <DisplayName>Empty</DisplayName>
+        <Description>
+            Empties the dispenser hoses by reversing the pump (EMP command).
+        </Description>
+        <Observable>No</Observable>
+        <Parameter>
+            <Identifier>Volume</Identifier>
+            <DisplayName>Volume</DisplayName>
+            <Description>Volume in 1/10 µL units.</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>Integer</Basic></DataType>
+                    <Constraints>
+                        <MinimalInclusive>1</MinimalInclusive>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>Mode</Identifier>
+            <DisplayName>Mode</DisplayName>
+            <Description>Empty mode: 0=all tubes, 1=by cassette.</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>Integer</Basic></DataType>
+                    <Constraints>
+                        <MinimalInclusive>0</MinimalInclusive>
+                        <MaximalInclusive>1</MaximalInclusive>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <DefinedExecutionErrors>
+            <Identifier>NotConnected</Identifier>
+            <Identifier>InstrumentError</Identifier>
+        </DefinedExecutionErrors>
+    </Command>
+
+    <Command>
+        <Identifier>MoveOut</Identifier>
+        <DisplayName>Move Out</DisplayName>
+        <Description>
+            Moves the plate carrier to the out/loading position (POU command).
+        </Description>
+        <Observable>No</Observable>
+        <DefinedExecutionErrors>
+            <Identifier>NotConnected</Identifier>
+            <Identifier>InstrumentError</Identifier>
+        </DefinedExecutionErrors>
+    </Command>
+
+    <Command>
+        <Identifier>AcknowledgeError</Identifier>
+        <DisplayName>Acknowledge Error</DisplayName>
+        <Description>
+            Acknowledges and clears an instrument error (EAK command).
+        </Description>
+        <Observable>No</Observable>
+        <DefinedExecutionErrors>
+            <Identifier>NotConnected</Identifier>
+            <Identifier>InstrumentError</Identifier>
+        </DefinedExecutionErrors>
+    </Command>
+
+    <Command>
+        <Identifier>SetPlateType</Identifier>
+        <DisplayName>Set Plate Type</DisplayName>
+        <Description>
+            Sets the plate type (SPL command). See instrument manual for plate type codes.
+        </Description>
+        <Observable>No</Observable>
+        <Parameter>
+            <Identifier>PlateType</Identifier>
+            <DisplayName>Plate Type</DisplayName>
+            <Description>Plate type code (0-29).</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>Integer</Basic></DataType>
+                    <Constraints>
+                        <MinimalInclusive>0</MinimalInclusive>
+                        <MaximalInclusive>29</MaximalInclusive>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <DefinedExecutionErrors>
+            <Identifier>NotConnected</Identifier>
+            <Identifier>InstrumentError</Identifier>
+        </DefinedExecutionErrors>
+    </Command>
+
+    <Command>
+        <Identifier>SetCassetteType</Identifier>
+        <DisplayName>Set Cassette Type</DisplayName>
+        <Description>
+            Sets the dispensing cassette type (SCT command).
+        </Description>
+        <Observable>No</Observable>
+        <Parameter>
+            <Identifier>CassetteType</Identifier>
+            <DisplayName>Cassette Type</DisplayName>
+            <Description>Cassette type code (0-3).</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>Integer</Basic></DataType>
+                    <Constraints>
+                        <MinimalInclusive>0</MinimalInclusive>
+                        <MaximalInclusive>3</MaximalInclusive>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <DefinedExecutionErrors>
+            <Identifier>NotConnected</Identifier>
+            <Identifier>InstrumentError</Identifier>
+        </DefinedExecutionErrors>
+    </Command>
+
+    <Command>
+        <Identifier>SetColumnVolume</Identifier>
+        <DisplayName>Set Column Volume</DisplayName>
+        <Description>
+            Sets the dispensing volume for a specific column (SCV command).
+        </Description>
+        <Observable>No</Observable>
+        <Parameter>
+            <Identifier>Column</Identifier>
+            <DisplayName>Column</DisplayName>
+            <Description>Column number (0=all columns, 1-48=specific column).</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>Integer</Basic></DataType>
+                    <Constraints>
+                        <MinimalInclusive>0</MinimalInclusive>
+                        <MaximalInclusive>48</MaximalInclusive>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>Volume</Identifier>
+            <DisplayName>Volume</DisplayName>
+            <Description>Volume in 1/10 µL units.</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>Integer</Basic></DataType>
+                    <Constraints>
+                        <MinimalInclusive>1</MinimalInclusive>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <DefinedExecutionErrors>
+            <Identifier>NotConnected</Identifier>
+            <Identifier>InstrumentError</Identifier>
+        </DefinedExecutionErrors>
+    </Command>
+
+    <Command>
+        <Identifier>SetDispensingHeight</Identifier>
+        <DisplayName>Set Dispensing Height</DisplayName>
+        <Description>
+            Sets the dispensing height above the plate (SDH command).
+        </Description>
+        <Observable>No</Observable>
+        <Parameter>
+            <Identifier>Height</Identifier>
+            <DisplayName>Height</DisplayName>
+            <Description>Dispensing height in 1/100 mm units.</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>Integer</Basic></DataType>
+                    <Constraints>
+                        <MinimalInclusive>0</MinimalInclusive>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <DefinedExecutionErrors>
+            <Identifier>NotConnected</Identifier>
+            <Identifier>InstrumentError</Identifier>
+        </DefinedExecutionErrors>
+    </Command>
+
+    <Command>
+        <Identifier>SetPumpSpeed</Identifier>
+        <DisplayName>Set Pump Speed</DisplayName>
+        <Description>
+            Sets the pump speed as a percentage of maximum (SPS command).
+        </Description>
+        <Observable>No</Observable>
+        <Parameter>
+            <Identifier>Speed</Identifier>
+            <DisplayName>Speed</DisplayName>
+            <Description>Pump speed in percent (1-100).</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>Integer</Basic></DataType>
+                    <Constraints>
+                        <MinimalInclusive>1</MinimalInclusive>
+                        <MaximalInclusive>100</MaximalInclusive>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <DefinedExecutionErrors>
+            <Identifier>NotConnected</Identifier>
+            <Identifier>InstrumentError</Identifier>
+        </DefinedExecutionErrors>
+    </Command>
+
+    <Command>
+        <Identifier>Restart</Identifier>
+        <DisplayName>Restart</DisplayName>
+        <Description>
+            Restarts the instrument (RST command). The serial connection will
+            be closed and must be re-established with Connect.
+        </Description>
+        <Observable>No</Observable>
+        <DefinedExecutionErrors>
+            <Identifier>NotConnected</Identifier>
+            <Identifier>InstrumentError</Identifier>
+        </DefinedExecutionErrors>
+    </Command>
+
+    <!-- ============================================================ -->
+    <!-- OBSERVABLE COMMANDS                                           -->
+    <!-- ============================================================ -->
+
+    <Command>
+        <Identifier>Dispense</Identifier>
+        <DisplayName>Dispense</DisplayName>
+        <Description>
+            Dispenses liquid into the plate (DIS command). Reports column/row
+            progress as intermediate responses during dispensing.
+        </Description>
+        <Observable>Yes</Observable>
+        <Response>
+            <Identifier>Status</Identifier>
+            <DisplayName>Status</DisplayName>
+            <Description>Final status message after dispensing completes.</Description>
+            <DataType><Basic>String</Basic></DataType>
+        </Response>
+        <IntermediateResponse>
+            <Identifier>ColumnRow</Identifier>
+            <DisplayName>Column Row</DisplayName>
+            <Description>Current dispensing position (e.g. "Col 1 Row 1").</Description>
+            <DataType><Basic>String</Basic></DataType>
+        </IntermediateResponse>
+        <DefinedExecutionErrors>
+            <Identifier>NotConnected</Identifier>
+            <Identifier>InstrumentError</Identifier>
+        </DefinedExecutionErrors>
+    </Command>
+
+    <Command>
+        <Identifier>Shake</Identifier>
+        <DisplayName>Shake</DisplayName>
+        <Description>
+            Shakes the plate for a specified duration (SHA command).
+        </Description>
+        <Observable>Yes</Observable>
+        <Parameter>
+            <Identifier>Time</Identifier>
+            <DisplayName>Time</DisplayName>
+            <Description>Shake duration in 1/100 seconds.</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>Integer</Basic></DataType>
+                    <Constraints>
+                        <MinimalInclusive>1</MinimalInclusive>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>Distance</Identifier>
+            <DisplayName>Distance</DisplayName>
+            <Description>Shake distance in mm (1-5).</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>Integer</Basic></DataType>
+                    <Constraints>
+                        <MinimalInclusive>1</MinimalInclusive>
+                        <MaximalInclusive>5</MaximalInclusive>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>Speed</Identifier>
+            <DisplayName>Speed</DisplayName>
+            <Description>Shake speed in Hz (1-20).</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>Integer</Basic></DataType>
+                    <Constraints>
+                        <MinimalInclusive>1</MinimalInclusive>
+                        <MaximalInclusive>20</MaximalInclusive>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <DefinedExecutionErrors>
+            <Identifier>NotConnected</Identifier>
+            <Identifier>InstrumentError</Identifier>
+        </DefinedExecutionErrors>
+    </Command>
+
+    <!-- ============================================================ -->
+    <!-- PROPERTIES                                                    -->
+    <!-- ============================================================ -->
+
+    <Property>
+        <Identifier>IsConnected</Identifier>
+        <DisplayName>Is Connected</DisplayName>
+        <Description>Whether the instrument is currently in remote control mode.</Description>
+        <Observable>No</Observable>
+        <DataType><Basic>Boolean</Basic></DataType>
+    </Property>
+
+    <Property>
+        <Identifier>InstrumentName</Identifier>
+        <DisplayName>Instrument Name</DisplayName>
+        <Description>The instrument name from the VER response, or empty if not connected.</Description>
+        <Observable>No</Observable>
+        <DataType><Basic>String</Basic></DataType>
+    </Property>
+
+    <Property>
+        <Identifier>FirmwareVersion</Identifier>
+        <DisplayName>Firmware Version</DisplayName>
+        <Description>The firmware version from the VER response, or empty if not connected.</Description>
+        <Observable>No</Observable>
+        <DataType><Basic>String</Basic></DataType>
+    </Property>
+
+    <Property>
+        <Identifier>IsPrimed</Identifier>
+        <DisplayName>Is Primed</DisplayName>
+        <Description>Whether the pump has been primed since the last connection.</Description>
+        <Observable>No</Observable>
+        <DataType><Basic>Boolean</Basic></DataType>
+    </Property>
+
+    <Property>
+        <Identifier>DisplayIcon</Identifier>
+        <DisplayName>Display Icon</DisplayName>
+        <Description>PNG icon representing this instrument, for display in client UIs.</Description>
+        <Observable>No</Observable>
+        <DataType><Basic>Binary</Basic></DataType>
+    </Property>
+
+    <Property>
+        <Identifier>DeviceDescription</Identifier>
+        <DisplayName>Device Description</DisplayName>
+        <Description>Rich text description of device capabilities for LLM system prompts.</Description>
+        <Observable>No</Observable>
+        <DataType><Basic>String</Basic></DataType>
+    </Property>
+
+    <Property>
+        <Identifier>ServerLog</Identifier>
+        <DisplayName>Server Log</DisplayName>
+        <Description>Recent server log entries (last 200 lines).</Description>
+        <Observable>No</Observable>
+        <DataType><Basic>String</Basic></DataType>
+    </Property>
+
+    <!-- ============================================================ -->
+    <!-- DEFINED EXECUTION ERRORS                                      -->
+    <!-- ============================================================ -->
+
+    <DefinedExecutionError>
+        <Identifier>NotConnected</Identifier>
+        <DisplayName>Not Connected</DisplayName>
+        <Description>
+            The instrument is not connected. Call Connect first to establish
+            a serial connection and enter remote control mode.
+        </Description>
+    </DefinedExecutionError>
+
+    <DefinedExecutionError>
+        <Identifier>InstrumentError</Identifier>
+        <DisplayName>Instrument Error</DisplayName>
+        <Description>
+            The instrument returned a non-zero status code indicating an error.
+            The error message includes the status code and description.
+        </Description>
+    </DefinedExecutionError>
+
+    <DefinedExecutionError>
+        <Identifier>CommunicationError</Identifier>
+        <DisplayName>Communication Error</DisplayName>
+        <Description>
+            A serial communication failure occurred (e.g. port not found,
+            connection lost, timeout).
+        </Description>
+    </DefinedExecutionError>
+
+</Feature>

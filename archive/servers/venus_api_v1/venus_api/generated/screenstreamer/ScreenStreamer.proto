@@ -1,0 +1,63 @@
+syntax = "proto3";
+
+import "SiLAFramework.proto";
+
+package sila2.org.silalearning.examples.screenstreamer.v1;
+
+/* Captures screenshots of a target application window on the host PC. Uses Win32 API (PrintWindow/BitBlt) to capture the window even when partially obscured. Returns JPEG frames on demand. */
+service ScreenStreamer {
+  /* Starts capturing a window whose title contains the given substring. A background thread continuously captures frames. */
+  rpc StartCapture (sila2.org.silalearning.examples.screenstreamer.v1.StartCapture_Parameters) returns (sila2.org.silalearning.examples.screenstreamer.v1.StartCapture_Responses) {}
+  /* Stops the background capture thread. */
+  rpc StopCapture (sila2.org.silalearning.examples.screenstreamer.v1.StopCapture_Parameters) returns (sila2.org.silalearning.examples.screenstreamer.v1.StopCapture_Responses) {}
+  /* Returns the most recently captured frame as JPEG bytes. */
+  rpc GetLatestFrame (sila2.org.silalearning.examples.screenstreamer.v1.GetLatestFrame_Parameters) returns (sila2.org.silalearning.examples.screenstreamer.v1.GetLatestFrame_Responses) {}
+  /* Returns a list of visible window titles on the server machine. Use these titles with StartCapture to begin streaming. */
+  rpc ListWindows (sila2.org.silalearning.examples.screenstreamer.v1.ListWindows_Parameters) returns (sila2.org.silalearning.examples.screenstreamer.v1.ListWindows_Responses) {}
+  /* Whether the capture thread is currently running. */
+  rpc Get_IsCapturing (sila2.org.silalearning.examples.screenstreamer.v1.Get_IsCapturing_Parameters) returns (sila2.org.silalearning.examples.screenstreamer.v1.Get_IsCapturing_Responses) {}
+}
+
+/* Parameters for ListWindows */
+message ListWindows_Parameters {
+}
+
+/* Responses of ListWindows */
+message ListWindows_Responses {
+  repeated sila2.org.silastandard.String WindowTitles = 1;  /* List of visible window titles. */
+}
+
+/* Parameters for StartCapture */
+message StartCapture_Parameters {
+  sila2.org.silastandard.String WindowTitle = 1;  /* Substring to match in the target window's title bar. */
+}
+
+/* Responses of StartCapture */
+message StartCapture_Responses {
+}
+
+/* Parameters for StopCapture */
+message StopCapture_Parameters {
+}
+
+/* Responses of StopCapture */
+message StopCapture_Responses {
+}
+
+/* Parameters for GetLatestFrame */
+message GetLatestFrame_Parameters {
+}
+
+/* Responses of GetLatestFrame */
+message GetLatestFrame_Responses {
+  sila2.org.silastandard.Binary Frame = 1;  /* JPEG image bytes of the latest captured frame. */
+}
+
+/* Parameters for IsCapturing */
+message Get_IsCapturing_Parameters {
+}
+
+/* Responses of IsCapturing */
+message Get_IsCapturing_Responses {
+  sila2.org.silastandard.Boolean IsCapturing = 1;  /* Whether the capture thread is currently running. */
+}

@@ -1,0 +1,14 @@
+# Connection settings for Windows targets
+
+ansible_connection: winrm
+ansible_winrm_transport: basic
+ansible_winrm_port: 5985
+ansible_winrm_scheme: http
+
+# Credentials loaded from vault (windows_vault.yml)
+ansible_user: "{{ vault_ansible_user }}"
+ansible_password: "{{ vault_ansible_password }}"
+
+# nssm (Non-Sucking Service Manager) is used to register servers as Windows services
+# Install via: winget install nssm
+nssm_path: "C:\\Users\\automation\\AppData\\Local\\Microsoft\\WinGet\\Links\\nssm.exe"

@@ -1,0 +1,85 @@
+syntax = "proto3";
+
+import "SiLAFramework.proto";
+
+package sila2.calico.automation.extended.barcodescanner.v1;
+
+/* Controls a Datalogic barcode scanner via RS-232 serial connection. Supports triggering scans (STX), stopping scans (ETX), and reading barcode data. This is a learning feature wrapping the scanner's serial protocol. */
+service BarcodeScanner {
+  /* Opens a serial connection to the barcode scanner. */
+  rpc Connect (sila2.calico.automation.extended.barcodescanner.v1.Connect_Parameters) returns (sila2.calico.automation.extended.barcodescanner.v1.Connect_Responses) {}
+  /* Closes the serial connection to the barcode scanner. */
+  rpc Disconnect (sila2.calico.automation.extended.barcodescanner.v1.Disconnect_Parameters) returns (sila2.calico.automation.extended.barcodescanner.v1.Disconnect_Responses) {}
+  /* Triggers the barcode scanner by sending STX and waits for a barcode response. Returns the scanned barcode data. */
+  rpc Scan (sila2.calico.automation.extended.barcodescanner.v1.Scan_Parameters) returns (sila2.calico.automation.extended.barcodescanner.v1.Scan_Responses) {}
+  /* Sends ETX to cancel an active scan operation. */
+  rpc StopScanning (sila2.calico.automation.extended.barcodescanner.v1.StopScanning_Parameters) returns (sila2.calico.automation.extended.barcodescanner.v1.StopScanning_Responses) {}
+  /* Whether the scanner serial port is currently open. */
+  rpc Get_IsConnected (sila2.calico.automation.extended.barcodescanner.v1.Get_IsConnected_Parameters) returns (sila2.calico.automation.extended.barcodescanner.v1.Get_IsConnected_Responses) {}
+  /* PNG icon representing this instrument, for display in client UIs. */
+  rpc Get_DisplayIcon (sila2.calico.automation.extended.barcodescanner.v1.Get_DisplayIcon_Parameters) returns (sila2.calico.automation.extended.barcodescanner.v1.Get_DisplayIcon_Responses) {}
+  /* Rich text description of device capabilities for LLM system prompts. */
+  rpc Get_DeviceDescription (sila2.calico.automation.extended.barcodescanner.v1.Get_DeviceDescription_Parameters) returns (sila2.calico.automation.extended.barcodescanner.v1.Get_DeviceDescription_Responses) {}
+}
+
+/* Parameters for Connect */
+message Connect_Parameters {
+  sila2.org.silastandard.String SerialPort = 1;  /* Serial port name (e.g. "COM3" on Windows, "/dev/ttyUSB0" on Linux). */
+  sila2.org.silastandard.Integer BaudRate = 2;  /* Serial baud rate (default 115200). */
+}
+
+/* Responses of Connect */
+message Connect_Responses {
+}
+
+/* Parameters for Disconnect */
+message Disconnect_Parameters {
+}
+
+/* Responses of Disconnect */
+message Disconnect_Responses {
+}
+
+/* Parameters for Scan */
+message Scan_Parameters {
+}
+
+/* Responses of Scan */
+message Scan_Responses {
+  sila2.org.silastandard.String BarcodeData = 1;  /* The scanned barcode string. */
+}
+
+/* Parameters for StopScanning */
+message StopScanning_Parameters {
+}
+
+/* Responses of StopScanning */
+message StopScanning_Responses {
+}
+
+/* Parameters for IsConnected */
+message Get_IsConnected_Parameters {
+}
+
+/* Responses of IsConnected */
+message Get_IsConnected_Responses {
+  sila2.org.silastandard.Boolean IsConnected = 1;  /* Whether the scanner serial port is currently open. */
+}
+
+/* Parameters for DisplayIcon */
+message Get_DisplayIcon_Parameters {
+}
+
+/* Responses of DisplayIcon */
+message Get_DisplayIcon_Responses {
+  sila2.org.silastandard.Binary DisplayIcon = 1;  /* PNG icon representing this instrument, for display in client UIs. */
+}
+
+/* Parameters for DeviceDescription */
+message Get_DeviceDescription_Parameters {
+}
+
+/* Responses of DeviceDescription */
+message Get_DeviceDescription_Responses {
+  sila2.org.silastandard.String DeviceDescription = 1;  /* Rich text description of device capabilities for LLM system prompts. */
+}

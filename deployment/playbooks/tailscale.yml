@@ -1,0 +1,20 @@
+---
+# Install and authenticate Tailscale on all targets.
+#
+# Prerequisites:
+#   1. Generate a reusable, pre-approved auth key at:
+#      https://login.tailscale.com/admin/settings/keys
+#   2. Store it in vault:
+#      ansible-vault edit inventory/group_vars/all/vault.yml
+#      Add: vault_tailscale_auth_key: "tskey-auth-..."
+#
+# Usage:
+#   ansible-playbook playbooks/tailscale.yml              # all hosts
+#   ansible-playbook playbooks/tailscale.yml -l venus_api # one group
+
+- name: Install Tailscale on SiLA fleet
+  hosts: all
+  gather_facts: true
+
+  roles:
+    - tailscale

@@ -1,0 +1,52 @@
+---
+# Install and configure Tailscale on Linux targets
+
+- name: Check if Tailscale is installed
+  command: tailscale version
+  register: ts_version
+  failed_when: false
+  changed_when: false
+
+- name: Install Tailscale via install script
+  shell: curl -fsSL https://tailscale.com/install.sh | sh
+  become: true
+  when: ts_version.rc != 0
+
+- name: Enable and start tailscaled service
+  systemd:
+    name: tailscaled
+    enabled: true
+    state: started
+    daemon_reload: true
+  become: true
+
+- name: Check Tailscale status
+  command: tailscale status --json
+  register: ts_status_raw
+  failed_when: false
+  changed_when: false
+
+- name: Build tailscale up command
+  set_fact:
+    tailscale_up_cmd: >-
+      tailscale up
+      --authkey={{ tailscale_auth_key }}
+      --hostname={{ inventory_hostname }}
+      {% if tailscale_login_server | default('') | length > 0 %}--login-server={{ tailscale_login_server }}{% endif %}
+
+- name: Authenticate Tailscale
+  command: "{{ tailscale_up_cmd }}"
+  become: true
+  when: >
+    ts_status_raw.rc != 0 or
+    (ts_status_raw.stdout | from_json).BackendState | default('') != 'Running'
+  no_log: true
+
+- name: Get Tailscale IP
+  command: tailscale ip -4
+  register: ts_ip
+  changed_when: false
+
+- name: Report Tailscale IP
+  debug:
+    msg: "Tailscale IP for {{ inventory_hostname }}: {{ ts_ip.stdout | trim }}"

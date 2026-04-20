@@ -1,0 +1,75 @@
+<Feature xmlns="http://www.sila-standard.org" Category="examples" FeatureVersion="1.0" MaturityLevel="Draft" Originator="org.silalearning" SiLA2Version="1.1">
+  <Identifier>CameraStreamProvider</Identifier>
+  <DisplayName>Camera Stream Provider</DisplayName>
+  <Description>Provides a live camera feed from an IP camera (HTTP/RTSP) or USB webcam.
+        The stream can be started with a source URL or device index and frames
+        are captured in a background thread. Clients retrieve individual JPEG
+        frames via GetLatestFrame, or the web UI can display a continuous
+        MJPEG stream via the Flask proxy endpoint.</Description>
+  <Command>
+    <Identifier>StartStream</Identifier>
+    <DisplayName>Start Stream</DisplayName>
+    <Description>Begin capturing frames from a camera source. The Source parameter
+            accepts an HTTP/RTSP URL for IP cameras (e.g. "http://192.168.1.100/mjpg/video.mjpg")
+            or a device index string for USB webcams (e.g. "0" for the first camera).</Description>
+    <Observable>No</Observable>
+    <Parameter>
+      <Identifier>Source</Identifier>
+      <DisplayName>Source</DisplayName>
+      <Description>Camera source: an HTTP/RTSP URL for IP cameras, or a device
+                index (e.g. "0", "1") for USB webcams.</Description>
+      <DataType>
+        <Basic>String</Basic>
+      </DataType>
+    </Parameter>
+    <DefinedExecutionErrors>
+      <Identifier>CameraNotFound</Identifier>
+      <Identifier>StreamError</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <Command>
+    <Identifier>StopStream</Identifier>
+    <DisplayName>Stop Stream</DisplayName>
+    <Description>Stop the camera capture and release the device.</Description>
+    <Observable>No</Observable>
+  </Command>
+  <Command>
+    <Identifier>GetLatestFrame</Identifier>
+    <DisplayName>Get Latest Frame</DisplayName>
+    <Description>Return the most recently captured JPEG frame from the camera.
+            The stream must be started first via StartStream.</Description>
+    <Observable>No</Observable>
+    <Response>
+      <Identifier>Frame</Identifier>
+      <DisplayName>Frame</DisplayName>
+      <Description>The latest camera frame as JPEG binary data.</Description>
+      <DataType>
+        <Basic>Binary</Basic>
+      </DataType>
+    </Response>
+    <DefinedExecutionErrors>
+      <Identifier>StreamError</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <Property>
+    <Identifier>IsStreaming</Identifier>
+    <DisplayName>Is Streaming</DisplayName>
+    <Description>Whether the camera capture is currently active.</Description>
+    <Observable>No</Observable>
+    <DataType>
+      <Basic>Boolean</Basic>
+    </DataType>
+  </Property>
+  <DefinedExecutionError>
+    <Identifier>CameraNotFound</Identifier>
+    <DisplayName>Camera Not Found</DisplayName>
+    <Description>The specified camera source could not be opened. Check the URL
+            or device index and ensure the camera is connected and accessible.</Description>
+  </DefinedExecutionError>
+  <DefinedExecutionError>
+    <Identifier>StreamError</Identifier>
+    <DisplayName>Stream Error</DisplayName>
+    <Description>An error occurred during camera streaming, such as a failed frame
+            capture or a disconnected camera.</Description>
+  </DefinedExecutionError>
+</Feature>

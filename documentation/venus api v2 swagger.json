@@ -1,0 +1,5431 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "WebAPI.Host",
+    "version": "2.0"
+  },
+  "paths": {
+    "/api/vector/v2/cameras/enabled": {
+      "get": {
+        "tags": [
+          "Cameras"
+        ],
+        "summary": "Retrieve DeckWatch enabled value.",
+        "responses": {
+          "200": {
+            "description": "Returns true if DeckWatch is enabled, false otherwise.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "type": "boolean"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "type": "boolean"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "type": "boolean"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unknown exception."
+          }
+        }
+      }
+    },
+    "/api/vector/v2/cameras/metadata": {
+      "get": {
+        "tags": [
+          "Cameras"
+        ],
+        "summary": "Retrieve Camera Metadata",
+        "responses": {
+          "200": {
+            "description": "Returns Hamilton.CameraService.Models.CameraMetadataResponse object",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CameraMetadataResponse"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CameraMetadataResponse"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CameraMetadataResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unknown exception."
+          }
+        }
+      }
+    },
+    "/api/vector/v2/cameras/stream": {
+      "get": {
+        "tags": [
+          "Cameras"
+        ],
+        "summary": "Fetches information about the given camera's live stream URL.",
+        "parameters": [
+          {
+            "name": "cameraId",
+            "in": "query",
+            "description": "The ID of the camera to get live stream",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Returns System.Uri object",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CameraLiveStreamInfo"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CameraLiveStreamInfo"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CameraLiveStreamInfo"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unknown exception."
+          }
+        }
+      }
+    },
+    "/api/vector/v2/cameras/image": {
+      "get": {
+        "tags": [
+          "Cameras"
+        ],
+        "summary": "Retrieve Image Url",
+        "parameters": [
+          {
+            "name": "cameraId",
+            "in": "query",
+            "description": "The ID of the camera to get live stream",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Returns System.Uri object",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CameraMetadataResponse"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CameraMetadataResponse"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CameraMetadataResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unknown exception."
+          }
+        }
+      }
+    },
+    "/api/vector/v2/cameras/start": {
+      "post": {
+        "tags": [
+          "Cameras"
+        ],
+        "summary": "Start Recording on selected cameras",
+        "requestBody": {
+          "description": "The IDs of the cameras to trigger start recording",
+          "content": {
+            "application/json; x-api-version=2.0": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "text/json; x-api-version=2.0": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "application/*+json; x-api-version=2.0": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Returns Ok object"
+          },
+          "400": {
+            "description": "Malformed request.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unknown exception."
+          }
+        }
+      }
+    },
+    "/api/vector/v2/cameras/stop": {
+      "post": {
+        "tags": [
+          "Cameras"
+        ],
+        "summary": "Stop Recording on selected cameras",
+        "requestBody": {
+          "description": "The IDs of the cameras to trigger start recording",
+          "content": {
+            "application/json; x-api-version=2.0": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "text/json; x-api-version=2.0": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "application/*+json; x-api-version=2.0": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Returns Ok object"
+          },
+          "400": {
+            "description": "Malformed request.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unknown exception."
+          }
+        }
+      }
+    },
+    "/api/vector/v2/cameras/bookmark": {
+      "post": {
+        "tags": [
+          "Cameras"
+        ],
+        "summary": "Add a new bookmark to the specified cameras",
+        "requestBody": {
+          "description": "The request to add a new bookmark.",
+          "content": {
+            "application/json; x-api-version=2.0": {
+              "schema": {
+                "$ref": "#/components/schemas/BookmarkRequest"
+              }
+            },
+            "text/json; x-api-version=2.0": {
+              "schema": {
+                "$ref": "#/components/schemas/BookmarkRequest"
+              }
+            },
+            "application/*+json; x-api-version=2.0": {
+              "schema": {
+                "$ref": "#/components/schemas/BookmarkRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Returns Ok object"
+          },
+          "400": {
+            "description": "Malformed request.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unknown exception."
+          }
+        }
+      }
+    },
+    "/api/vector/v2/devices/deck-layout/{deviceId}": {
+      "get": {
+        "tags": [
+          "Devices"
+        ],
+        "summary": "Get deck layout for the loaded method.",
+        "parameters": [
+          {
+            "name": "deviceId",
+            "in": "path",
+            "description": "Device Id returned from OnDeviceCreated event.",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Returns Hamilton.WebAPI.Common.DeckLayoutData.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeckLayoutData"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeckLayoutData"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeckLayoutData"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Device Id not found.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Exception message."
+          },
+          "502": {
+            "description": "Not connected error."
+          }
+        }
+      }
+    },
+    "/api/vector/v2/devices/instrument-configuration": {
+      "post": {
+        "tags": [
+          "Devices"
+        ],
+        "summary": "Get instrument configuration data.",
+        "requestBody": {
+          "description": "Hamilton.WebAPI.Common.DeviceConfigurationData.",
+          "content": {
+            "application/json; x-api-version=2.0": {
+              "schema": {
+                "$ref": "#/components/schemas/DeviceConfigurationRequest"
+              }
+            },
+            "text/json; x-api-version=2.0": {
+              "schema": {
+                "$ref": "#/components/schemas/DeviceConfigurationRequest"
+              }
+            },
+            "application/*+json; x-api-version=2.0": {
+              "schema": {
+                "$ref": "#/components/schemas/DeviceConfigurationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Returns Hamilton.WebAPI.Common.DeviceConfigurationData.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceConfigurationData"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceConfigurationData"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceConfigurationData"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Device Id not found.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Exception message."
+          },
+          "502": {
+            "description": "Not connected error."
+          }
+        }
+      }
+    },
+    "/api/vector/v2/devices/registered": {
+      "get": {
+        "tags": [
+          "Devices"
+        ],
+        "summary": "Gets a set of registered devices.",
+        "responses": {
+          "200": {
+            "description": "Returns a set of registered devices.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegisteredDeviceInfo"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegisteredDeviceInfo"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegisteredDeviceInfo"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unknown exception or Vector exception."
+          },
+          "502": {
+            "description": "Not connected error."
+          }
+        }
+      }
+    },
+    "/api/vector/v2/devices/runtime": {
+      "get": {
+        "tags": [
+          "Devices"
+        ],
+        "summary": "Gets a set of devices used in currently loaded method (runtime devices).",
+        "responses": {
+          "200": {
+            "description": "Returns a set of runtime devices.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuntimeDeviceInfo"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuntimeDeviceInfo"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuntimeDeviceInfo"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unknown exception or vector exception."
+          },
+          "502": {
+            "description": "Not connected error."
+          }
+        }
+      }
+    },
+    "/api/vector/v2/devices/control-panel/runtime": {
+      "post": {
+        "tags": [
+          "Devices"
+        ],
+        "summary": "Opens the Control Panel for a Vector device defined in runtime (on method load).",
+        "requestBody": {
+          "description": "Object containing the device Id. Hamilton.WebAPI.Common.RuntimeDeviceInput",
+          "content": {
+            "application/json; x-api-version=2.0": {
+              "schema": {
+                "$ref": "#/components/schemas/RuntimeDeviceInput"
+              }
+            },
+            "text/json; x-api-version=2.0": {
+              "schema": {
+                "$ref": "#/components/schemas/RuntimeDeviceInput"
+              }
+            },
+            "application/*+json; x-api-version=2.0": {
+              "schema": {
+                "$ref": "#/components/schemas/RuntimeDeviceInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Open dialog request issued to Vector.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "type": "boolean"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "type": "boolean"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "type": "boolean"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unknown exception or Vector exception."
+          },
+          "502": {
+            "description": "Not connected error."
+          }
+        }
+      }
+    },
+    "/api/vector/v2/devices/control-panel/registered": {
+      "post": {
+        "tags": [
+          "Devices"
+        ],
+        "summary": "Opens the Control Panel for a Vector device found in Windows registry.",
+        "requestBody": {
+          "description": "Object containing device name and main window handle. Hamilton.WebAPI.Common.RegisteredDeviceInput",
+          "content": {
+            "application/json; x-api-version=2.0": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisteredDeviceInput"
+              }
+            },
+            "text/json; x-api-version=2.0": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisteredDeviceInput"
+              }
+            },
+            "application/*+json; x-api-version=2.0": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisteredDeviceInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Open dialog request issued to Vector.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "type": "boolean"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "type": "boolean"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "type": "boolean"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unknown exception or Vector exception."
+          },
+          "502": {
+            "description": "Not connected error."
+          }
+        }
+      }
+    },
+    "/api/vector/v2/errors/register/{deviceId}": {
+      "post": {
+        "tags": [
+          "Errors"
+        ],
+        "summary": "Register for runtime errors with the given deviceId/instrument.",
+        "description": "Client should subscribe for events: OnDeviceError and OnDeviceMessage",
+        "parameters": [
+          {
+            "name": "deviceId",
+            "in": "path",
+            "description": "Device Id returned from OnDeviceCreated event.",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Returns Hamilton.WebAPI.Common.CmdResult object.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Returns Hamilton.WebAPI.Common.CmdResult Not Found.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unable to register for instrument errors."
+          }
+        }
+      }
+    },
+    "/api/vector/v2/errors/unregister/{deviceId}": {
+      "post": {
+        "tags": [
+          "Errors"
+        ],
+        "summary": "Remove the registration for the runtime errors.",
+        "parameters": [
+          {
+            "name": "deviceId",
+            "in": "path",
+            "description": "Device Id returned from OnDeviceCreated event.",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Returns Hamilton.WebAPI.Common.CmdResult object.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Returns Hamilton.WebAPI.Common.CmdResult NotFound.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unable to unregister for instrument errors."
+          }
+        }
+      }
+    },
+    "/api/vector/v2/errors/end-device-messagebox": {
+      "post": {
+        "tags": [
+          "Errors"
+        ],
+        "summary": "Responds to a message box error recovery request issued from a particular device.",
+        "description": "TODO:  Verify proper behavior with an instrument once device support has been implemented.\r\nMessageBoxEventArgs.mbType contains the valid response values \r\n  e.g. mbType = MB_YESNO valid response values are 6 (Yes) | 7 (No)\r\n  Valid response values are:1=Ok|2=Cancel|3=Abort|4=Retry|5=Ignore|6=Yes|7=No|11=Continue",
+        "requestBody": {
+          "description": "Hamilton.WebAPI.Common.ErrorMessageBoxContract",
+          "content": {
+            "application/json; x-api-version=2.0": {
+              "schema": {
+                "$ref": "#/components/schemas/ErrorMessageBoxContract"
+              }
+            },
+            "text/json; x-api-version=2.0": {
+              "schema": {
+                "$ref": "#/components/schemas/ErrorMessageBoxContract"
+              }
+            },
+            "application/*+json; x-api-version=2.0": {
+              "schema": {
+                "$ref": "#/components/schemas/ErrorMessageBoxContract"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Returns Hamilton.WebAPI.Common.CmdResult object.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unable to respond to error recovery message box."
+          }
+        }
+      }
+    },
+    "/api/vector/v2/errors/end-device-error-recovery": {
+      "post": {
+        "tags": [
+          "Errors"
+        ],
+        "summary": "Responds to an array of error recovery arguments issued from a particular device.",
+        "description": "TODO:  Verify proper behavior with an instrument once device support has been implemented.",
+        "requestBody": {
+          "description": "Hamilton.WebAPI.Common.InstrumentErrorContract",
+          "content": {
+            "application/json; x-api-version=2.0": {
+              "schema": {
+                "$ref": "#/components/schemas/InstrumentErrorContract"
+              }
+            },
+            "text/json; x-api-version=2.0": {
+              "schema": {
+                "$ref": "#/components/schemas/InstrumentErrorContract"
+              }
+            },
+            "application/*+json; x-api-version=2.0": {
+              "schema": {
+                "$ref": "#/components/schemas/InstrumentErrorContract"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Returns Hamilton.WebAPI.Common.CmdResult object.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unable to respond to custom error recovery actions."
+          }
+        }
+      }
+    },
+    "/api/vector/v2/files/validation": {
+      "get": {
+        "tags": [
+          "Files"
+        ],
+        "summary": "Get the file validation status.",
+        "parameters": [
+          {
+            "name": "methodFilePath",
+            "in": "query",
+            "description": "Method file path to validate.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Returns Hamilton.WebAPI.Common.SecurityCOMValidation enum {invalid=0, valid=1, irrelevant=2, validationDisabled=3 }.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecurityCOMValidation"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecurityCOMValidation"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecurityCOMValidation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "File does not exist.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unable to get file security validation."
+          },
+          "502": {
+            "description": "Not connected error."
+          }
+        }
+      }
+    },
+    "/api/vector/v2/files/export-method": {
+      "post": {
+        "tags": [
+          "Files"
+        ],
+        "summary": "Export a single method file collection to package.",
+        "requestBody": {
+          "content": {
+            "application/json; x-api-version=2.0": {
+              "schema": {
+                "$ref": "#/components/schemas/ExportMethodContract"
+              }
+            },
+            "text/json; x-api-version=2.0": {
+              "schema": {
+                "$ref": "#/components/schemas/ExportMethodContract"
+              }
+            },
+            "application/*+json; x-api-version=2.0": {
+              "schema": {
+                "$ref": "#/components/schemas/ExportMethodContract"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Returns Hamilton.WebAPI.Common.CmdResult object, Saves export package file.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unknown exception."
+          },
+          "502": {
+            "description": "Not connected error."
+          }
+        }
+      }
+    },
+    "/api/vector/v2/files/export-methods": {
+      "post": {
+        "tags": [
+          "Files"
+        ],
+        "summary": "Export multiple method file collections to package.",
+        "requestBody": {
+          "content": {
+            "application/json; x-api-version=2.0": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ExportMethodContract"
+                }
+              }
+            },
+            "text/json; x-api-version=2.0": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ExportMethodContract"
+                }
+              }
+            },
+            "application/*+json; x-api-version=2.0": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ExportMethodContract"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Returns Hamilton.WebAPI.Common.CmdResult object, Saves export package file.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unknown exception."
+          },
+          "502": {
+            "description": "Not connected error."
+          }
+        }
+      }
+    },
+    "/api/vector/v2/files/export-method-package": {
+      "post": {
+        "tags": [
+          "Files"
+        ],
+        "summary": "Export multiple method file collections to archive.",
+        "parameters": [
+          {
+            "name": "targetPath",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "desc",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "default": ""
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json; x-api-version=2.0": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ExportOptions"
+                }
+              }
+            },
+            "text/json; x-api-version=2.0": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ExportOptions"
+                }
+              }
+            },
+            "application/*+json; x-api-version=2.0": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ExportOptions"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Returns Hamilton.WebAPI.Common.CmdResult object, Saves export archive file.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unknown exception."
+          },
+          "502": {
+            "description": "Not connected error."
+          },
+          "404": {
+            "description": "File not found error.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/vector/v2/files/unzip-archive": {
+      "post": {
+        "tags": [
+          "Files"
+        ],
+        "summary": "Unzip's archive file",
+        "parameters": [
+          {
+            "name": "source",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "dest",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "overwrite",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Returns Hamilton.WebAPI.Common.CmdResult object",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unknown exception."
+          },
+          "502": {
+            "description": "Not connected error."
+          },
+          "404": {
+            "description": "File not found error.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/vector/v2/files/import-method-package": {
+      "post": {
+        "tags": [
+          "Files"
+        ],
+        "summary": "Imports multiple method file collections from archive.",
+        "parameters": [
+          {
+            "name": "archivePath",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json; x-api-version=2.0": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportMethodOptions"
+              }
+            },
+            "text/json; x-api-version=2.0": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportMethodOptions"
+              }
+            },
+            "application/*+json; x-api-version=2.0": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportMethodOptions"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Returns Hamilton.WebAPI.Common.CmdResult object, Imports files per options.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unknown exception."
+          },
+          "502": {
+            "description": "Not connected error."
+          },
+          "404": {
+            "description": "File not found error.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/vector/v2/files/import-method": {
+      "post": {
+        "tags": [
+          "Files"
+        ],
+        "summary": "Import a single method file collection from package.",
+        "requestBody": {
+          "content": {
+            "application/json; x-api-version=2.0": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportMethodContract"
+              }
+            },
+            "text/json; x-api-version=2.0": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportMethodContract"
+              }
+            },
+            "application/*+json; x-api-version=2.0": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportMethodContract"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Returns Hamilton.WebAPI.Common.CmdResult object, Imports files per options.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unknown exception."
+          },
+          "502": {
+            "description": "Not connected error."
+          }
+        }
+      }
+    },
+    "/api/vector/v2/files/import-methods": {
+      "post": {
+        "tags": [
+          "Files"
+        ],
+        "summary": "Import multiple method file collections from package.",
+        "requestBody": {
+          "content": {
+            "application/json; x-api-version=2.0": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ImportMethodContract"
+                }
+              }
+            },
+            "text/json; x-api-version=2.0": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ImportMethodContract"
+                }
+              }
+            },
+            "application/*+json; x-api-version=2.0": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ImportMethodContract"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Returns Hamilton.WebAPI.Common.CmdResult object, Imports files per options.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unknown exception."
+          },
+          "502": {
+            "description": "Not connected error."
+          }
+        }
+      }
+    },
+    "/api/vector/v2/files/export-diagnostic-files": {
+      "post": {
+        "tags": [
+          "Files"
+        ],
+        "summary": "Export diagnostic data for a method execution instance.",
+        "description": "Output file is created with a .zip extension.",
+        "requestBody": {
+          "content": {
+            "application/json; x-api-version=2.0": {
+              "schema": {
+                "$ref": "#/components/schemas/ExportDiagnosticContract"
+              }
+            },
+            "text/json; x-api-version=2.0": {
+              "schema": {
+                "$ref": "#/components/schemas/ExportDiagnosticContract"
+              }
+            },
+            "application/*+json; x-api-version=2.0": {
+              "schema": {
+                "$ref": "#/components/schemas/ExportDiagnosticContract"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Returns Hamilton.WebAPI.Common.CmdResult object, Saves export package file.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unknown exception."
+          },
+          "502": {
+            "description": "Not connected error."
+          }
+        }
+      }
+    },
+    "/api/vector/v2/files/runtime-data": {
+      "get": {
+        "tags": [
+          "Files"
+        ],
+        "summary": "Get available (or filtered) runtime file information.",
+        "description": "Potentially obviated (deprecated) by M:Hamilton.WebAPI.Host.Controllers.V2.FilesController.GetRunHistoryData(System.String,Hamilton.WebAPI.Common.Ordering,System.Int32,System.Int32,System.Nullable{System.DateTime},System.Nullable{System.DateTime},System.String).",
+        "parameters": [
+          {
+            "name": "filter",
+            "in": "query",
+            "description": "Boolean flag to filter date range, if true; otherwise all available runtime file information is returned.",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "fromDate",
+            "in": "query",
+            "description": "Start date/time if filter = true.",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "toDate",
+            "in": "query",
+            "description": "End date/time if filter = true.",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Returns Hamilton.WebAPI.Common.RuntimeFileList object.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuntimeFileList"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuntimeFileList"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuntimeFileList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unable to fetch and return data."
+          }
+        }
+      }
+    },
+    "/api/vector/v2/files/detailed-run-data/{runtimeGuid}": {
+      "get": {
+        "tags": [
+          "Files"
+        ],
+        "summary": "Get detailed runtime information for a single method execution.",
+        "description": "Potentially obviated (deprecated) by M:Hamilton.WebAPI.Host.Controllers.V2.FilesController.GetRunHistoryData(System.String,Hamilton.WebAPI.Common.Ordering,System.Int32,System.Int32,System.Nullable{System.DateTime},System.Nullable{System.DateTime},System.String).",
+        "parameters": [
+          {
+            "name": "runtimeGuid",
+            "in": "path",
+            "description": "unique runtime identifier",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Returns Hamilton.WebAPI.Common.DetailedRuntimeInfo object.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/DetailedRuntimeInfo"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/DetailedRuntimeInfo"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/DetailedRuntimeInfo"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unable to return detailed runtime info for a specific run."
+          }
+        }
+      }
+    },
+    "/api/vector/v2/files/run-history-data": {
+      "get": {
+        "tags": [
+          "Files"
+        ],
+        "summary": "Get subset of runtime data log history according to query/filter parameters.",
+        "parameters": [
+          {
+            "name": "sortProperty",
+            "in": "query",
+            "description": "The RuntimeInfo property name to sort the run history records by (simple properties only, cannot sort by instrument list). Hamilton.WebAPI.Common.RuntimeInfo",
+            "schema": {
+              "type": "string",
+              "default": "StartTime"
+            }
+          },
+          {
+            "name": "sortOrder",
+            "in": "query",
+            "description": "Chronological ordering of run history records returned. Hamilton.WebAPI.Common.Ordering",
+            "schema": {
+              "$ref": "#/components/schemas/Ordering"
+            }
+          },
+          {
+            "name": "startOffset",
+            "in": "query",
+            "description": "Starting record number (one-based indexing). Default is one.",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 1
+            }
+          },
+          {
+            "name": "recordLimit",
+            "in": "query",
+            "description": "Limit of records to download. Default is fifty.  For pagination support.",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 50
+            }
+          },
+          {
+            "name": "startDateRange",
+            "in": "query",
+            "description": "Datestamp for start of range of records to be returned.",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "endDateRange",
+            "in": "query",
+            "description": "Datestamp for end of range of records to be returned.",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "runState",
+            "in": "query",
+            "description": "If supplied the records returned will all match this run state.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Returns Hamilton.WebAPI.Common.DownloadRunHistory",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/DownloadRunHistory"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/DownloadRunHistory"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/DownloadRunHistory"
+                }
+              }
+            }
+          },
+          "204": {
+            "description": "No Content."
+          },
+          "400": {
+            "description": "Malformed request.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unable to fetch and return data."
+          }
+        }
+      }
+    },
+    "/api/vector/v2/files/trace": {
+      "get": {
+        "tags": [
+          "Files"
+        ],
+        "summary": "Get trace file contents for specified run requested.",
+        "parameters": [
+          {
+            "name": "methodName",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "runGuid",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Returns list of strings with trace file contents.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Trace file exists on disk, but cannot be read.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Exception message."
+          }
+        }
+      }
+    },
+    "/api/vector/v2/files/asset": {
+      "get": {
+        "tags": [
+          "Files"
+        ],
+        "summary": "Get asset file requested as a blob.",
+        "parameters": [
+          {
+            "name": "assetPath",
+            "in": "query",
+            "description": "Absolute path to asset.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "assetType",
+            "in": "query",
+            "description": "File extension to denote the type of asset file requested.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Returns Microsoft.AspNetCore.Mvc.FileContentResult",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unable to fetch and return data."
+          },
+          "404": {
+            "description": "Not Found."
+          }
+        }
+      }
+    },
+    "/api/vector/v2/files/artifacts/{artifactName}": {
+      "get": {
+        "tags": [
+          "Files"
+        ],
+        "summary": "Get build artifact file for InstrumentViewer requested as a blob.",
+        "parameters": [
+          {
+            "name": "artifactName",
+            "in": "path",
+            "description": "Name of InstrumentViewer build artifact.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Returns Microsoft.AspNetCore.Mvc.FileContentResult",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unable to fetch and return data."
+          },
+          "404": {
+            "description": "Not Found."
+          }
+        }
+      }
+    },
+    "/api/vector/v2/files/streamingassets/{streamingAssetName}": {
+      "get": {
+        "tags": [
+          "Files"
+        ],
+        "summary": "Get StreamingAsset file for InstrumentViewer requested as a blob.",
+        "parameters": [
+          {
+            "name": "streamingAssetName",
+            "in": "path",
+            "description": "Name of InstrumentViewer StreamingAsset.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Returns Microsoft.AspNetCore.Mvc.FileContentResult",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unable to fetch and return data."
+          },
+          "404": {
+            "description": "Not Found."
+          }
+        }
+      }
+    },
+    "/api/vector/v2/files/cleanup": {
+      "post": {
+        "tags": [
+          "Files"
+        ],
+        "summary": "Performs cleanup operations for VENUS log files.",
+        "requestBody": {
+          "description": "Venus log file cleanup options.",
+          "content": {
+            "application/json; x-api-version=2.0": {
+              "schema": {
+                "$ref": "#/components/schemas/CleanupLogFileContract"
+              }
+            },
+            "text/json; x-api-version=2.0": {
+              "schema": {
+                "$ref": "#/components/schemas/CleanupLogFileContract"
+              }
+            },
+            "application/*+json; x-api-version=2.0": {
+              "schema": {
+                "$ref": "#/components/schemas/CleanupLogFileContract"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Returns Hamilton.WebAPI.Common.CmdResult",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unable to fetch and return data."
+          }
+        }
+      }
+    },
+    "/api/vector/v2/execution/analyze": {
+      "post": {
+        "tags": [
+          "RunExecutor"
+        ],
+        "summary": "Analyze the method package file.",
+        "requestBody": {
+          "description": "Hamilton.WebAPI.Common.AnalyzeMethodContract",
+          "content": {
+            "application/json; x-api-version=2.0": {
+              "schema": {
+                "$ref": "#/components/schemas/AnalyzeMethodContract"
+              }
+            },
+            "text/json; x-api-version=2.0": {
+              "schema": {
+                "$ref": "#/components/schemas/AnalyzeMethodContract"
+              }
+            },
+            "application/*+json; x-api-version=2.0": {
+              "schema": {
+                "$ref": "#/components/schemas/AnalyzeMethodContract"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Returns Hamilton.WebAPI.Common.CmdResult object.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unable to analyze method."
+          },
+          "502": {
+            "description": "Not connected error."
+          }
+        }
+      }
+    },
+    "/api/vector/v2/execution/analyze-method-package": {
+      "post": {
+        "tags": [
+          "RunExecutor"
+        ],
+        "summary": "Analyze the method package file.",
+        "parameters": [
+          {
+            "name": "archivePath",
+            "in": "query",
+            "description": "path to the .hamPackage file",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "Files are included or excluded to the import path specified in the options",
+          "content": {
+            "application/json; x-api-version=2.0": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportMethodOptions"
+              }
+            },
+            "text/json; x-api-version=2.0": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportMethodOptions"
+              }
+            },
+            "application/*+json; x-api-version=2.0": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportMethodOptions"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Returns list of Hamilton.WebAPI.Common.FileConflict object.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FileConflict"
+                  }
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FileConflict"
+                  }
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FileConflict"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unable to analyze method."
+          },
+          "502": {
+            "description": "Not connected error."
+          },
+          "404": {
+            "description": "File not found error.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/vector/v2/execution/load": {
+      "put": {
+        "tags": [
+          "RunExecutor"
+        ],
+        "summary": "Load the method file.",
+        "description": "Method cannot be started until the Initialized event is fired.",
+        "requestBody": {
+          "description": "Hamilton.WebAPI.Common.LoadMethodContract",
+          "content": {
+            "application/json; x-api-version=2.0": {
+              "schema": {
+                "$ref": "#/components/schemas/LoadMethodContract"
+              }
+            },
+            "text/json; x-api-version=2.0": {
+              "schema": {
+                "$ref": "#/components/schemas/LoadMethodContract"
+              }
+            },
+            "application/*+json; x-api-version=2.0": {
+              "schema": {
+                "$ref": "#/components/schemas/LoadMethodContract"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Returns Hamilton.WebAPI.Common.CmdResult object.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unable to load method."
+          },
+          "502": {
+            "description": "Not connected error."
+          }
+        }
+      }
+    },
+    "/api/vector/v2/execution/input": {
+      "put": {
+        "tags": [
+          "RunExecutor"
+        ],
+        "summary": "Use after LoadMethod() (parse) and before StartMethod() to initialize method variables.",
+        "description": "Method must be parsed and ready for execution; variables can only be set if the method state is Initialized or Paused.",
+        "requestBody": {
+          "description": "Hamilton.WebAPI.Common.SetVariablesContract",
+          "content": {
+            "application/json; x-api-version=2.0": {
+              "schema": {
+                "$ref": "#/components/schemas/SetVariablesContract"
+              }
+            },
+            "text/json; x-api-version=2.0": {
+              "schema": {
+                "$ref": "#/components/schemas/SetVariablesContract"
+              }
+            },
+            "application/*+json; x-api-version=2.0": {
+              "schema": {
+                "$ref": "#/components/schemas/SetVariablesContract"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Returns Hamilton.WebAPI.Common.CmdResult object.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unable to set input variables."
+          },
+          "502": {
+            "description": "Not connected error."
+          }
+        }
+      }
+    },
+    "/api/vector/v2/execution/start": {
+      "post": {
+        "tags": [
+          "RunExecutor"
+        ],
+        "summary": "Start the method.",
+        "responses": {
+          "200": {
+            "description": "Returns Hamilton.WebAPI.Common.CmdResult object.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Failure response.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unable to start method."
+          },
+          "502": {
+            "description": "Not connected error."
+          }
+        }
+      }
+    },
+    "/api/vector/v2/execution/pause": {
+      "post": {
+        "tags": [
+          "RunExecutor"
+        ],
+        "summary": "Pause the method.",
+        "responses": {
+          "200": {
+            "description": "Returns Hamilton.WebAPI.Common.CmdResult object.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Failure response.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unable to pause method."
+          },
+          "502": {
+            "description": "Not connected error."
+          }
+        }
+      }
+    },
+    "/api/vector/v2/execution/resume": {
+      "post": {
+        "tags": [
+          "RunExecutor"
+        ],
+        "summary": "Resume the method.",
+        "responses": {
+          "200": {
+            "description": "Returns Hamilton.WebAPI.Common.CmdResult object.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Failure response.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unable to resume method."
+          },
+          "502": {
+            "description": "Not connected error."
+          }
+        }
+      }
+    },
+    "/api/vector/v2/execution/abort": {
+      "post": {
+        "tags": [
+          "RunExecutor"
+        ],
+        "summary": "Abort the method.",
+        "responses": {
+          "200": {
+            "description": "Returns Hamilton.WebAPI.Common.CmdResult object.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Failure response.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unable to abort method."
+          },
+          "502": {
+            "description": "Not connected error."
+          }
+        }
+      }
+    },
+    "/api/vector/v2/execution/unload-method": {
+      "post": {
+        "tags": [
+          "RunExecutor"
+        ],
+        "summary": "Unload method.",
+        "description": "Side effect of unloading method results in cleaning up other s/w objects and recycling the run executor process.",
+        "responses": {
+          "200": {
+            "description": "Returns Hamilton.WebAPI.Common.CmdResult object.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/CmdResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Failure response.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Server internal error."
+          },
+          "502": {
+            "description": "Not connected error."
+          }
+        }
+      }
+    },
+    "/api/vector/v2/execution/run-state": {
+      "get": {
+        "tags": [
+          "RunExecutor"
+        ],
+        "summary": "Get the run state.",
+        "responses": {
+          "200": {
+            "description": "Returns int value of Hamilton.WebAPI.Common.RunState (enum).",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "type": "integer",
+                  "format": "int32"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "type": "integer",
+                  "format": "int32"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "type": "integer",
+                  "format": "int32"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Unable to fetch data.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unable to process request."
+          },
+          "502": {
+            "description": "Not connected error."
+          }
+        }
+      }
+    },
+    "/api/vector/v2/execution/loaded-method": {
+      "get": {
+        "tags": [
+          "RunExecutor"
+        ],
+        "summary": "Get the current loaded method.",
+        "responses": {
+          "200": {
+            "description": "Returns currently-loaded method (fully-qualified path).",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Unable to fetch data.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unable to process request."
+          },
+          "502": {
+            "description": "Not connected error."
+          }
+        }
+      }
+    },
+    "/api/vector/v2/execution/current-run-data": {
+      "get": {
+        "tags": [
+          "RunExecutor"
+        ],
+        "summary": "Gets detailed runtime information for currently-running method.",
+        "responses": {
+          "200": {
+            "description": "Returns Hamilton.WebAPI.Common.DetailedRuntimeInfo object.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/DetailedRuntimeInfo"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/DetailedRuntimeInfo"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/DetailedRuntimeInfo"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Runtime info not found. (e.g., not yet started, or terminated)",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unable to return detailed runtime info for run."
+          },
+          "502": {
+            "description": "Not connected error."
+          }
+        }
+      }
+    },
+    "/api/vector/v2/execution/realtime-schedule": {
+      "get": {
+        "tags": [
+          "RunExecutor"
+        ],
+        "summary": "Gets realtime schedule information for current method execution.",
+        "responses": {
+          "200": {
+            "description": "Returns Hamilton.WebAPI.Common.ScheduleData object.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleData"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleData"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScheduleData"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Unable to fetch data.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unable to return realtime schedule information."
+          },
+          "502": {
+            "description": "Not connected error."
+          }
+        }
+      }
+    },
+    "/api/vector/v2/system/paths": {
+      "get": {
+        "tags": [
+          "System"
+        ],
+        "summary": "Gets the default Vector file paths.",
+        "responses": {
+          "200": {
+            "description": "Returns a set of vector paths.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/VectorPathsResult"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/VectorPathsResult"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/VectorPathsResult"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unknown exception or vector exception."
+          },
+          "502": {
+            "description": "Unable to retrieve vector path inforamtion."
+          }
+        }
+      },
+      "head": {
+        "tags": [
+          "System"
+        ],
+        "summary": "Gets the default Vector file paths.",
+        "responses": {
+          "200": {
+            "description": "Returns a set of vector paths.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/VectorPathsResult"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/VectorPathsResult"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/VectorPathsResult"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unknown exception or vector exception."
+          },
+          "502": {
+            "description": "Unable to retrieve vector path inforamtion."
+          }
+        }
+      }
+    },
+    "/api/vector/v2/system/version": {
+      "get": {
+        "tags": [
+          "System"
+        ],
+        "summary": "Gets the universal VENUS version.",
+        "responses": {
+          "200": {
+            "description": "Returns VENUS version information.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/VenusVersionResult"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/VenusVersionResult"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/VenusVersionResult"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unknown exception or vector exception."
+          },
+          "502": {
+            "description": "Unable to retrieve version information from the registry."
+          }
+        }
+      },
+      "head": {
+        "tags": [
+          "System"
+        ],
+        "summary": "Gets the universal VENUS version.",
+        "responses": {
+          "200": {
+            "description": "Returns VENUS version information.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/VenusVersionResult"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/VenusVersionResult"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/VenusVersionResult"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unknown exception or vector exception."
+          },
+          "502": {
+            "description": "Unable to retrieve version information from the registry."
+          }
+        }
+      }
+    },
+    "/api/vector/v2/system/venus/archive": {
+      "post": {
+        "tags": [
+          "System"
+        ],
+        "summary": "Archives Venus logs located in program data.",
+        "requestBody": {
+          "content": {
+            "application/json; x-api-version=2.0": {
+              "schema": {
+                "$ref": "#/components/schemas/VenusArchiveRequest"
+              }
+            },
+            "text/json; x-api-version=2.0": {
+              "schema": {
+                "$ref": "#/components/schemas/VenusArchiveRequest"
+              }
+            },
+            "application/*+json; x-api-version=2.0": {
+              "schema": {
+                "$ref": "#/components/schemas/VenusArchiveRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Returns VENUS archive information.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/VenusSystemArchiveResult"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/VenusSystemArchiveResult"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/VenusSystemArchiveResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unknown exception or vector exception."
+          },
+          "502": {
+            "description": "Unable to archive venus logs."
+          }
+        }
+      }
+    },
+    "/api/vector/v2/system/invalidate-run-history-cache": {
+      "post": {
+        "tags": [
+          "System"
+        ],
+        "summary": "Sets the run history cache invalid.",
+        "responses": {
+          "200": {
+            "description": "Returns 200 Okay"
+          },
+          "500": {
+            "description": "Unknown exception."
+          }
+        }
+      }
+    },
+    "/api/vector/v2/users/logon": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Gets Windows user name and Vector access rights.",
+        "responses": {
+          "200": {
+            "description": "Returns Hamilton.WebAPI.Common.UserRightsContainer that contains enum {AllAccess=0, Programmer=1, Operator2=2, Operator=3, NoAccess=4}.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserRightsContainerRunExecutorValueResponse"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserRightsContainerRunExecutorValueResponse"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserRightsContainerRunExecutorValueResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error message.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unable to get user rights."
+          },
+          "502": {
+            "description": "Not connected error."
+          }
+        }
+      }
+    },
+    "/api/vector/v2/users/display-name": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Gets the display name of the user Run Executor is running under.",
+        "responses": {
+          "200": {
+            "description": "Returns Microsoft.AspNetCore.Mvc.OkObjectResult object.",
+            "content": {
+              "text/plain; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/StringRunExecutorValueResponse"
+                }
+              },
+              "application/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/StringRunExecutorValueResponse"
+                }
+              },
+              "text/json; x-api-version=2.0": {
+                "schema": {
+                  "$ref": "#/components/schemas/StringRunExecutorValueResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unable to return account display name."
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AVStreamingProtocols": {
+        "enum": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ],
+        "type": "integer",
+        "format": "int32"
+      },
+      "ActivityData": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "state": {
+            "$ref": "#/components/schemas/ActivityProcessingState"
+          },
+          "row": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "color": {
+            "$ref": "#/components/schemas/ColorInfo"
+          },
+          "startTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endTime": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ActivityProcessingState": {
+        "enum": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ],
+        "type": "integer",
+        "format": "int32"
+      },
+      "AnalyzeMethodContract": {
+        "type": "object",
+        "properties": {
+          "methodFilePath": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "BookmarkRequest": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "cameraIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "startTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "duration": {
+            "$ref": "#/components/schemas/TimeSpan"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CameraLiveStreamInfo": {
+        "type": "object",
+        "properties": {
+          "liveStreamUrl": {
+            "type": "string",
+            "format": "uri",
+            "nullable": true
+          },
+          "protocol": {
+            "$ref": "#/components/schemas/AVStreamingProtocols"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CameraMetadata": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "nullable": true
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "connectionState": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "CameraMetadataList": {
+        "type": "object",
+        "properties": {
+          "cameras": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CameraMetadata"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "CameraMetadataResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "nullable": true
+          },
+          "result": {
+            "$ref": "#/components/schemas/CameraMetadataList"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CircularRackDefinition": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "nullable": true
+          },
+          "parentId": {
+            "type": "string",
+            "nullable": true
+          },
+          "anchor": {
+            "$ref": "#/components/schemas/Coordinate"
+          },
+          "dimension": {
+            "$ref": "#/components/schemas/Coordinate"
+          },
+          "rotation": {
+            "type": "number",
+            "format": "double"
+          },
+          "model": {
+            "type": "string",
+            "nullable": true
+          },
+          "modelOffset": {
+            "$ref": "#/components/schemas/Coordinate"
+          },
+          "bitmap": {
+            "type": "string",
+            "nullable": true
+          },
+          "visible": {
+            "type": "boolean"
+          },
+          "segmentCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "segments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Segment"
+            },
+            "nullable": true
+          },
+          "singleContainer": {
+            "type": "boolean"
+          },
+          "containers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ContainerDefinition"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "CleanupLogFileContract": {
+        "type": "object",
+        "properties": {
+          "removePermanently": {
+            "type": "boolean"
+          },
+          "cleanupCutoffUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "archiveFilePath": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "CmdResult": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "boolean",
+            "readOnly": true
+          },
+          "message": {
+            "type": "string",
+            "nullable": true,
+            "readOnly": true
+          },
+          "resetRunExec": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ColorInfo": {
+        "type": "object",
+        "properties": {
+          "a": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "r": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "g": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "b": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ContainerDefinition": {
+        "type": "object",
+        "properties": {
+          "shapeOverall": {
+            "$ref": "#/components/schemas/SegmentShape"
+          },
+          "id": {
+            "type": "string",
+            "nullable": true
+          },
+          "deckCoordinate": {
+            "$ref": "#/components/schemas/Coordinate"
+          },
+          "dimensions": {
+            "$ref": "#/components/schemas/Coordinate"
+          },
+          "model": {
+            "type": "string",
+            "nullable": true
+          },
+          "modelOffset": {
+            "$ref": "#/components/schemas/Coordinate"
+          },
+          "segments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ContainerSegment"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "ContainerSegment": {
+        "type": "object",
+        "properties": {
+          "minZ": {
+            "type": "number",
+            "format": "double"
+          },
+          "maxZ": {
+            "type": "number",
+            "format": "double"
+          },
+          "shape": {
+            "$ref": "#/components/schemas/SegmentShape"
+          },
+          "diameter": {
+            "$ref": "#/components/schemas/Coordinate"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ControlPanelSupport": {
+        "enum": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "type": "integer",
+        "format": "int32"
+      },
+      "Coordinate": {
+        "type": "object",
+        "properties": {
+          "x": {
+            "type": "number",
+            "format": "double"
+          },
+          "y": {
+            "type": "number",
+            "format": "double"
+          },
+          "z": {
+            "type": "number",
+            "format": "double"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CoverDefinition": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "nullable": true
+          },
+          "parentId": {
+            "type": "string",
+            "nullable": true
+          },
+          "anchor": {
+            "$ref": "#/components/schemas/Coordinate"
+          },
+          "dimension": {
+            "$ref": "#/components/schemas/Coordinate"
+          },
+          "rotation": {
+            "type": "number",
+            "format": "double"
+          },
+          "model": {
+            "type": "string",
+            "nullable": true
+          },
+          "modelOffset": {
+            "$ref": "#/components/schemas/Coordinate"
+          },
+          "bitmap": {
+            "type": "string",
+            "nullable": true
+          },
+          "visible": {
+            "type": "boolean"
+          },
+          "baseOffset": {
+            "type": "number",
+            "format": "double"
+          },
+          "coverThickness": {
+            "type": "number",
+            "format": "double"
+          }
+        },
+        "additionalProperties": false
+      },
+      "DeckLayerData": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "labware": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "DeckLayoutData": {
+        "type": "object",
+        "properties": {
+          "deck": {
+            "$ref": "#/components/schemas/TemplateDefinition"
+          },
+          "labware": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LabwareWrapper"
+            },
+            "nullable": true
+          },
+          "deckLayers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DeckLayerData"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "DetailedRuntimeInfo": {
+        "type": "object",
+        "properties": {
+          "methodName": {
+            "type": "string",
+            "nullable": true
+          },
+          "dbFileName": {
+            "type": "string",
+            "nullable": true
+          },
+          "runGuid": {
+            "type": "string",
+            "nullable": true
+          },
+          "startTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "computerName": {
+            "type": "string",
+            "nullable": true
+          },
+          "runState": {
+            "type": "string",
+            "nullable": true
+          },
+          "duration": {
+            "type": "number",
+            "format": "double",
+            "readOnly": true
+          },
+          "userName": {
+            "type": "string",
+            "nullable": true
+          },
+          "instruments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InstrumentInfo"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "DeviceConfigurationData": {
+        "type": "object",
+        "properties": {
+          "deviceID": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "dataDefinition": {
+            "type": "string",
+            "nullable": true
+          },
+          "dataInstance": {
+            "type": "string",
+            "nullable": true
+          },
+          "configKeys": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "configValues": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "DeviceConfigurationRequest": {
+        "type": "object",
+        "properties": {
+          "deviceID": {
+            "type": "integer",
+            "description": "Device ID",
+            "format": "int32"
+          },
+          "dataDefinition": {
+            "type": "string",
+            "description": "Data definition in instrument configuration file",
+            "nullable": true
+          },
+          "dataInstance": {
+            "type": "string",
+            "description": "Data instance (for definition)",
+            "nullable": true
+          },
+          "configKeys": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of required configuration keys",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false,
+        "description": "Device Configuration Request"
+      },
+      "DirectoryKey": {
+        "enum": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11
+        ],
+        "type": "integer",
+        "format": "int32"
+      },
+      "DirectoryOption": {
+        "type": "object",
+        "properties": {
+          "directoryKey": {
+            "$ref": "#/components/schemas/DirectoryKey"
+          },
+          "pathValue": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "DownloadRunHistory": {
+        "type": "object",
+        "properties": {
+          "sortProperty": {
+            "type": "string",
+            "nullable": true
+          },
+          "sortOrder": {
+            "$ref": "#/components/schemas/Ordering"
+          },
+          "downloadLimit": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "downloadFirstDateStamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "downloadLastDateStamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "downloadOffset": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "spanCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "spanFirstDateStamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "spanLastDateStamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "cacheTotalCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "cacheFirstDateStamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "cacheLastDateStamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "subList": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RuntimeInfo"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "ErrorMessageBoxContract": {
+        "type": "object",
+        "properties": {
+          "deviceId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "requestId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "runtimeDialogResult": {
+            "$ref": "#/components/schemas/RuntimeDialogResult"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ExportDiagnosticContract": {
+        "type": "object",
+        "properties": {
+          "methodPath": {
+            "type": "string",
+            "nullable": true
+          },
+          "runGuid": {
+            "type": "string",
+            "nullable": true
+          },
+          "filePath": {
+            "type": "string",
+            "nullable": true
+          },
+          "exportMethod": {
+            "type": "boolean"
+          },
+          "exportCommTrace": {
+            "type": "boolean"
+          },
+          "exportVenusLogs": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ExportMethodContract": {
+        "type": "object",
+        "properties": {
+          "methodPath": {
+            "type": "string",
+            "nullable": true
+          },
+          "filePath": {
+            "type": "string",
+            "nullable": true
+          },
+          "exportOriginalFiles": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ExportOptions": {
+        "type": "object",
+        "properties": {
+          "method": {
+            "type": "string",
+            "nullable": true
+          },
+          "comment": {
+            "type": "string",
+            "nullable": true
+          },
+          "packageName": {
+            "type": "string",
+            "nullable": true
+          },
+          "exportLiquidClassDatabase": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "FileConflict": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string",
+            "nullable": true
+          },
+          "sourceLastModified": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "target": {
+            "type": "string",
+            "nullable": true
+          },
+          "targetLastModified": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "conflictType": {
+            "$ref": "#/components/schemas/ImportConflictType"
+          },
+          "itemType": {
+            "$ref": "#/components/schemas/ItemType"
+          }
+        },
+        "additionalProperties": false
+      },
+      "FileRuleType": {
+        "enum": [
+          0,
+          16,
+          17,
+          18
+        ],
+        "type": "integer",
+        "format": "int32"
+      },
+      "ImportConflictType": {
+        "enum": [
+          0,
+          1,
+          2,
+          4,
+          5
+        ],
+        "type": "integer",
+        "format": "int32"
+      },
+      "ImportMethodContract": {
+        "type": "object",
+        "properties": {
+          "filePath": {
+            "type": "string",
+            "nullable": true
+          },
+          "pathRule": {
+            "$ref": "#/components/schemas/PathRuleType"
+          },
+          "fileRule": {
+            "$ref": "#/components/schemas/FileRuleType"
+          },
+          "instrumentRule": {
+            "$ref": "#/components/schemas/InstrumentRuleType"
+          },
+          "importRule": {
+            "$ref": "#/components/schemas/ImportPathType"
+          },
+          "subDirectoryName": {
+            "type": "string",
+            "nullable": true
+          },
+          "methodPath": {
+            "type": "string",
+            "nullable": true
+          },
+          "libraryPath": {
+            "type": "string",
+            "nullable": true
+          },
+          "labwarePath": {
+            "type": "string",
+            "nullable": true
+          },
+          "miscPath": {
+            "type": "string",
+            "nullable": true
+          },
+          "importHamiltonFiles": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ImportMethodOptions": {
+        "type": "object",
+        "properties": {
+          "includeOriginalFiles": {
+            "type": "boolean"
+          },
+          "importMode": {
+            "$ref": "#/components/schemas/ImportMode"
+          },
+          "directoryOption": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DirectoryOption"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "ImportMode": {
+        "enum": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "type": "integer",
+        "format": "int32"
+      },
+      "ImportPathType": {
+        "enum": [
+          0,
+          64,
+          65,
+          66,
+          67,
+          68,
+          69
+        ],
+        "type": "integer",
+        "format": "int32"
+      },
+      "InstrumentErrorContract": {
+        "type": "object",
+        "properties": {
+          "deviceId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "requestId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "mbType": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InstrumentErrorRecovery"
+            },
+            "nullable": true
+          },
+          "result": {
+            "$ref": "#/components/schemas/RuntimeDialogResult"
+          }
+        },
+        "additionalProperties": false
+      },
+      "InstrumentErrorRecovery": {
+        "type": "object",
+        "properties": {
+          "errorIndex": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "mainErrorId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "slaveErrorId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "errorDescription": {
+            "type": "string",
+            "nullable": true
+          },
+          "recoveries": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "nullable": true
+          },
+          "assignedRecoveryId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "manualBarcode": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "InstrumentInfo": {
+        "type": "object",
+        "properties": {
+          "instrumentName": {
+            "type": "string",
+            "nullable": true
+          },
+          "instrumentSerialNumber": {
+            "type": "string",
+            "nullable": true
+          },
+          "instrumentSimulation": {
+            "type": "boolean"
+          },
+          "softwareVersion": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "InstrumentRuleType": {
+        "enum": [
+          0,
+          48,
+          49,
+          50,
+          51
+        ],
+        "type": "integer",
+        "format": "int32"
+      },
+      "ItemType": {
+        "enum": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11
+        ],
+        "type": "integer",
+        "format": "int32"
+      },
+      "LabwareWrapper": {
+        "type": "object",
+        "properties": {
+          "templateWrapper": {
+            "$ref": "#/components/schemas/TemplateDefinition"
+          },
+          "rackWrapper": {
+            "$ref": "#/components/schemas/RackDefinition"
+          },
+          "circularRackWrapper": {
+            "$ref": "#/components/schemas/CircularRackDefinition"
+          },
+          "coverWrapper": {
+            "$ref": "#/components/schemas/CoverDefinition"
+          }
+        },
+        "additionalProperties": false
+      },
+      "LoadMethodContract": {
+        "type": "object",
+        "properties": {
+          "filePath": {
+            "type": "string",
+            "nullable": true
+          },
+          "simulation": {
+            "type": "boolean"
+          },
+          "parentWindowHandle": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Ordering": {
+        "enum": [
+          0,
+          1,
+          2
+        ],
+        "type": "integer",
+        "format": "int32"
+      },
+      "PathRuleType": {
+        "enum": [
+          0,
+          32,
+          33,
+          34,
+          35,
+          36,
+          37,
+          38
+        ],
+        "type": "integer",
+        "format": "int32"
+      },
+      "ProblemDetails": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "nullable": true
+          },
+          "title": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "detail": {
+            "type": "string",
+            "nullable": true
+          },
+          "instance": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": { }
+      },
+      "RackDefinition": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "nullable": true
+          },
+          "parentId": {
+            "type": "string",
+            "nullable": true
+          },
+          "anchor": {
+            "$ref": "#/components/schemas/Coordinate"
+          },
+          "dimension": {
+            "$ref": "#/components/schemas/Coordinate"
+          },
+          "rotation": {
+            "type": "number",
+            "format": "double"
+          },
+          "model": {
+            "type": "string",
+            "nullable": true
+          },
+          "modelOffset": {
+            "$ref": "#/components/schemas/Coordinate"
+          },
+          "bitmap": {
+            "type": "string",
+            "nullable": true
+          },
+          "visible": {
+            "type": "boolean"
+          },
+          "numberRows": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "numberCols": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "rowSpacing": {
+            "type": "number",
+            "format": "double"
+          },
+          "colSpacing": {
+            "type": "number",
+            "format": "double"
+          },
+          "singleContainer": {
+            "type": "boolean"
+          },
+          "containers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ContainerDefinition"
+            },
+            "nullable": true
+          },
+          "holePositions": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/Coordinate"
+            },
+            "nullable": true
+          },
+          "covered": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "RegisteredDeviceInfo": {
+        "type": "object",
+        "properties": {
+          "deviceName": {
+            "type": "string",
+            "nullable": true
+          },
+          "deviceDisplayName": {
+            "type": "string",
+            "nullable": true
+          },
+          "imageFile": {
+            "type": "string",
+            "nullable": true
+          },
+          "hasDeckLayout": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "RegisteredDeviceInput": {
+        "type": "object",
+        "properties": {
+          "deviceName": {
+            "type": "string",
+            "nullable": true
+          },
+          "windowHandle": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ResourceData": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "color": {
+            "$ref": "#/components/schemas/ColorInfo"
+          },
+          "unit": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "activities": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "RuntimeDeviceInfo": {
+        "type": "object",
+        "properties": {
+          "deviceName": {
+            "type": "string",
+            "nullable": true
+          },
+          "deviceDisplayName": {
+            "type": "string",
+            "nullable": true
+          },
+          "imageFile": {
+            "type": "string",
+            "nullable": true
+          },
+          "hasDeckLayout": {
+            "type": "boolean"
+          },
+          "deviceId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "simulation": {
+            "type": "boolean"
+          },
+          "controlPanelSupport": {
+            "$ref": "#/components/schemas/ControlPanelSupport"
+          },
+          "windowHandle": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "RuntimeDeviceInput": {
+        "type": "object",
+        "properties": {
+          "deviceId": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "RuntimeDialogResult": {
+        "enum": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          11
+        ],
+        "type": "integer",
+        "format": "int32"
+      },
+      "RuntimeFileList": {
+        "type": "object",
+        "properties": {
+          "files": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RuntimeInfo"
+            },
+            "nullable": true,
+            "readOnly": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "RuntimeInfo": {
+        "type": "object",
+        "properties": {
+          "methodName": {
+            "type": "string",
+            "nullable": true
+          },
+          "dbFileName": {
+            "type": "string",
+            "nullable": true
+          },
+          "runGuid": {
+            "type": "string",
+            "nullable": true
+          },
+          "startTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "computerName": {
+            "type": "string",
+            "nullable": true
+          },
+          "runState": {
+            "type": "string",
+            "nullable": true
+          },
+          "duration": {
+            "type": "number",
+            "format": "double",
+            "readOnly": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "ScheduleData": {
+        "type": "object",
+        "properties": {
+          "tasks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TaskData"
+            },
+            "nullable": true
+          },
+          "resources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ResourceData"
+            },
+            "nullable": true
+          },
+          "scheduleState": {
+            "$ref": "#/components/schemas/ScheduleState"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ScheduleState": {
+        "enum": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "type": "integer",
+        "format": "int32"
+      },
+      "SecurityCOMValidation": {
+        "enum": [
+          0,
+          1,
+          2
+        ],
+        "type": "integer",
+        "format": "int32"
+      },
+      "Segment": {
+        "type": "object",
+        "properties": {
+          "numberHoles": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "radius": {
+            "type": "number",
+            "format": "double"
+          },
+          "holeAnchors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Coordinate"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SegmentShape": {
+        "enum": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "type": "integer",
+        "format": "int32"
+      },
+      "SetVariablesContract": {
+        "type": "object",
+        "properties": {
+          "variableNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true
+          },
+          "variableValues": {
+            "type": "array",
+            "items": { },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "StringRunExecutorValueResponse": {
+        "type": "object",
+        "properties": {
+          "succeeded": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "resetRunExecutor": {
+            "type": "boolean"
+          },
+          "hasValue": {
+            "type": "boolean",
+            "readOnly": true
+          },
+          "value": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "TaskData": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "state": {
+            "$ref": "#/components/schemas/TaskState"
+          },
+          "row": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "activities": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ActivityData"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "TaskState": {
+        "enum": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8
+        ],
+        "type": "integer",
+        "format": "int32"
+      },
+      "TemplateDefinition": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "nullable": true
+          },
+          "parentId": {
+            "type": "string",
+            "nullable": true
+          },
+          "anchor": {
+            "$ref": "#/components/schemas/Coordinate"
+          },
+          "dimension": {
+            "$ref": "#/components/schemas/Coordinate"
+          },
+          "rotation": {
+            "type": "number",
+            "format": "double"
+          },
+          "model": {
+            "type": "string",
+            "nullable": true
+          },
+          "modelOffset": {
+            "$ref": "#/components/schemas/Coordinate"
+          },
+          "bitmap": {
+            "type": "string",
+            "nullable": true
+          },
+          "visible": {
+            "type": "boolean"
+          },
+          "originOffset": {
+            "$ref": "#/components/schemas/Coordinate"
+          }
+        },
+        "additionalProperties": false
+      },
+      "TimeSpan": {
+        "type": "object",
+        "properties": {
+          "ticks": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "days": {
+            "type": "integer",
+            "format": "int32",
+            "readOnly": true
+          },
+          "hours": {
+            "type": "integer",
+            "format": "int32",
+            "readOnly": true
+          },
+          "milliseconds": {
+            "type": "integer",
+            "format": "int32",
+            "readOnly": true
+          },
+          "minutes": {
+            "type": "integer",
+            "format": "int32",
+            "readOnly": true
+          },
+          "seconds": {
+            "type": "integer",
+            "format": "int32",
+            "readOnly": true
+          },
+          "totalDays": {
+            "type": "number",
+            "format": "double",
+            "readOnly": true
+          },
+          "totalHours": {
+            "type": "number",
+            "format": "double",
+            "readOnly": true
+          },
+          "totalMilliseconds": {
+            "type": "number",
+            "format": "double",
+            "readOnly": true
+          },
+          "totalMinutes": {
+            "type": "number",
+            "format": "double",
+            "readOnly": true
+          },
+          "totalSeconds": {
+            "type": "number",
+            "format": "double",
+            "readOnly": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "UserRightsContainer": {
+        "type": "object",
+        "properties": {
+          "userName": {
+            "type": "string",
+            "nullable": true
+          },
+          "userAccess": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "UserRightsContainerRunExecutorValueResponse": {
+        "type": "object",
+        "properties": {
+          "succeeded": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "resetRunExecutor": {
+            "type": "boolean"
+          },
+          "hasValue": {
+            "type": "boolean",
+            "readOnly": true
+          },
+          "value": {
+            "$ref": "#/components/schemas/UserRightsContainer"
+          }
+        },
+        "additionalProperties": false
+      },
+      "VectorPathsResult": {
+        "type": "object",
+        "properties": {
+          "paths": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "nullable": true,
+            "readOnly": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "VenusArchiveRequest": {
+        "type": "object",
+        "properties": {
+          "destinationPath": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "VenusSystemArchiveResult": {
+        "type": "object",
+        "properties": {
+          "archivePath": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "VenusVersionResult": {
+        "type": "object",
+        "properties": {
+          "universalVersion": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  }
+}

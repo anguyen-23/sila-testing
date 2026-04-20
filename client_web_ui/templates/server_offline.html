@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Server Offline{% endblock %}
+{% block content %}
+<div class="alert alert-danger">
+    <h4>Server Offline</h4>
+    <p>Cannot connect to {{ info.host }}:{{ info.port }}</p>
+    {% if info.get('error') %}<p class="mb-0"><small>{{ info.error }}</small></p>{% endif %}
+</div>
+<a href="/" class="btn btn-secondary">Back to Servers</a>
+{% endblock %}

@@ -1,0 +1,11 @@
+---
+# Install and authenticate Tailscale on target machines.
+# Requires tailscale_auth_key (pre-auth key from Tailscale admin console).
+
+- name: Include Windows tasks
+  include_tasks: windows.yml
+  when: ansible_os_family == "Windows"
+
+- name: Include Linux tasks
+  include_tasks: linux.yml
+  when: ansible_os_family != "Windows"

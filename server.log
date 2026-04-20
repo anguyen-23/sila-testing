@@ -1,0 +1,31 @@
+Could not find platform independent libraries <prefix>
+2026-03-02 16:09:50,490:WARNING:sila2.server.sila_server:Starting SiLA server without encryption
+2026-03-02 16:09:52,107:INFO:__main__:Server startup complete
+2026-03-02 16:09:57,078:WARNING:observable-command-manager-org.silalearning/examples/TemperatureController/v1/Command/SetTemperature-8917c22d-11cf-4ba2-812d-34d39411f486:Lifetime of execution cannot be decreased! Using previous lifetime 0:30:00 instead of 0:01:01.200000.
+2026-03-02 16:09:58,800:WARNING:observable-command-manager-org.silalearning/examples/TemperatureController/v1/Command/SetTemperature-29de4143-7310-4f37-bdeb-3fbe9e114258:Lifetime of execution cannot be decreased! Using previous lifetime 0:30:00 instead of 0:01:00.710000.
+2026-03-02 16:09:59,408:ERROR:TemperatureController:Raising exception as RpcError
+NoneType: None
+2026-03-02 16:09:59,411:ERROR:TemperatureController:Caught exception, raising as RpcError
+Traceback (most recent call last):
+  File "C:\Users\keyser\source\repos\keyser-sila-testing\.venv\Lib\site-packages\sila2\server\feature_implementation_servicer.py", line 446, in raises_rpc_errors
+    yield
+  File "C:\Users\keyser\source\repos\keyser-sila-testing\.venv\Lib\site-packages\sila2\server\feature_implementation_servicer.py", line 125, in wrapper
+    self.__apply_metadata_interceptors(None, metadata, cmd.fully_qualified_identifier)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\keyser\source\repos\keyser-sila-testing\.venv\Lib\site-packages\sila2\server\feature_implementation_servicer.py", line 306, in __apply_metadata_interceptors
+    interceptor.intercept(parameters, metadata, target)
+    ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\keyser\source\repos\keyser-sila-testing\servers\temperature_controller\temperature_controller\feature_implementations\lockcontroller_impl.py", line 91, in intercept
+    raise InvalidLockIdentifier
+sila2.features.lockcontroller.lockcontroller_errors.InvalidLockIdentifier: The sent lock identifier is not valid.
+2026-03-02 16:09:59,414:ERROR:LockController:Caught exception, raising as RpcError
+Traceback (most recent call last):
+  File "C:\Users\keyser\source\repos\keyser-sila-testing\.venv\Lib\site-packages\sila2\server\feature_implementation_servicer.py", line 446, in raises_rpc_errors
+    yield
+  File "C:\Users\keyser\source\repos\keyser-sila-testing\.venv\Lib\site-packages\sila2\server\feature_implementation_servicer.py", line 126, in wrapper
+    response = impl_func(*params, metadata=metadata)
+  File "C:\Users\keyser\source\repos\keyser-sila-testing\servers\temperature_controller\temperature_controller\feature_implementations\lockcontroller_impl.py", line 52, in LockServer
+    raise ServerAlreadyLocked
+sila2.features.lockcontroller.lockcontroller_errors.ServerAlreadyLocked: The SiLA Server can not be locked because it is already locked.
+2026-03-02 16:09:59,645:ERROR:TemperatureController:Raising exception as RpcError
+NoneType: None

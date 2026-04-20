@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Feature xmlns="http://www.sila-standard.org"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         SiLA2Version="1.1"
+         FeatureVersion="1.0"
+         Originator="calico.automation"
+         Category="extended"
+         MaturityLevel="Draft">
+
+    <Identifier>MessagingClient</Identifier>
+    <DisplayName>Messaging Client</DisplayName>
+    <Description>
+        Connects to a lab messaging server via WebSocket to receive operator
+        instructions for this instrument. Messages can be confirmed (acknowledged)
+        once the operator has completed the requested action.
+    </Description>
+
+    <!-- ============================================================ -->
+    <!-- COMMANDS                                                      -->
+    <!-- ============================================================ -->
+
+    <Command>
+        <Identifier>ConnectToMessageServer</Identifier>
+        <DisplayName>Connect to Message Server</DisplayName>
+        <Description>
+            Opens a WebSocket connection to the lab messaging server and begins
+            listening for messages targeting this instrument.
+        </Description>
+        <Observable>No</Observable>
+        <Parameter>
+            <Identifier>ServerUrl</Identifier>
+            <DisplayName>Server URL</DisplayName>
+            <Description>URL of the messaging server (e.g. "http://localhost:8000").</Description>
+            <DataType><Basic>String</Basic></DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>InstrumentId</Identifier>
+            <DisplayName>Instrument ID</DisplayName>
+            <Description>Instrument identifier to filter messages for (e.g. "ps-tws-1").</Description>
+            <DataType><Basic>String</Basic></DataType>
+        </Parameter>
+        <DefinedExecutionErrors>
+            <Identifier>MessagingError</Identifier>
+        </DefinedExecutionErrors>
+    </Command>
+
+    <Command>
+        <Identifier>DisconnectFromMessageServer</Identifier>
+        <DisplayName>Disconnect from Message Server</DisplayName>
+        <Description>Closes the WebSocket connection to the messaging server.</Description>
+        <Observable>No</Observable>
+        <DefinedExecutionErrors>
+            <Identifier>NotListening</Identifier>
+        </DefinedExecutionErrors>
+    </Command>
+
+    <Command>
+        <Identifier>ConfirmMessage</Identifier>
+        <DisplayName>Confirm Message</DisplayName>
+        <Description>
+            Confirms (acknowledges) a pending message by its ID, notifying
+            the server that the operator has completed the requested action.
+        </Description>
+        <Observable>No</Observable>
+        <Parameter>
+            <Identifier>MessageId</Identifier>
+            <DisplayName>Message ID</DisplayName>
+            <Description>The ID of the message to confirm.</Description>
+            <DataType><Basic>String</Basic></DataType>
+        </Parameter>
+        <DefinedExecutionErrors>
+            <Identifier>NotListening</Identifier>
+            <Identifier>MessageNotFound</Identifier>
+            <Identifier>MessagingError</Identifier>
+        </DefinedExecutionErrors>
+    </Command>
+
+    <!-- ============================================================ -->
+    <!-- PROPERTIES                                                    -->
+    <!-- ============================================================ -->
+
+    <Property>
+        <Identifier>IsListening</Identifier>
+        <DisplayName>Is Listening</DisplayName>
+        <Description>Whether the WebSocket connection is active and listening for messages.</Description>
+        <Observable>No</Observable>
+        <DataType><Basic>Boolean</Basic></DataType>
+    </Property>
+
+    <Property>
+        <Identifier>PendingMessages</Identifier>
+        <DisplayName>Pending Messages</DisplayName>
+        <Description>
+            JSON string containing an array of pending (unconfirmed) messages.
+            Each message has id, title, body, and instrument_id fields.
+        </Description>
+        <Observable>No</Observable>
+        <DataType><Basic>String</Basic></DataType>
+    </Property>
+
+    <!-- ============================================================ -->
+    <!-- DEFINED EXECUTION ERRORS                                      -->
+    <!-- ============================================================ -->
+
+    <DefinedExecutionError>
+        <Identifier>NotListening</Identifier>
+        <DisplayName>Not Listening</DisplayName>
+        <Description>
+            Not connected to the messaging server. Call ConnectToMessageServer first.
+        </Description>
+    </DefinedExecutionError>
+
+    <DefinedExecutionError>
+        <Identifier>MessageNotFound</Identifier>
+        <DisplayName>Message Not Found</DisplayName>
+        <Description>
+            The specified message ID was not found in the pending messages list.
+        </Description>
+    </DefinedExecutionError>
+
+    <DefinedExecutionError>
+        <Identifier>MessagingError</Identifier>
+        <DisplayName>Messaging Error</DisplayName>
+        <Description>
+            A messaging system error occurred (WebSocket failure, server error, etc.).
+        </Description>
+    </DefinedExecutionError>
+
+</Feature>

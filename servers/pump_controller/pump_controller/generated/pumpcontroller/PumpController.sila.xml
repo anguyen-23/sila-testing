@@ -1,0 +1,148 @@
+<Feature xmlns="http://www.sila-standard.org" Category="extended" FeatureVersion="1.0" MaturityLevel="Draft" Originator="calico.automation" SiLA2Version="1.1">
+  <Identifier>PumpController</Identifier>
+  <DisplayName>Pump Controller</DisplayName>
+  <Description>Controls a simulated syringe/peristaltic pump for liquid handling.
+        Demonstrates multiple commands with validation, state management
+        (pump must be primed before dispensing), and volume tracking.
+        This is a learning feature, not intended for production use.</Description>
+  <!-- Observable Command: dispense a volume of liquid -->
+  <Command>
+    <Identifier>Dispense</Identifier>
+    <DisplayName>Dispense</DisplayName>
+    <Description>Dispenses the specified volume of liquid at the given flow rate.
+            This is observable so the client can track dispensing progress
+            and see intermediate volume readings.</Description>
+    <Observable>Yes</Observable>
+    <Parameter>
+      <Identifier>Volume</Identifier>
+      <DisplayName>Volume</DisplayName>
+      <Description>Volume to dispense in milliliters (mL).</Description>
+      <DataType>
+        <Constrained>
+          <DataType>
+            <Basic>Real</Basic>
+          </DataType>
+          <Constraints>
+            <MinimalExclusive>0</MinimalExclusive>
+            <MaximalInclusive>50</MaximalInclusive>
+          </Constraints>
+        </Constrained>
+      </DataType>
+    </Parameter>
+    <Parameter>
+      <Identifier>FlowRate</Identifier>
+      <DisplayName>Flow Rate</DisplayName>
+      <Description>Flow rate in milliliters per second (mL/s).</Description>
+      <DataType>
+        <Constrained>
+          <DataType>
+            <Basic>Real</Basic>
+          </DataType>
+          <Constraints>
+            <MinimalExclusive>0</MinimalExclusive>
+            <MaximalInclusive>10</MaximalInclusive>
+          </Constraints>
+        </Constrained>
+      </DataType>
+    </Parameter>
+    <Response>
+      <Identifier>ActualVolumeDispensed</Identifier>
+      <DisplayName>Actual Volume Dispensed</DisplayName>
+      <Description>The actual volume dispensed in mL (may differ slightly from requested).</Description>
+      <DataType>
+        <Basic>Real</Basic>
+      </DataType>
+    </Response>
+    <IntermediateResponse>
+      <Identifier>VolumeDispensedSoFar</Identifier>
+      <DisplayName>Volume Dispensed So Far</DisplayName>
+      <Description>Running total of volume dispensed during this operation.</Description>
+      <DataType>
+        <Basic>Real</Basic>
+      </DataType>
+    </IntermediateResponse>
+    <DefinedExecutionErrors>
+      <Identifier>PumpNotPrimed</Identifier>
+      <Identifier>OverPressure</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <!-- Unobservable Command: prime the pump -->
+  <Command>
+    <Identifier>Prime</Identifier>
+    <DisplayName>Prime</DisplayName>
+    <Description>Primes the pump by filling the tubing with liquid. Must be called
+            before dispensing. Demonstrates a prerequisite command pattern.</Description>
+    <Observable>No</Observable>
+    <Response>
+      <Identifier>PrimeSuccessful</Identifier>
+      <DisplayName>Prime Successful</DisplayName>
+      <Description>Whether the priming was successful.</Description>
+      <DataType>
+        <Basic>Boolean</Basic>
+      </DataType>
+    </Response>
+  </Command>
+  <!-- Unobservable Command: get pump status -->
+  <Command>
+    <Identifier>GetPumpStatus</Identifier>
+    <DisplayName>Get Pump Status</DisplayName>
+    <Description>Returns a human-readable status string for the pump.</Description>
+    <Observable>No</Observable>
+    <Response>
+      <Identifier>StatusMessage</Identifier>
+      <DisplayName>Status Message</DisplayName>
+      <Description>Current pump status.</Description>
+      <DataType>
+        <Basic>String</Basic>
+      </DataType>
+    </Response>
+  </Command>
+  <!-- Unobservable Command: reset the pump (clear errors, reset totals) -->
+  <Command>
+    <Identifier>ResetPump</Identifier>
+    <DisplayName>Reset Pump</DisplayName>
+    <Description>Resets the pump state: clears errors, resets total dispensed volume,
+            and marks the pump as not primed.</Description>
+    <Observable>No</Observable>
+  </Command>
+  <!-- Unobservable Properties -->
+  <Property>
+    <Identifier>TotalVolumeDispensed</Identifier>
+    <DisplayName>Total Volume Dispensed</DisplayName>
+    <Description>Total volume dispensed since last reset, in mL.</Description>
+    <Observable>No</Observable>
+    <DataType>
+      <Basic>Real</Basic>
+    </DataType>
+  </Property>
+  <Property>
+    <Identifier>IsPrimed</Identifier>
+    <DisplayName>Is Primed</DisplayName>
+    <Description>Whether the pump has been primed and is ready to dispense.</Description>
+    <Observable>No</Observable>
+    <DataType>
+      <Basic>Boolean</Basic>
+    </DataType>
+  </Property>
+  <Property>
+    <Identifier>MaxFlowRate</Identifier>
+    <DisplayName>Max Flow Rate</DisplayName>
+    <Description>Maximum supported flow rate in mL/s.</Description>
+    <Observable>No</Observable>
+    <DataType>
+      <Basic>Real</Basic>
+    </DataType>
+  </Property>
+  <!-- Defined Execution Errors -->
+  <DefinedExecutionError>
+    <Identifier>PumpNotPrimed</Identifier>
+    <DisplayName>Pump Not Primed</DisplayName>
+    <Description>The pump has not been primed. Call Prime before dispensing.</Description>
+  </DefinedExecutionError>
+  <DefinedExecutionError>
+    <Identifier>OverPressure</Identifier>
+    <DisplayName>Over Pressure</DisplayName>
+    <Description>The pump detected an over-pressure condition, indicating a blockage
+            or clogged line. Dispensing has been stopped.</Description>
+  </DefinedExecutionError>
+</Feature>

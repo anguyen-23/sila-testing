@@ -1,0 +1,670 @@
+{% extends "base.html" %}
+{% block title %}Test Runner - {{ server_name }}{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="/">Servers</a></li>
+        <li class="breadcrumb-item active">Test Runner: {{ server_name }}</li>
+    </ol>
+</nav>
+
+<div id="test-runner-root"></div>
+
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+<script>
+// Inject Jinja2 variables before Babel processes the JSX
+window.__TEST_SERVER_NAME = {{ server_name | tojson }};
+window.__TEST_API_BASE = {{ api_base | tojson }};
+</script>
+
+{% raw %}
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+const SERVER_NAME = window.__TEST_SERVER_NAME;
+const API_BASE = window.__TEST_API_BASE;
+
+function StatusBadge({ status }) {
+    const colors = {
+        pending: '#6c757d',
+        running: '#0d6efd',
+        pass: '#198754',
+        fail: '#dc3545',
+        skip: '#ffc107',
+        error: '#dc3545',
+    };
+    const labels = {
+        pending: 'Pending',
+        running: 'Running...',
+        pass: 'Pass',
+        fail: 'Fail',
+        skip: 'Skipped',
+        error: 'Error',
+    };
+    return (
+        <span className="badge" style={{ background: colors[status] || '#6c757d', minWidth: 60 }}>
+            {labels[status] || status}
+        </span>
+    );
+}
+
+function ModeBadge({ modes }) {
+    if (!modes) return null;
+    const hasSim = modes.includes('simulation');
+    const hasReal = modes.includes('real');
+    if (hasSim && hasReal) return <span className="badge bg-secondary ms-1" style={{ fontSize: '0.65rem' }}>SIM+REAL</span>;
+    if (hasSim) return <span className="badge bg-info ms-1" style={{ fontSize: '0.65rem' }}>SIM</span>;
+    if (hasReal) return <span className="badge bg-warning text-dark ms-1" style={{ fontSize: '0.65rem' }}>REAL</span>;
+    return null;
+}
+
+function TestRow({ test, onRun, onSetStatus, onResolveInteraction, isRunning }) {
+    const [expanded, setExpanded] = useState(false);
+    const hasInteraction = !!test.pendingInteraction;
+    const showExpanded = expanded || hasInteraction;
+    const canRun = test.type === 'scripted' || test.type === 'guided';
+
+    return (
+        <div className="card mb-2" style={hasInteraction ? { borderColor: '#0d6efd', borderWidth: 2 } : {}}>
+            <div className="card-body py-2 px-3">
+                <div className="d-flex align-items-center gap-2">
+                    <StatusBadge status={test.status || 'pending'} />
+                    <button
+                        className="btn btn-link btn-sm p-0 text-decoration-none flex-grow-1 text-start"
+                        onClick={() => setExpanded(!expanded)}
+                    >
+                        <strong>{test.name}</strong>
+                        {test.type === 'manual' && <span className="badge bg-warning text-dark ms-2">Manual</span>}
+                        {test.type === 'guided' && <span className="badge bg-purple ms-2" style={{ background: '#6f42c1', color: '#fff' }}>Guided</span>}
+                        <ModeBadge modes={test.modes} />
+                    </button>
+                    <div className="btn-group btn-group-sm">
+                        {canRun && (
+                            <button
+                                className="btn btn-outline-primary"
+                                disabled={isRunning}
+                                onClick={() => onRun(test.id)}
+                            >
+                                {test.status === 'running' ? 'Running...' : 'Run'}
+                            </button>
+                        )}
+                        <button className="btn btn-outline-success" onClick={() => onSetStatus(test.id, 'pass')} disabled={isRunning}>Pass</button>
+                        <button className="btn btn-outline-danger" onClick={() => onSetStatus(test.id, 'fail')} disabled={isRunning}>Fail</button>
+                        <button className="btn btn-outline-secondary" onClick={() => onSetStatus(test.id, 'skip')} disabled={isRunning}>Skip</button>
+                    </div>
+                </div>
+                {hasInteraction && (
+                    <div className="mt-2 ps-4">
+                        <div className="alert alert-primary py-2 mb-2 d-flex align-items-center gap-3">
+                            <div className="flex-grow-1">
+                                <strong>{test.pendingInteraction.type === 'confirm' ? 'Confirm:' : 'Action required:'}</strong>{' '}
+                                {test.pendingInteraction.message}
+                            </div>
+                            {test.pendingInteraction.type === 'prompt' && (
+                                <button className="btn btn-primary btn-sm" onClick={() => onResolveInteraction(true)}>
+                                    Continue
+                                </button>
+                            )}
+                            {test.pendingInteraction.type === 'confirm' && (
+                                <div className="btn-group btn-group-sm">
+                                    <button className="btn btn-success" onClick={() => onResolveInteraction(true)}>
+                                        {test.pendingInteraction.pass_label || 'Yes'}
+                                    </button>
+                                    <button className="btn btn-danger" onClick={() => onResolveInteraction(false)}>
+                                        {test.pendingInteraction.fail_label || 'No'}
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+                {showExpanded && (
+                    <div className="mt-2 ps-4">
+                        {test.description && <p className="text-muted mb-1">{test.description}</p>}
+                        {test.expected && <p className="mb-1"><strong>Expected:</strong> {test.expected}</p>}
+                        {test.prereq && <p className="mb-1"><strong>Prereq:</strong> {test.prereq}</p>}
+                        {test.log && test.log.length > 0 && (
+                            <pre className="response mt-2 mb-0" style={{ fontSize: '0.8rem', maxHeight: 200 }}>
+                                {test.log.join('\n')}
+                            </pre>
+                        )}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
+function CategorySection({ category, tests, onRun, onSetStatus, onResolveInteraction, onRunAll, isRunning, modeFilter }) {
+    const [collapsed, setCollapsed] = useState(false);
+    const catTests = tests.filter(t => t.categoryId === category.id && matchesMode(t, modeFilter));
+    const counts = {
+        total: catTests.length,
+        pass: catTests.filter(t => t.status === 'pass').length,
+        fail: catTests.filter(t => t.status === 'fail').length,
+        skip: catTests.filter(t => t.status === 'skip').length,
+    };
+    const runnableTests = catTests.filter(t => t.type === 'scripted' || t.type === 'guided');
+
+    return (
+        <div className="mb-4">
+            <div className="d-flex align-items-center gap-2 mb-2">
+                <button
+                    className="btn btn-link p-0 text-decoration-none text-dark"
+                    onClick={() => setCollapsed(!collapsed)}
+                >
+                    <h5 className="mb-0">
+                        {collapsed ? '\u25b6' : '\u25bc'} {category.name}
+                        <small className="text-muted ms-2">
+                            ({counts.pass}/{counts.total} passed
+                            {counts.fail > 0 && <span className="text-danger">, {counts.fail} failed</span>}
+                            {counts.skip > 0 && <span className="text-warning">, {counts.skip} skipped</span>})
+                        </small>
+                    </h5>
+                </button>
+                {runnableTests.length > 0 && (
+                    <button
+                        className="btn btn-outline-primary btn-sm ms-auto"
+                        disabled={isRunning}
+                        onClick={() => onRunAll(category.id)}
+                    >
+                        Run All Scripted
+                    </button>
+                )}
+            </div>
+            {!collapsed && (
+                <div className="ps-2">
+                    <p className="text-muted small mb-2">{category.description}</p>
+                    {catTests.map(test => (
+                        <TestRow
+                            key={test.id}
+                            test={test}
+                            onRun={onRun}
+                            onSetStatus={onSetStatus}
+                            onResolveInteraction={onResolveInteraction}
+                            isRunning={isRunning}
+                        />
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
+function ProgressBar({ tests }) {
+    const total = tests.length;
+    if (total === 0) return null;
+    const pass = tests.filter(t => t.status === 'pass').length;
+    const fail = tests.filter(t => t.status === 'fail').length;
+    const skip = tests.filter(t => t.status === 'skip').length;
+    const done = pass + fail + skip;
+
+    return (
+        <div className="mb-3">
+            <div className="d-flex justify-content-between small mb-1">
+                <span>{done}/{total} completed</span>
+                <span>
+                    <span className="text-success">{pass} pass</span>
+                    {fail > 0 && <span className="text-danger ms-2">{fail} fail</span>}
+                    {skip > 0 && <span className="text-warning ms-2">{skip} skip</span>}
+                </span>
+            </div>
+            <div className="progress" style={{ height: 8 }}>
+                <div className="progress-bar bg-success" style={{ width: `${(pass / total) * 100}%` }}></div>
+                <div className="progress-bar bg-danger" style={{ width: `${(fail / total) * 100}%` }}></div>
+                <div className="progress-bar bg-warning" style={{ width: `${(skip / total) * 100}%` }}></div>
+            </div>
+        </div>
+    );
+}
+
+function matchesMode(test, modeFilter) {
+    if (modeFilter === 'all') return true;
+    if (!test.modes) return true;
+    return test.modes.includes(modeFilter);
+}
+
+function TestRunner() {
+    const [suite, setSuite] = useState(null);
+    const [tests, setTests] = useState([]);
+    const [isRunning, setIsRunning] = useState(false);
+    const [modeFilter, setModeFilter] = useState('simulation');
+    const [variables, setVariables] = useState({});
+    const [globalLog, setGlobalLog] = useState([]);
+    const [serverHost, setServerHost] = useState('');
+    const [serverPort, setServerPort] = useState('');
+    const abortRef = useRef(false);
+    const interactionRef = useRef(null);
+
+    const resolveInteraction = useCallback((value) => {
+        if (interactionRef.current) {
+            interactionRef.current.resolve(value);
+            interactionRef.current = null;
+        }
+    }, []);
+
+    // Load test suite
+    useEffect(() => {
+        fetch(`/api/tests/${SERVER_NAME}/list`)
+            .then(r => r.json())
+            .then(data => {
+                setSuite(data);
+                setVariables(data.server.variables || {});
+                setServerHost(data.server.default_host || '127.0.0.1');
+                setServerPort(String(data.server.default_port || 50052));
+                const allTests = [];
+                for (const cat of data.categories) {
+                    for (const test of cat.tests) {
+                        allTests.push({ ...test, categoryId: cat.id, status: 'pending', log: [] });
+                    }
+                }
+                setTests(allTests);
+            })
+            .catch(err => setGlobalLog(prev => [...prev, `Failed to load test suite: ${err.message}`]));
+    }, []);
+
+    const addLog = useCallback((testId, msg) => {
+        const ts = new Date().toLocaleTimeString();
+        const line = `[${ts}] ${msg}`;
+        setTests(prev => prev.map(t =>
+            t.id === testId ? { ...t, log: [...t.log, line] } : t
+        ));
+        setGlobalLog(prev => [...prev, `[${testId}] ${line}`]);
+    }, []);
+
+    const setTestStatus = useCallback((testId, status) => {
+        setTests(prev => prev.map(t =>
+            t.id === testId ? { ...t, status } : t
+        ));
+    }, []);
+
+    const substituteVars = useCallback((params) => {
+        const result = {};
+        for (const [k, v] of Object.entries(params)) {
+            if (typeof v === 'string' && v.startsWith('$')) {
+                const varName = v.slice(1);
+                result[k] = variables[varName] !== undefined ? variables[varName] : v;
+            } else {
+                result[k] = v;
+            }
+        }
+        return result;
+    }, [variables]);
+
+    const executeCommand = useCallback(async (feature, command, params) => {
+        const resp = await fetch(`/api/command/${serverHost}/${serverPort}/${feature}/${command}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(params),
+        });
+        const data = await resp.json();
+        if (!resp.ok || data.status === 'error') {
+            const err = new Error(data.message || data.error || `HTTP ${resp.status}`);
+            err.errorType = data.error_type || '';
+            throw err;
+        }
+        return data;
+    }, [serverHost, serverPort]);
+
+    const runSteps = useCallback(async (testId, steps, lastResponse, testModes) => {
+        // Note: interactionRef is used by prompt/confirm steps below
+        let response = lastResponse;
+        for (const step of steps) {
+            if (abortRef.current) throw new Error('Aborted');
+
+            if (step.action === 'wait') {
+                addLog(testId, `Waiting ${step.ms}ms...`);
+                await new Promise(r => setTimeout(r, step.ms));
+            } else if (step.action === 'command') {
+                const params = substituteVars(step.params || {});
+                addLog(testId, `${step.feature}.${step.command}(${JSON.stringify(params)})`);
+                try {
+                    response = await executeCommand(step.feature, step.command, params);
+                    addLog(testId, `  -> OK: ${JSON.stringify(response.responses || {})}`);
+                    if (step.expect === 'error') {
+                        throw new Error(`Expected error but command succeeded`);
+                    }
+                } catch (err) {
+                    if (step.expect === 'error') {
+                        addLog(testId, `  -> Expected error [${err.errorType || '?'}]: ${err.message}`);
+                        if (step.error_type && err.errorType !== step.error_type && !err.message.includes(step.error_type)) {
+                            throw new Error(`Expected error type "${step.error_type}" but got "${err.errorType}": ${err.message}`);
+                        }
+                        response = { error: err.message, errorType: err.errorType };
+                    } else if (step.expect === 'any') {
+                        addLog(testId, `  -> (any) [${err.errorType || '?'}] ${err.message}`);
+                        response = { error: err.message, errorType: err.errorType };
+                    } else {
+                        throw err;
+                    }
+                }
+            } else if (step.action === 'check_response') {
+                const val = response?.responses?.[step.field];
+                addLog(testId, `Check: ${step.field} = ${JSON.stringify(val)} (${step.condition})`);
+                if (step.condition === 'not_empty' && (!val || val === '')) {
+                    throw new Error(`${step.field} is empty`);
+                }
+                if (step.condition === 'contains' && (!val || !val.includes(step.value))) {
+                    throw new Error(`${step.field} does not contain "${step.value}"`);
+                }
+                if (step.condition === 'equals' && val !== step.value) {
+                    throw new Error(`${step.field} = ${JSON.stringify(val)}, expected ${JSON.stringify(step.value)}`);
+                }
+                if (step.condition === 'not_equals' && val === step.value) {
+                    throw new Error(`${step.field} = ${JSON.stringify(val)}, expected NOT ${JSON.stringify(step.value)}`);
+                }
+                if (step.condition === 'not_contains' && val && val.includes(step.value)) {
+                    throw new Error(`${step.field} should not contain "${step.value}"`);
+                }
+                if (step.condition === 'greater_than' && (val === undefined || val === null || val <= step.value)) {
+                    throw new Error(`${step.field} = ${JSON.stringify(val)}, expected > ${step.value}`);
+                }
+            } else if (step.action === 'loop') {
+                for (let i = 0; i < step.count; i++) {
+                    addLog(testId, `Loop iteration ${i + 1}/${step.count}`);
+                    response = await runSteps(testId, step.steps, response, testModes);
+                }
+            } else if (step.action === 'loop_values') {
+                for (const value of step.values) {
+                    // Replace $VALUE in nested steps
+                    const substituted = step.steps.map(s => {
+                        if (s.params) {
+                            const newParams = {};
+                            for (const [k, v] of Object.entries(s.params)) {
+                                newParams[k] = v === '$VALUE' ? value : v;
+                            }
+                            return { ...s, params: newParams };
+                        }
+                        return s;
+                    });
+                    response = await runSteps(testId, substituted, response, testModes);
+                }
+            } else if (step.action === 'prompt') {
+                addLog(testId, `Waiting: ${step.message}`);
+                await new Promise((resolve) => {
+                    interactionRef.current = { resolve };
+                    setTests(prev => prev.map(t =>
+                        t.id === testId ? { ...t, pendingInteraction: { type: 'prompt', message: step.message } } : t
+                    ));
+                });
+                setTests(prev => prev.map(t =>
+                    t.id === testId ? { ...t, pendingInteraction: null } : t
+                ));
+                if (abortRef.current) throw new Error('Aborted');
+                addLog(testId, '  -> Continued');
+            } else if (step.action === 'confirm') {
+                addLog(testId, `Confirm: ${step.message}`);
+                const confirmed = await new Promise((resolve) => {
+                    interactionRef.current = { resolve };
+                    setTests(prev => prev.map(t =>
+                        t.id === testId ? { ...t, pendingInteraction: {
+                            type: 'confirm', message: step.message,
+                            pass_label: step.pass_label || 'Yes',
+                            fail_label: step.fail_label || 'No',
+                        }} : t
+                    ));
+                });
+                setTests(prev => prev.map(t =>
+                    t.id === testId ? { ...t, pendingInteraction: null } : t
+                ));
+                if (abortRef.current) throw new Error('Aborted');
+                if (!confirmed) {
+                    throw new Error(`User rejected: ${step.message}`);
+                }
+                addLog(testId, '  -> Confirmed');
+            } else if (step.action === 'ensure_connected') {
+                // Mode-aware: in simulation mode, start sim + connect with sim params
+                // In real mode, stop sim + connect with real params
+                // When modeFilter is "all", infer from the test's own modes
+                const isSim = modeFilter === 'simulation' ||
+                    (modeFilter === 'all' && testModes && testModes.includes('simulation') && !testModes.includes('real'));
+                addLog(testId, `Ensuring connected (${isSim ? 'simulation' : 'real'})...`);
+                try {
+                    if (isSim) {
+                        try { await executeCommand('SimulationController', 'StartSimulationMode', {}); } catch (e) {}
+                    } else {
+                        try { await executeCommand('SimulationController', 'StopSimulationMode', {}); } catch (e) {}
+                    }
+                    const conn = suite.server.connection;
+                    if (conn) {
+                        const params = substituteVars(isSim ? conn.sim_params : conn.real_params);
+                        response = await executeCommand(conn.feature, conn.command, params);
+                    }
+                    addLog(testId, '  -> Connected');
+                } catch (err) {
+                    if (err.message && err.message.includes('AlreadyConnected')) {
+                        addLog(testId, '  -> Already connected');
+                    } else {
+                        throw err;
+                    }
+                }
+            }
+        }
+        return response;
+    }, [addLog, substituteVars, executeCommand, modeFilter]);
+
+    const runTest = useCallback(async (testId) => {
+        const test = tests.find(t => t.id === testId);
+        if (!test || !test.script) return;
+
+        setIsRunning(true);
+        abortRef.current = false;
+        setTestStatus(testId, 'running');
+        setTests(prev => prev.map(t => t.id === testId ? { ...t, log: [] } : t));
+        addLog(testId, `Starting: ${test.name}`);
+
+        try {
+            await runSteps(testId, test.script.steps, null, test.modes);
+            setTestStatus(testId, 'pass');
+            addLog(testId, 'PASSED');
+        } catch (err) {
+            setTestStatus(testId, 'fail');
+            addLog(testId, `FAILED: ${err.message}`);
+        } finally {
+            setIsRunning(false);
+        }
+    }, [tests, addLog, setTestStatus, runSteps]);
+
+    const runAllInCategory = useCallback(async (categoryId) => {
+        const catTests = tests.filter(t => t.categoryId === categoryId && (t.type === 'scripted' || t.type === 'guided') && matchesMode(t, modeFilter));
+        setIsRunning(true);
+        abortRef.current = false;
+
+        for (const test of catTests) {
+            if (abortRef.current) break;
+            setTestStatus(test.id, 'running');
+            setTests(prev => prev.map(t => t.id === test.id ? { ...t, log: [] } : t));
+            addLog(test.id, `Starting: ${test.name}`);
+            try {
+                await runSteps(test.id, test.script.steps, null, test.modes);
+                setTestStatus(test.id, 'pass');
+                addLog(test.id, 'PASSED');
+            } catch (err) {
+                setTestStatus(test.id, 'fail');
+                addLog(test.id, `FAILED: ${err.message}`);
+            }
+        }
+        setIsRunning(false);
+    }, [tests, addLog, setTestStatus, runSteps, modeFilter]);
+
+    const runAllScripted = useCallback(async () => {
+        const scripted = tests.filter(t => (t.type === 'scripted' || t.type === 'guided') && matchesMode(t, modeFilter));
+        setIsRunning(true);
+        abortRef.current = false;
+
+        for (const test of scripted) {
+            if (abortRef.current) break;
+            setTestStatus(test.id, 'running');
+            setTests(prev => prev.map(t => t.id === test.id ? { ...t, log: [] } : t));
+            addLog(test.id, `Starting: ${test.name}`);
+            try {
+                await runSteps(test.id, test.script.steps, null, test.modes);
+                setTestStatus(test.id, 'pass');
+                addLog(test.id, 'PASSED');
+            } catch (err) {
+                setTestStatus(test.id, 'fail');
+                addLog(test.id, `FAILED: ${err.message}`);
+            }
+        }
+        setIsRunning(false);
+    }, [tests, addLog, setTestStatus, runSteps, modeFilter]);
+
+    const resetAll = useCallback(() => {
+        setTests(prev => prev.map(t => ({ ...t, status: 'pending', log: [] })));
+        setGlobalLog([]);
+    }, []);
+
+    const exportResults = useCallback(() => {
+        const exported = tests.filter(t => matchesMode(t, modeFilter));
+        const results = {
+            suite: suite?.name,
+            timestamp: new Date().toISOString(),
+            mode: modeFilter,
+            server: { host: serverHost, port: parseInt(serverPort) },
+            variables,
+            tests: exported.map(t => ({
+                id: t.id,
+                name: t.name,
+                category: t.categoryId,
+                type: t.type,
+                modes: t.modes,
+                status: t.status,
+                log: t.log,
+            })),
+            summary: {
+                total: exported.length,
+                pass: exported.filter(t => t.status === 'pass').length,
+                fail: exported.filter(t => t.status === 'fail').length,
+                skip: exported.filter(t => t.status === 'skip').length,
+                pending: exported.filter(t => t.status === 'pending').length,
+            },
+        };
+        const blob = new Blob([JSON.stringify(results, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `test-results-${SERVER_NAME}-${modeFilter}-${new Date().toISOString().slice(0, 10)}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+    }, [suite, tests, variables, modeFilter]);
+
+    if (!suite) {
+        return <div className="text-center py-5"><div className="spinner-border"></div><p className="mt-2">Loading test suite...</p></div>;
+    }
+
+    const filteredTests = tests.filter(t => matchesMode(t, modeFilter));
+
+    return (
+        <div>
+            <div className="d-flex align-items-center justify-content-between mb-3">
+                <div>
+                    <h2>{suite.name}</h2>
+                    <p className="text-muted mb-0">{suite.description}</p>
+                </div>
+                <div className="d-flex align-items-center gap-2">
+                    <div className="btn-group">
+                        <button
+                            className={`btn btn-sm ${modeFilter === 'simulation' ? 'btn-info' : 'btn-outline-info'}`}
+                            onClick={() => setModeFilter('simulation')}
+                            disabled={isRunning}
+                        >
+                            Simulation
+                        </button>
+                        <button
+                            className={`btn btn-sm ${modeFilter === 'real' ? 'btn-warning' : 'btn-outline-warning'}`}
+                            onClick={() => setModeFilter('real')}
+                            disabled={isRunning}
+                        >
+                            Real Hardware
+                        </button>
+                        <button
+                            className={`btn btn-sm ${modeFilter === 'all' ? 'btn-secondary' : 'btn-outline-secondary'}`}
+                            onClick={() => setModeFilter('all')}
+                            disabled={isRunning}
+                        >
+                            All
+                        </button>
+                    </div>
+                    <div className="btn-group">
+                        <button className="btn btn-primary btn-sm" disabled={isRunning} onClick={runAllScripted}>
+                            Run All Scripted
+                        </button>
+                        {isRunning && (
+                            <button className="btn btn-danger btn-sm" onClick={() => { abortRef.current = true; resolveInteraction(false); }}>
+                                Abort
+                            </button>
+                        )}
+                        <button className="btn btn-outline-secondary btn-sm" onClick={resetAll} disabled={isRunning}>
+                            Reset
+                        </button>
+                        <button className="btn btn-outline-secondary btn-sm" onClick={exportResults}>
+                            Export
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <ProgressBar tests={filteredTests} />
+            <div className="card mb-3">
+                <div className="card-body py-2">
+                    <div className="d-flex align-items-center gap-3 flex-wrap">
+                        <strong className="text-nowrap">Server:</strong>
+                        <div className="d-flex align-items-center gap-1">
+                            <label className="form-label mb-0 small text-nowrap">Host:</label>
+                            <input className="form-control form-control-sm" style={{ width: 180 }}
+                                value={serverHost} onChange={e => setServerHost(e.target.value)} disabled={isRunning} />
+                        </div>
+                        <div className="d-flex align-items-center gap-1">
+                            <label className="form-label mb-0 small text-nowrap">Port:</label>
+                            <input className="form-control form-control-sm" style={{ width: 80 }}
+                                value={serverPort} onChange={e => setServerPort(e.target.value)} disabled={isRunning} />
+                        </div>
+                        {Object.entries(variables).map(([key, val]) => (
+                            <div key={key} className="d-flex align-items-center gap-1">
+                                <label className="form-label mb-0 small text-nowrap">{key}:</label>
+                                <input className="form-control form-control-sm" style={{ width: 120 }}
+                                    value={val} onChange={e => setVariables(prev => ({ ...prev, [key]: e.target.value }))}
+                                    disabled={isRunning} />
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            {suite.categories.map(cat => {
+                const hasCatTests = tests.some(t => t.categoryId === cat.id && matchesMode(t, modeFilter));
+                if (!hasCatTests) return null;
+                return (
+                    <CategorySection
+                        key={cat.id}
+                        category={cat}
+                        tests={tests}
+                        onRun={runTest}
+                        onSetStatus={setTestStatus}
+                        onResolveInteraction={resolveInteraction}
+                        onRunAll={runAllInCategory}
+                        isRunning={isRunning}
+                        modeFilter={modeFilter}
+                    />
+                );
+            })}
+
+            {globalLog.length > 0 && (
+                <div className="mt-4">
+                    <h5>Execution Log</h5>
+                    <pre className="response" style={{ maxHeight: 300, fontSize: '0.8rem' }}>
+                        {globalLog.join('\n')}
+                    </pre>
+                </div>
+            )}
+        </div>
+    );
+}
+
+ReactDOM.createRoot(document.getElementById('test-runner-root')).render(<TestRunner />);
+</script>
+{% endraw %}
+{% endblock %}

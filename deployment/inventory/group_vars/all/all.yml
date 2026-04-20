@@ -1,0 +1,26 @@
+# Shared variables for all targets
+
+# Where to install the server on target machines
+sila_install_dir_windows: "C:\\SiLA2"
+sila_install_dir_linux: "/opt/sila2"
+
+# Python executable name (must be 3.10+)
+python_executable_windows: "python"
+python_executable_linux: "python3"
+
+# Virtual environment directory name (created inside install dir)
+sila_venv_dir: ".venv"
+
+# Default CLI args applied to all servers
+sila_default_args: "--insecure"
+
+# Extra args per server (overridden in host/group vars)
+sila_extra_args: ""
+
+# Headscale / Tailscale settings
+# Set this to your Headscale server URL after running playbooks/headscale.yml
+# headscale_server_url: "http://<WSL2_IP>:8080"
+
+# Source repo path (on the control node) — used for syncing code
+# playbook_dir is deployment/playbooks, so go up two levels to reach repo root
+sila_repo_path: "{{ playbook_dir }}/../.."

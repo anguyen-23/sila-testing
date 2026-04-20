@@ -1,0 +1,139 @@
+<Feature xmlns="http://www.sila-standard.org" Category="extended" FeatureVersion="1.0" MaturityLevel="Draft" Originator="calico.automation" SiLA2Version="1.1">
+  <Identifier>BarcodeScanner</Identifier>
+  <DisplayName>Barcode Scanner</DisplayName>
+  <Description>Controls a Datalogic barcode scanner via RS-232 serial connection.
+        Supports triggering scans (STX), stopping scans (ETX), and reading
+        barcode data. This is a learning feature wrapping the scanner's
+        serial protocol.</Description>
+  <!-- ============================================================ -->
+  <!-- UNOBSERVABLE COMMANDS                                         -->
+  <!-- ============================================================ -->
+  <Command>
+    <Identifier>Connect</Identifier>
+    <DisplayName>Connect</DisplayName>
+    <Description>Opens a serial connection to the barcode scanner.</Description>
+    <Observable>No</Observable>
+    <Parameter>
+      <Identifier>SerialPort</Identifier>
+      <DisplayName>Serial Port</DisplayName>
+      <Description>Serial port name (e.g. "COM3" on Windows, "/dev/ttyUSB0" on Linux).</Description>
+      <DataType>
+        <Basic>String</Basic>
+      </DataType>
+    </Parameter>
+    <Parameter>
+      <Identifier>BaudRate</Identifier>
+      <DisplayName>Baud Rate</DisplayName>
+      <Description>Serial baud rate (default 115200).</Description>
+      <DataType>
+        <Constrained>
+          <DataType>
+            <Basic>Integer</Basic>
+          </DataType>
+          <Constraints>
+            <MinimalInclusive>300</MinimalInclusive>
+          </Constraints>
+        </Constrained>
+      </DataType>
+    </Parameter>
+    <DefinedExecutionErrors>
+      <Identifier>CommunicationError</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <Command>
+    <Identifier>Disconnect</Identifier>
+    <DisplayName>Disconnect</DisplayName>
+    <Description>Closes the serial connection to the barcode scanner.</Description>
+    <Observable>No</Observable>
+    <DefinedExecutionErrors>
+      <Identifier>NotConnected</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <Command>
+    <Identifier>Scan</Identifier>
+    <DisplayName>Scan</DisplayName>
+    <Description>Triggers the barcode scanner by sending STX and waits for a barcode
+            response. Returns the scanned barcode data.</Description>
+    <Observable>No</Observable>
+    <Response>
+      <Identifier>BarcodeData</Identifier>
+      <DisplayName>Barcode Data</DisplayName>
+      <Description>The scanned barcode string.</Description>
+      <DataType>
+        <Basic>String</Basic>
+      </DataType>
+    </Response>
+    <DefinedExecutionErrors>
+      <Identifier>NotConnected</Identifier>
+      <Identifier>CommunicationError</Identifier>
+      <Identifier>InvalidCommand</Identifier>
+      <Identifier>ScanTimeout</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <Command>
+    <Identifier>StopScanning</Identifier>
+    <DisplayName>Stop Scanning</DisplayName>
+    <Description>Sends ETX to cancel an active scan operation.</Description>
+    <Observable>No</Observable>
+    <DefinedExecutionErrors>
+      <Identifier>NotConnected</Identifier>
+      <Identifier>CommunicationError</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <!-- ============================================================ -->
+  <!-- PROPERTIES                                                    -->
+  <!-- ============================================================ -->
+  <Property>
+    <Identifier>IsConnected</Identifier>
+    <DisplayName>Is Connected</DisplayName>
+    <Description>Whether the scanner serial port is currently open.</Description>
+    <Observable>No</Observable>
+    <DataType>
+      <Basic>Boolean</Basic>
+    </DataType>
+  </Property>
+  <Property>
+    <Identifier>DisplayIcon</Identifier>
+    <DisplayName>Display Icon</DisplayName>
+    <Description>PNG icon representing this instrument, for display in client UIs.</Description>
+    <Observable>No</Observable>
+    <DataType>
+      <Basic>Binary</Basic>
+    </DataType>
+  </Property>
+  <Property>
+    <Identifier>DeviceDescription</Identifier>
+    <DisplayName>Device Description</DisplayName>
+    <Description>Rich text description of device capabilities for LLM system prompts.</Description>
+    <Observable>No</Observable>
+    <DataType>
+      <Basic>String</Basic>
+    </DataType>
+  </Property>
+  <!-- ============================================================ -->
+  <!-- DEFINED EXECUTION ERRORS                                      -->
+  <!-- ============================================================ -->
+  <DefinedExecutionError>
+    <Identifier>NotConnected</Identifier>
+    <DisplayName>Not Connected</DisplayName>
+    <Description>The scanner is not connected. Call Connect first to establish
+            a serial connection.</Description>
+  </DefinedExecutionError>
+  <DefinedExecutionError>
+    <Identifier>CommunicationError</Identifier>
+    <DisplayName>Communication Error</DisplayName>
+    <Description>A serial communication failure occurred (e.g. port not found,
+            connection lost, timeout).</Description>
+  </DefinedExecutionError>
+  <DefinedExecutionError>
+    <Identifier>InvalidCommand</Identifier>
+    <DisplayName>Invalid Command</DisplayName>
+    <Description>The scanner returned "Invalid Cmd" indicating the command
+            was not recognized.</Description>
+  </DefinedExecutionError>
+  <DefinedExecutionError>
+    <Identifier>ScanTimeout</Identifier>
+    <DisplayName>Scan Timeout</DisplayName>
+    <Description>No barcode was scanned within the timeout period.</Description>
+  </DefinedExecutionError>
+</Feature>

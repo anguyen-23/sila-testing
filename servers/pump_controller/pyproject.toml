@@ -1,0 +1,25 @@
+[project]
+name = "pump_controller"
+version = "1.0.0"
+requires-python = ">=3.10"
+dependencies = [
+    "sila2",
+    "typer",
+    "pywin32",
+    "opencv-python",
+    "numpy",
+    "Pillow",
+]
+
+[build-system]
+requires = ["setuptools>=61.0.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["pump_controller*"]
+
+[tool.setuptools.package-data]
+"pump_controller.generated" = [
+    "*/*.sila.xml",
+    "*/*.proto",
+]

@@ -1,0 +1,309 @@
+{% extends "base.html" %}
+{% block title %}Tailscale Setup - SiLA 2 Deployment{% endblock %}
+{% block content %}
+
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="/">Dashboard</a></li>
+        <li class="breadcrumb-item active">Tailscale Setup</li>
+    </ol>
+</nav>
+
+<h4 class="mb-3"><i class="bi bi-shield-lock"></i> Tailscale VPN Setup</h4>
+<p class="text-muted">Set up Tailscale on your SiLA fleet. Choose between self-hosted Headscale or Tailscale SaaS as the control plane.</p>
+
+<!-- Control Plane Selector -->
+<div class="card mb-3">
+    <div class="card-body">
+        <h5>Control Plane</h5>
+        <div class="form-check mb-2">
+            <input class="form-check-input" type="radio" name="controlPlane" id="cp-headscale" value="headscale" checked onchange="selectControlPlane()">
+            <label class="form-check-label" for="cp-headscale">
+                <strong>Headscale</strong> (self-hosted) &mdash; runs on your WSL2 instance, no external account needed
+            </label>
+        </div>
+        <div class="form-check">
+            <input class="form-check-input" type="radio" name="controlPlane" id="cp-tailscale" value="tailscale" onchange="selectControlPlane()">
+            <label class="form-check-label" for="cp-tailscale">
+                <strong>Tailscale SaaS</strong> (managed) &mdash; uses login.tailscale.com, requires a Tailscale account
+            </label>
+        </div>
+    </div>
+</div>
+
+<!-- Step Indicator -->
+<div class="step-indicator" id="stepIndicator">
+    <div class="step-dot active" id="step-dot-1">1</div>
+    <div class="step-connector"></div>
+    <div class="step-dot" id="step-dot-2">2</div>
+    <div class="step-connector"></div>
+    <div class="step-dot" id="step-dot-3">3</div>
+    <div class="step-connector"></div>
+    <div class="step-dot" id="step-dot-4">4</div>
+    <div class="step-connector"></div>
+    <div class="step-dot" id="step-dot-5">5</div>
+</div>
+
+<!-- Step 1: Headscale - Deploy Server / Tailscale - Create Account -->
+<div class="wizard-step active" id="step-1">
+    <div class="card">
+        <div class="card-body">
+            <!-- Headscale variant -->
+            <div id="step1-headscale">
+                <h5>Step 1: Deploy Headscale on WSL2</h5>
+                <p>Run the Headscale playbook from your WSL2 terminal to install and start the control server:</p>
+                <pre class="terminal">cd /mnt/c/Users/keyser/source/repos/keyser-sila-testing/deployment
+export ANSIBLE_CONFIG=$(pwd)/ansible.cfg
+ansible-playbook playbooks/headscale.yml --ask-become-pass</pre>
+                <p class="mt-2">This will:</p>
+                <ul>
+                    <li>Install Headscale v0.25.1 from the .deb package</li>
+                    <li>Create the config at <code>/etc/headscale/config.yaml</code></li>
+                    <li>Start the Headscale service</li>
+                    <li>Create a <code>sila</code> user namespace</li>
+                    <li>Generate a reusable pre-auth key</li>
+                </ul>
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i>
+                    Note the <strong>pre-auth key</strong> and <strong>server URL</strong> from the playbook output &mdash; you'll need both in the next steps.
+                </div>
+            </div>
+            <!-- Tailscale SaaS variant -->
+            <div id="step1-tailscale" style="display:none;">
+                <h5>Step 1: Create a Tailscale Account</h5>
+                <p>If you don't already have one, sign up for a free Tailscale account.</p>
+                <ul>
+                    <li>Go to <code>https://login.tailscale.com</code></li>
+                    <li>Sign in with Google, Microsoft, or GitHub</li>
+                    <li>The free plan supports up to 100 devices</li>
+                </ul>
+            </div>
+            <div class="form-check mb-3">
+                <input class="form-check-input" type="checkbox" id="check-step1" onchange="validateStep(1)">
+                <label class="form-check-label" for="check-step1" id="check-step1-label">Headscale is running</label>
+            </div>
+            <button class="btn btn-primary" id="btn-next-1" disabled onclick="goToStep(2)">Next</button>
+        </div>
+    </div>
+</div>
+
+<!-- Step 2: Generate / Note Auth Key -->
+<div class="wizard-step" id="step-2">
+    <div class="card">
+        <div class="card-body">
+            <div id="step2-headscale">
+                <h5>Step 2: Note the Pre-Auth Key</h5>
+                <p>The Headscale playbook output displayed a pre-auth key. Copy it now.</p>
+                <p>To generate a new key later, run:</p>
+                <pre class="terminal">sudo headscale preauthkeys create --user sila --reusable --expiration 720h</pre>
+            </div>
+            <div id="step2-tailscale" style="display:none;">
+                <h5>Step 2: Generate a Pre-Auth Key</h5>
+                <p>Create a reusable auth key so Ansible can register machines without manual login.</p>
+                <ol>
+                    <li>Go to <strong>Settings &rarr; Keys</strong> in the Tailscale admin console</li>
+                    <li>Click <strong>Generate auth key</strong></li>
+                    <li>Check <strong>Reusable</strong> and <strong>Pre-approved</strong></li>
+                    <li>Set an expiry (90 days recommended)</li>
+                    <li>Copy the key (starts with <code>tskey-auth-</code>)</li>
+                </ol>
+            </div>
+
+            <div class="alert alert-warning">
+                <i class="bi bi-exclamation-triangle"></i>
+                Keep this key secret! It allows any machine to join your network.
+            </div>
+
+            <div class="form-check mb-3">
+                <input class="form-check-input" type="checkbox" id="check-authkey" onchange="validateStep(2)">
+                <label class="form-check-label" for="check-authkey">I have my auth key ready</label>
+            </div>
+            <button class="btn btn-outline-secondary me-2" onclick="goToStep(1)">Back</button>
+            <button class="btn btn-primary" id="btn-next-2" disabled onclick="goToStep(3)">Next</button>
+        </div>
+    </div>
+</div>
+
+<!-- Step 3: Store in Vault -->
+<div class="wizard-step" id="step-3">
+    <div class="card">
+        <div class="card-body">
+            <h5>Step 3: Store the Key in Ansible Vault</h5>
+            <p>Run this command from your WSL2 terminal (with the Ansible venv activated):</p>
+
+            <pre class="terminal">cd deployment
+ansible-vault create inventory/group_vars/all/vault.yml</pre>
+
+            <p class="mt-2">Add this line to the vault file:</p>
+            <pre class="terminal">vault_tailscale_auth_key: "YOUR-PRE-AUTH-KEY-HERE"</pre>
+
+            <p class="text-muted mt-2">
+                If <code>inventory/group_vars/all/vault.yml</code> already exists, use
+                <code>ansible-vault edit</code> instead of <code>create</code>.
+            </p>
+
+            <div class="form-check mb-3">
+                <input class="form-check-input" type="checkbox" id="check-vault" onchange="validateStep(3)">
+                <label class="form-check-label" for="check-vault">I've stored the key in the vault</label>
+            </div>
+            <button class="btn btn-outline-secondary me-2" onclick="goToStep(2)">Back</button>
+            <button class="btn btn-primary" id="btn-next-3" disabled onclick="goToStep(4)">Next</button>
+        </div>
+    </div>
+</div>
+
+<!-- Step 4: Set Headscale URL (Headscale only) / Confirm no URL (Tailscale SaaS) -->
+<div class="wizard-step" id="step-4">
+    <div class="card">
+        <div class="card-body">
+            <div id="step4-headscale">
+                <h5>Step 4: Set the Headscale Server URL</h5>
+                <p>Edit <code>inventory/group_vars/all.yml</code> and uncomment/set the Headscale URL from the playbook output:</p>
+                <pre class="terminal">headscale_server_url: "http://&lt;WSL2_IP&gt;:8080"</pre>
+                <p class="text-muted mt-2">
+                    This tells the Tailscale clients to register with your Headscale instance
+                    instead of Tailscale SaaS.
+                </p>
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    <strong>WSL2 IP caveat:</strong> The WSL2 IP can change on reboot.
+                    For a stable setup, use <code>netsh interface portproxy</code> on Windows
+                    to forward a fixed port, or set a static IP in <code>.wslconfig</code>.
+                </div>
+            </div>
+            <div id="step4-tailscale" style="display:none;">
+                <h5>Step 4: Confirm Control Plane Setting</h5>
+                <p>Make sure <code>headscale_server_url</code> is <strong>commented out</strong> (or not set) in <code>inventory/group_vars/all.yml</code>.
+                   This ensures clients register with Tailscale SaaS.</p>
+                <pre class="terminal"># headscale_server_url: "http://..."  &larr; must be commented out</pre>
+            </div>
+
+            <div class="form-check mb-3">
+                <input class="form-check-input" type="checkbox" id="check-url" onchange="validateStep(4)">
+                <label class="form-check-label" for="check-url" id="check-url-label">Server URL is configured</label>
+            </div>
+            <button class="btn btn-outline-secondary me-2" onclick="goToStep(3)">Back</button>
+            <button class="btn btn-primary" id="btn-next-4" disabled onclick="goToStep(5)">Next</button>
+        </div>
+    </div>
+</div>
+
+<!-- Step 5: Deploy -->
+<div class="wizard-step" id="step-5">
+    <div class="card">
+        <div class="card-body">
+            <h5>Step 5: Deploy Tailscale to Your Fleet</h5>
+            <p>Choose which hosts to install Tailscale on:</p>
+
+            <div class="mb-3">
+                <label class="form-label">Target</label>
+                <select class="form-select" id="ts-target">
+                    <option value="">All hosts</option>
+                    {% for group in groups %}
+                    <option value="{{ group }}">{{ group }}</option>
+                    {% endfor %}
+                    {% for host in hosts %}
+                    <option value="{{ host.hostname }}">{{ host.hostname }} ({{ host.group }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button class="btn btn-outline-secondary" onclick="goToStep(4)">Back</button>
+                <button class="btn btn-success" onclick="deployTailscale()">
+                    <i class="bi bi-rocket-takeoff"></i> Deploy Tailscale
+                </button>
+            </div>
+
+            <div id="ts-result" class="mt-3"></div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const totalSteps = 5;
+
+function getControlPlane() {
+    return document.querySelector('input[name="controlPlane"]:checked').value;
+}
+
+function selectControlPlane() {
+    const cp = getControlPlane();
+    const isHeadscale = cp === 'headscale';
+
+    // Toggle step content visibility
+    document.querySelectorAll('[id^="step1-"], [id^="step2-"], [id^="step4-"]').forEach(el => {
+        const isForHeadscale = el.id.endsWith('-headscale');
+        el.style.display = (isForHeadscale === isHeadscale) ? '' : 'none';
+    });
+
+    // Update checkbox labels
+    document.getElementById('check-step1-label').textContent =
+        isHeadscale ? 'Headscale is running' : 'I have a Tailscale account';
+    document.getElementById('check-url-label').textContent =
+        isHeadscale ? 'Server URL is configured' : 'headscale_server_url is commented out';
+
+    // Reset checkboxes and buttons when switching
+    goToStep(1);
+    for (let i = 1; i <= 4; i++) {
+        const checkId = {1: 'check-step1', 2: 'check-authkey', 3: 'check-vault', 4: 'check-url'}[i];
+        document.getElementById(checkId).checked = false;
+        if (document.getElementById(`btn-next-${i}`)) {
+            document.getElementById(`btn-next-${i}`).disabled = true;
+        }
+    }
+}
+
+function goToStep(n) {
+    document.querySelectorAll('.wizard-step').forEach(s => s.classList.remove('active'));
+    document.getElementById(`step-${n}`).classList.add('active');
+
+    for (let i = 1; i <= totalSteps; i++) {
+        const dot = document.getElementById(`step-dot-${i}`);
+        dot.className = 'step-dot';
+        if (i < n) dot.classList.add('done');
+        if (i === n) dot.classList.add('active');
+    }
+}
+
+function validateStep(n) {
+    const checks = {
+        1: 'check-step1',
+        2: 'check-authkey',
+        3: 'check-vault',
+        4: 'check-url',
+    };
+    const checked = document.getElementById(checks[n]).checked;
+    document.getElementById(`btn-next-${n}`).disabled = !checked;
+}
+
+function deployTailscale() {
+    const limit = document.getElementById('ts-target').value;
+    const target = limit || 'all hosts';
+    if (!confirm(`Deploy Tailscale to ${target}?`)) return;
+
+    fetch('/api/action/tailscale', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({limit}),
+    })
+    .then(r => r.json())
+    .then(data => {
+        document.getElementById('ts-result').innerHTML = `
+            <div class="alert alert-info">
+                <i class="bi bi-gear"></i> Job started!
+                <a href="/job/${data.job_id}" class="alert-link">View output</a>
+            </div>
+        `;
+    })
+    .catch(err => {
+        document.getElementById('ts-result').innerHTML = `
+            <div class="alert alert-danger">Failed: ${err}</div>
+        `;
+    });
+}
+</script>
+{% endblock %}

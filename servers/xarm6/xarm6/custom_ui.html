@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>xArm 6 Controller</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #1a1a2e; color: #e0e0e0; padding: 16px;
+    font-size: 14px;
+  }
+  h2 { color: #7c83ff; margin-bottom: 12px; font-size: 16px; }
+  .card {
+    background: #16213e; border: 1px solid #0f3460; border-radius: 8px;
+    padding: 16px; margin-bottom: 16px;
+  }
+  .row { display: flex; gap: 16px; flex-wrap: wrap; }
+  .row > .card { flex: 1; min-width: 300px; }
+  label { display: block; font-size: 12px; color: #aaa; margin-bottom: 4px; }
+  input, select {
+    width: 100%; padding: 6px 8px; border: 1px solid #0f3460; border-radius: 4px;
+    background: #1a1a2e; color: #e0e0e0; font-size: 13px;
+  }
+  input:focus, select:focus { outline: none; border-color: #7c83ff; }
+  .field { margin-bottom: 10px; }
+  button {
+    padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer;
+    font-size: 13px; font-weight: 500; transition: background 0.2s;
+  }
+  .btn-primary { background: #7c83ff; color: #fff; }
+  .btn-primary:hover { background: #6a71e0; }
+  .btn-danger { background: #e74c3c; color: #fff; }
+  .btn-danger:hover { background: #c0392b; }
+  .btn-success { background: #27ae60; color: #fff; }
+  .btn-success:hover { background: #219a52; }
+  .btn-warning { background: #f39c12; color: #fff; }
+  .btn-warning:hover { background: #d68910; }
+  .btn-secondary { background: #4a4a6a; color: #e0e0e0; }
+  .btn-secondary:hover { background: #5a5a7a; }
+  .btn-sm { padding: 4px 10px; font-size: 12px; }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-group { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  /* Status indicator */
+  .status { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+  .status-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: #e74c3c; flex-shrink: 0;
+  }
+  .status-dot.connected { background: #27ae60; }
+
+  /* Position display */
+  .pos-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+    margin-bottom: 12px;
+  }
+  .pos-cell {
+    background: #1a1a2e; border: 1px solid #0f3460; border-radius: 4px;
+    padding: 8px; text-align: center;
+  }
+  .pos-cell .axis { font-size: 11px; color: #7c83ff; font-weight: 600; }
+  .pos-cell .value { font-size: 16px; font-weight: 600; margin-top: 2px; font-variant-numeric: tabular-nums; }
+
+  /* Jog controls */
+  .jog-section { margin-bottom: 16px; }
+  .jog-section h3 { font-size: 13px; color: #aaa; margin-bottom: 8px; }
+  .jog-row {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
+  }
+  .jog-row label { width: 50px; text-align: right; margin-bottom: 0; font-weight: 600; color: #7c83ff; }
+  .jog-btn {
+    width: 40px; height: 32px; display: flex; align-items: center; justify-content: center;
+    font-size: 16px; font-weight: 700; border-radius: 4px;
+  }
+  .jog-btn.minus { background: #c0392b; color: #fff; }
+  .jog-btn.minus:hover { background: #a93226; }
+  .jog-btn.plus { background: #27ae60; color: #fff; }
+  .jog-btn.plus:hover { background: #219a52; }
+
+  /* Step size selector */
+  .step-selector { display: flex; gap: 4px; align-items: center; margin-bottom: 12px; }
+  .step-btn {
+    padding: 4px 10px; font-size: 12px; border-radius: 4px;
+    background: #1a1a2e; border: 1px solid #0f3460; color: #e0e0e0; cursor: pointer;
+  }
+  .step-btn.active { background: #7c83ff; border-color: #7c83ff; color: #fff; }
+
+  /* Speed slider */
+  .speed-control { margin-bottom: 12px; }
+  .speed-control input[type="range"] {
+    -webkit-appearance: none; width: 100%; height: 6px;
+    background: #0f3460; border-radius: 3px; outline: none; border: none; padding: 0;
+  }
+  .speed-control input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 16px; height: 16px;
+    background: #7c83ff; border-radius: 50%; cursor: pointer;
+  }
+  .speed-val { font-size: 12px; color: #aaa; text-align: right; }
+
+  /* Named positions */
+  .pos-list { max-height: 240px; overflow-y: auto; }
+  .pos-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px; background: #1a1a2e; border: 1px solid #0f3460;
+    border-radius: 4px; margin-bottom: 4px;
+  }
+  .pos-item .pos-name { font-weight: 600; font-size: 13px; }
+  .pos-item .pos-coords { font-size: 11px; color: #aaa; margin-top: 2px; }
+  .pos-actions { display: flex; gap: 4px; flex-shrink: 0; }
+
+  /* Gripper */
+  .gripper-control { display: flex; align-items: center; gap: 12px; }
+  .gripper-control input[type="range"] {
+    -webkit-appearance: none; flex: 1; height: 6px;
+    background: #0f3460; border-radius: 3px; outline: none; border: none; padding: 0;
+  }
+  .gripper-control input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 16px; height: 16px;
+    background: #f39c12; border-radius: 50%; cursor: pointer;
+  }
+  .gripper-val { width: 50px; text-align: right; font-variant-numeric: tabular-nums; }
+
+  /* Log */
+  .log {
+    background: #0d1117; border: 1px solid #0f3460; border-radius: 4px;
+    padding: 8px; max-height: 160px; overflow-y: auto;
+    font-family: 'Consolas', 'Courier New', monospace; font-size: 12px;
+    line-height: 1.5;
+  }
+  .log-entry { color: #8b949e; }
+  .log-entry.error { color: #f85149; }
+  .log-entry.success { color: #3fb950; }
+
+  /* Save position dialog */
+  .save-row { display: flex; gap: 8px; margin-bottom: 12px; }
+  .save-row input { flex: 1; }
+</style>
+</head>
+<body>
+
+<!-- Connection -->
+<div class="card">
+  <h2>Connection</h2>
+  <div class="status">
+    <div class="status-dot" id="statusDot"></div>
+    <span id="statusText">Disconnected</span>
+  </div>
+  <div style="display:flex; gap:8px; align-items:flex-end;">
+    <div class="field" style="flex:1; margin-bottom:0;">
+      <label>xArm IP Address</label>
+      <input type="text" id="armIp" value="192.168.1.185" placeholder="192.168.1.185">
+    </div>
+    <button class="btn-primary" id="btnConnect" onclick="toggleConnect()">Connect</button>
+  </div>
+</div>
+
+<div class="row">
+  <!-- Current Position -->
+  <div class="card">
+    <h2>Current Position</h2>
+    <div class="pos-grid">
+      <div class="pos-cell"><div class="axis">X (mm)</div><div class="value" id="posX">--</div></div>
+      <div class="pos-cell"><div class="axis">Y (mm)</div><div class="value" id="posY">--</div></div>
+      <div class="pos-cell"><div class="axis">Z (mm)</div><div class="value" id="posZ">--</div></div>
+      <div class="pos-cell"><div class="axis">Roll (&deg;)</div><div class="value" id="posRoll">--</div></div>
+      <div class="pos-cell"><div class="axis">Pitch (&deg;)</div><div class="value" id="posPitch">--</div></div>
+      <div class="pos-cell"><div class="axis">Yaw (&deg;)</div><div class="value" id="posYaw">--</div></div>
+    </div>
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <div>
+        <span style="font-size:12px; color:#aaa;">State: </span>
+        <span id="armState" style="font-size:12px;">--</span>
+      </div>
+      <button class="btn-secondary btn-sm" onclick="refreshPosition()">Refresh</button>
+    </div>
+  </div>
+
+  <!-- Gripper -->
+  <div class="card">
+    <h2>Gripper</h2>
+    <div class="field">
+      <label>Position (0=closed, 850=open)</label>
+      <div class="gripper-control">
+        <input type="range" id="gripperPos" min="0" max="850" value="850" oninput="document.getElementById('gripperVal').textContent=this.value">
+        <span class="gripper-val" id="gripperVal">850</span>
+      </div>
+    </div>
+    <div class="field">
+      <label>Speed</label>
+      <div class="gripper-control">
+        <input type="range" id="gripperSpeed" min="1" max="5000" value="1000" oninput="document.getElementById('gripperSpeedVal').textContent=this.value">
+        <span class="gripper-val" id="gripperSpeedVal">1000</span>
+      </div>
+    </div>
+    <button class="btn-warning" onclick="setGripper()">Set Gripper</button>
+  </div>
+</div>
+
+<!-- Jog Controls -->
+<div class="card">
+  <h2>Jog Controls (Tool Coordinate Space)</h2>
+
+  <div style="display:flex; gap:16px; flex-wrap:wrap; align-items:flex-start;">
+    <div style="flex:1; min-width:200px;">
+      <div class="step-selector">
+        <label style="margin-bottom:0; font-size:12px;">Step:</label>
+        <button class="step-btn" onclick="setStep(0.1, this)">0.1</button>
+        <button class="step-btn active" onclick="setStep(1, this)">1</button>
+        <button class="step-btn" onclick="setStep(5, this)">5</button>
+        <button class="step-btn" onclick="setStep(10, this)">10</button>
+        <button class="step-btn" onclick="setStep(50, this)">50</button>
+      </div>
+      <div class="speed-control">
+        <label>Speed: <span id="jogSpeedVal">100</span> mm/s</label>
+        <input type="range" id="jogSpeed" min="1" max="500" value="100" oninput="document.getElementById('jogSpeedVal').textContent=this.value">
+      </div>
+    </div>
+    <div style="flex:1; min-width:200px;">
+      <div class="step-selector">
+        <label style="margin-bottom:0; font-size:12px;">Angle Step:</label>
+        <button class="step-btn" onclick="setAngleStep(0.1, this)">0.1&deg;</button>
+        <button class="step-btn active" onclick="setAngleStep(1, this)">1&deg;</button>
+        <button class="step-btn" onclick="setAngleStep(5, this)">5&deg;</button>
+        <button class="step-btn" onclick="setAngleStep(10, this)">10&deg;</button>
+        <button class="step-btn" onclick="setAngleStep(45, this)">45&deg;</button>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex; gap:24px; flex-wrap:wrap;">
+    <!-- Linear axes -->
+    <div class="jog-section" style="flex:1; min-width:180px;">
+      <h3>Linear (mm)</h3>
+      <div class="jog-row">
+        <label>X</label>
+        <button class="jog-btn minus" onclick="jog('DeltaX',-1)">&minus;</button>
+        <button class="jog-btn plus" onclick="jog('DeltaX',1)">+</button>
+      </div>
+      <div class="jog-row">
+        <label>Y</label>
+        <button class="jog-btn minus" onclick="jog('DeltaY',-1)">&minus;</button>
+        <button class="jog-btn plus" onclick="jog('DeltaY',1)">+</button>
+      </div>
+      <div class="jog-row">
+        <label>Z</label>
+        <button class="jog-btn minus" onclick="jog('DeltaZ',-1)">&minus;</button>
+        <button class="jog-btn plus" onclick="jog('DeltaZ',1)">+</button>
+      </div>
+    </div>
+    <!-- Rotation axes -->
+    <div class="jog-section" style="flex:1; min-width:180px;">
+      <h3>Rotation (deg)</h3>
+      <div class="jog-row">
+        <label>Roll</label>
+        <button class="jog-btn minus" onclick="jogAngle('DeltaRoll',-1)">&minus;</button>
+        <button class="jog-btn plus" onclick="jogAngle('DeltaRoll',1)">+</button>
+      </div>
+      <div class="jog-row">
+        <label>Pitch</label>
+        <button class="jog-btn minus" onclick="jogAngle('DeltaPitch',-1)">&minus;</button>
+        <button class="jog-btn plus" onclick="jogAngle('DeltaPitch',1)">+</button>
+      </div>
+      <div class="jog-row">
+        <label>Yaw</label>
+        <button class="jog-btn minus" onclick="jogAngle('DeltaYaw',-1)">&minus;</button>
+        <button class="jog-btn plus" onclick="jogAngle('DeltaYaw',1)">+</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="btn-group" style="margin-top: 8px;">
+    <button class="btn-success" onclick="goHome()">Go Home</button>
+    <button class="btn-danger" onclick="emergencyStop()">Emergency Stop</button>
+    <button class="btn-warning" onclick="clearErrors()">Clear Errors</button>
+  </div>
+</div>
+
+<!-- Named Positions -->
+<div class="card">
+  <h2>Named Positions</h2>
+  <div class="save-row">
+    <input type="text" id="posName" placeholder="Position name...">
+    <button class="btn-success" onclick="saveCurrentPosition()">Save Current</button>
+  </div>
+  <div class="pos-list" id="posList">
+    <div style="color:#666; font-style:italic; text-align:center; padding:16px;">No saved positions</div>
+  </div>
+  <div class="btn-group" style="margin-top:8px;">
+    <button class="btn-secondary btn-sm" onclick="exportPositions()">Export All</button>
+    <button class="btn-secondary btn-sm" onclick="importPositions()">Import</button>
+  </div>
+</div>
+
+<!-- Activity Log -->
+<div class="card">
+  <h2>Activity Log</h2>
+  <div class="log" id="log"></div>
+</div>
+
+<script>
+  // ── State ───────────────────────────────────────────────────────────
+  let connected = false;
+  let step = 1;        // linear step in mm
+  let angleStep = 1;   // rotation step in degrees
+  let positions = {};  // name -> {x,y,z,roll,pitch,yaw}
+  let pendingCallbacks = {};
+  let callbackId = 0;
+  let pollTimer = null;
+
+  // ── postMessage bridge ──────────────────────────────────────────────
+  function sendMsg(type, data) {
+    return new Promise((resolve, reject) => {
+      const id = ++callbackId;
+      pendingCallbacks[id] = { resolve, reject };
+      window.parent.postMessage({ type, id, ...data }, "*");
+      setTimeout(() => {
+        if (pendingCallbacks[id]) {
+          delete pendingCallbacks[id];
+          reject(new Error("Timeout"));
+        }
+      }, 30000);
+    });
+  }
+
+  window.addEventListener("message", (e) => {
+    if (e.data && e.data.id && pendingCallbacks[e.data.id]) {
+      const cb = pendingCallbacks[e.data.id];
+      delete pendingCallbacks[e.data.id];
+      if (e.data.error) cb.reject(new Error(e.data.error));
+      else cb.resolve(e.data);
+    }
+  });
+
+  function execCmd(command, params = {}) {
+    return sendMsg("execute-command", {
+      feature: "XArm6Controller",
+      command,
+      parameters: params,
+    });
+  }
+
+  function readProp(property) {
+    return sendMsg("read-property", {
+      feature: "XArm6Controller",
+      property,
+    });
+  }
+
+  function saveSettings(name, data) {
+    return sendMsg("save-settings", { name, settings: data });
+  }
+
+  function loadSettings(name) {
+    return sendMsg("load-settings", { name });
+  }
+
+  function deleteSettings(name) {
+    return sendMsg("delete-settings", { name });
+  }
+
+  function listSettings() {
+    return sendMsg("list-settings", {});
+  }
+
+  // ── Logging ─────────────────────────────────────────────────────────
+  function log(msg, cls = "") {
+    const el = document.getElementById("log");
+    const ts = new Date().toLocaleTimeString();
+    el.innerHTML += `<div class="log-entry ${cls}">[${ts}] ${msg}</div>`;
+    el.scrollTop = el.scrollHeight;
+  }
+
+  // ── Connection ──────────────────────────────────────────────────────
+  async function toggleConnect() {
+    const btn = document.getElementById("btnConnect");
+    btn.disabled = true;
+    try {
+      if (!connected) {
+        const ip = document.getElementById("armIp").value.trim();
+        if (!ip) { log("Enter an IP address", "error"); return; }
+        const res = await execCmd("Connect", { IpAddress: ip });
+        connected = true;
+        log(`Connected (firmware: ${res.result?.FirmwareVersion || "?"})`, "success");
+        startPolling();
+      } else {
+        await execCmd("Disconnect");
+        connected = false;
+        log("Disconnected", "success");
+        stopPolling();
+      }
+      updateConnectionUI();
+    } catch (e) {
+      log(`Connection error: ${e.message}`, "error");
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  function updateConnectionUI() {
+    const dot = document.getElementById("statusDot");
+    const text = document.getElementById("statusText");
+    const btn = document.getElementById("btnConnect");
+    if (connected) {
+      dot.classList.add("connected");
+      text.textContent = "Connected";
+      btn.textContent = "Disconnect";
+      btn.className = "btn-danger";
+    } else {
+      dot.classList.remove("connected");
+      text.textContent = "Disconnected";
+      btn.textContent = "Connect";
+      btn.className = "btn-primary";
+    }
+  }
+
+  // ── Position Polling ────────────────────────────────────────────────
+  function startPolling() {
+    stopPolling();
+    refreshPosition();
+    pollTimer = setInterval(refreshPosition, 1000);
+  }
+
+  function stopPolling() {
+    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+    ["posX","posY","posZ","posRoll","posPitch","posYaw"].forEach(id => {
+      document.getElementById(id).textContent = "--";
+    });
+    document.getElementById("armState").textContent = "--";
+  }
+
+  async function refreshPosition() {
+    try {
+      const [posRes, stateRes] = await Promise.all([
+        readProp("CurrentPosition"),
+        readProp("ArmState"),
+      ]);
+      const pos = JSON.parse(posRes.value);
+      document.getElementById("posX").textContent = pos.x.toFixed(1);
+      document.getElementById("posY").textContent = pos.y.toFixed(1);
+      document.getElementById("posZ").textContent = pos.z.toFixed(1);
+      document.getElementById("posRoll").textContent = pos.roll.toFixed(1);
+      document.getElementById("posPitch").textContent = pos.pitch.toFixed(1);
+      document.getElementById("posYaw").textContent = pos.yaw.toFixed(1);
+
+      const stateMap = { 1: "Moving", 2: "Ready", 3: "Paused", 4: "Error" };
+      const stVal = typeof stateRes.value === "string" ? parseInt(stateRes.value) : stateRes.value;
+      document.getElementById("armState").textContent = stateMap[stVal] || `Unknown (${stVal})`;
+    } catch (e) {
+      // silently ignore poll errors
+    }
+  }
+
+  // ── Jog ─────────────────────────────────────────────────────────────
+  function setStep(val, btn) {
+    step = val;
+    btn.parentElement.querySelectorAll(".step-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+  }
+
+  function setAngleStep(val, btn) {
+    angleStep = val;
+    btn.parentElement.querySelectorAll(".step-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+  }
+
+  async function jog(axis, direction) {
+    if (!connected) { log("Not connected", "error"); return; }
+    const speed = parseFloat(document.getElementById("jogSpeed").value);
+    const delta = step * direction;
+    const params = {
+      DeltaX: 0, DeltaY: 0, DeltaZ: 0,
+      DeltaRoll: 0, DeltaPitch: 0, DeltaYaw: 0,
+      Speed: speed,
+    };
+    params[axis] = delta;
+    try {
+      await execCmd("SetRelativePosition", params);
+      log(`Jog ${axis.replace("Delta","")} ${delta > 0 ? "+" : ""}${delta}mm @ ${speed}mm/s`, "success");
+      refreshPosition();
+    } catch (e) {
+      log(`Jog error: ${e.message}`, "error");
+    }
+  }
+
+  async function jogAngle(axis, direction) {
+    if (!connected) { log("Not connected", "error"); return; }
+    const speed = parseFloat(document.getElementById("jogSpeed").value);
+    const delta = angleStep * direction;
+    const params = {
+      DeltaX: 0, DeltaY: 0, DeltaZ: 0,
+      DeltaRoll: 0, DeltaPitch: 0, DeltaYaw: 0,
+      Speed: speed,
+    };
+    params[axis] = delta;
+    try {
+      await execCmd("SetRelativePosition", params);
+      log(`Jog ${axis.replace("Delta","")} ${delta > 0 ? "+" : ""}${delta}\u00B0 @ ${speed}mm/s`, "success");
+      refreshPosition();
+    } catch (e) {
+      log(`Jog error: ${e.message}`, "error");
+    }
+  }
+
+  // ── Quick Actions ───────────────────────────────────────────────────
+  async function goHome() {
+    if (!connected) { log("Not connected", "error"); return; }
+    try {
+      await execCmd("GoHome");
+      log("Go Home complete", "success");
+      refreshPosition();
+    } catch (e) { log(`GoHome error: ${e.message}`, "error"); }
+  }
+
+  async function emergencyStop() {
+    if (!connected) { log("Not connected", "error"); return; }
+    try {
+      await execCmd("EmergencyStop");
+      log("EMERGENCY STOP", "error");
+      refreshPosition();
+    } catch (e) { log(`E-Stop error: ${e.message}`, "error"); }
+  }
+
+  async function clearErrors() {
+    if (!connected) { log("Not connected", "error"); return; }
+    try {
+      await execCmd("ClearErrors");
+      log("Errors cleared", "success");
+      refreshPosition();
+    } catch (e) { log(`ClearErrors error: ${e.message}`, "error"); }
+  }
+
+  async function setGripper() {
+    if (!connected) { log("Not connected", "error"); return; }
+    const pos = parseFloat(document.getElementById("gripperPos").value);
+    const spd = parseFloat(document.getElementById("gripperSpeed").value);
+    try {
+      await execCmd("SetGripperPosition", { Position: pos, Speed: spd });
+      log(`Gripper set to ${pos} (speed ${spd})`, "success");
+    } catch (e) { log(`Gripper error: ${e.message}`, "error"); }
+  }
+
+  // ── Named Positions ─────────────────────────────────────────────────
+  const POSITIONS_KEY = "xarm6-positions";
+
+  async function loadPositionsFromStorage() {
+    try {
+      const res = await loadSettings(POSITIONS_KEY);
+      if (res.settings) {
+        positions = res.settings;
+      }
+    } catch (e) {
+      positions = {};
+    }
+    renderPositions();
+  }
+
+  async function savePositionsToStorage() {
+    try {
+      await saveSettings(POSITIONS_KEY, positions);
+    } catch (e) {
+      log("Failed to save positions", "error");
+    }
+  }
+
+  async function saveCurrentPosition() {
+    const name = document.getElementById("posName").value.trim();
+    if (!name) { log("Enter a position name", "error"); return; }
+    if (!connected) { log("Not connected", "error"); return; }
+    try {
+      const res = await readProp("CurrentPosition");
+      const pos = JSON.parse(res.value);
+      positions[name] = pos;
+      await savePositionsToStorage();
+      renderPositions();
+      document.getElementById("posName").value = "";
+      log(`Saved position "${name}": X=${pos.x}, Y=${pos.y}, Z=${pos.z}`, "success");
+    } catch (e) { log(`Save error: ${e.message}`, "error"); }
+  }
+
+  async function moveToPosition(name) {
+    if (!connected) { log("Not connected", "error"); return; }
+    const pos = positions[name];
+    if (!pos) return;
+    const speed = parseFloat(document.getElementById("jogSpeed").value);
+    try {
+      await execCmd("SetPosition", {
+        X: pos.x, Y: pos.y, Z: pos.z,
+        Roll: pos.roll, Pitch: pos.pitch, Yaw: pos.yaw,
+        Speed: speed, Wait: true,
+      });
+      log(`Moved to "${name}"`, "success");
+      refreshPosition();
+    } catch (e) { log(`Move error: ${e.message}`, "error"); }
+  }
+
+  async function deletePosition(name) {
+    delete positions[name];
+    await savePositionsToStorage();
+    renderPositions();
+    log(`Deleted position "${name}"`);
+  }
+
+  function renderPositions() {
+    const el = document.getElementById("posList");
+    const names = Object.keys(positions);
+    if (names.length === 0) {
+      el.innerHTML = '<div style="color:#666; font-style:italic; text-align:center; padding:16px;">No saved positions</div>';
+      return;
+    }
+    el.innerHTML = names.map(name => {
+      const p = positions[name];
+      const coords = `X:${p.x.toFixed(1)} Y:${p.y.toFixed(1)} Z:${p.z.toFixed(1)} R:${p.roll.toFixed(1)} P:${p.pitch.toFixed(1)} W:${p.yaw.toFixed(1)}`;
+      return `<div class="pos-item">
+        <div>
+          <div class="pos-name">${escHtml(name)}</div>
+          <div class="pos-coords">${coords}</div>
+        </div>
+        <div class="pos-actions">
+          <button class="btn-primary btn-sm" onclick="moveToPosition('${escAttr(name)}')">Go</button>
+          <button class="btn-danger btn-sm" onclick="deletePosition('${escAttr(name)}')">Del</button>
+        </div>
+      </div>`;
+    }).join("");
+  }
+
+  function escHtml(s) { const d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
+  function escAttr(s) { return s.replace(/\\/g, "\\\\").replace(/'/g, "\\'"); }
+
+  async function exportPositions() {
+    const json = JSON.stringify(positions, null, 2);
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = "xarm6_positions.json"; a.click();
+    URL.revokeObjectURL(url);
+    log(`Exported ${Object.keys(positions).length} positions`);
+  }
+
+  function importPositions() {
+    const input = document.createElement("input");
+    input.type = "file"; input.accept = ".json";
+    input.onchange = async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      try {
+        const text = await file.text();
+        const imported = JSON.parse(text);
+        let count = 0;
+        for (const [name, pos] of Object.entries(imported)) {
+          if (pos.x !== undefined && pos.y !== undefined && pos.z !== undefined) {
+            positions[name] = pos;
+            count++;
+          }
+        }
+        await savePositionsToStorage();
+        renderPositions();
+        log(`Imported ${count} positions`, "success");
+      } catch (err) { log(`Import error: ${err.message}`, "error"); }
+    };
+    input.click();
+  }
+
+  // ── Init ────────────────────────────────────────────────────────────
+  loadPositionsFromStorage();
+  log("xArm 6 Controller UI loaded");
+</script>
+</body>
+</html>

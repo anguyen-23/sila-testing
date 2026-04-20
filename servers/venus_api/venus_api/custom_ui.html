@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Venus API</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  :root {
+    --bg: #1e1e2e; --surface: #2a2a3e; --border: #3a3a5e;
+    --text: #e0e0e0; --muted: #888; --accent: #6c8eef;
+    --success: #4caf50; --warning: #ff9800; --danger: #ef5350;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+         background: var(--bg); color: var(--text); padding: 16px; font-size: 14px; }
+  h2 { font-size: 18px; margin-bottom: 12px; }
+  h3 { font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px;
+       margin: 16px 0 8px; }
+
+  .status-bar { display: flex; gap: 12px; align-items: center; padding: 10px 14px;
+                background: var(--surface); border-radius: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  .status-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  .dot-ok { background: var(--success); }
+  .dot-err { background: var(--danger); }
+  .dot-warn { background: var(--warning); }
+  .status-text { font-weight: 600; }
+  .status-info { color: var(--muted); font-size: 12px; margin-left: auto; }
+
+  .workflow { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+  .card-full { grid-column: 1 / -1; }
+
+  label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  input, select { width: 100%; padding: 6px 10px; background: var(--bg); color: var(--text);
+                  border: 1px solid var(--border); border-radius: 4px; font-size: 13px; }
+  input:focus, select:focus { outline: none; border-color: var(--accent); }
+
+  .btn { display: inline-block; padding: 8px 16px; border: none; border-radius: 6px;
+         font-size: 13px; font-weight: 600; cursor: pointer; transition: opacity 0.15s; }
+  .btn:hover { opacity: 0.85; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-success { background: var(--success); color: #fff; }
+  .btn-warning { background: var(--warning); color: #000; }
+  .btn-danger { background: var(--danger); color: #fff; }
+  .btn-outline { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+  .btn-outline:hover { color: var(--text); border-color: var(--text); }
+  .btn-sm { padding: 5px 12px; font-size: 12px; }
+  .btn-xs { padding: 3px 8px; font-size: 11px; }
+  .btn-group { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+
+  .inline-fields { display: flex; gap: 8px; align-items: flex-end; }
+  .inline-fields > div { flex: 1; }
+
+  .settings-row { display: flex; gap: 6px; align-items: flex-end; margin-top: 10px;
+                  padding-top: 10px; border-top: 1px solid var(--border); }
+  .settings-row > div { flex: 1; }
+
+  .log { background: var(--bg); border: 1px solid var(--border); border-radius: 4px;
+         padding: 8px 10px; font-family: monospace; font-size: 12px; color: var(--muted);
+         max-height: 200px; overflow-y: auto; margin-top: 8px; }
+  .log-entry { margin-bottom: 2px; }
+  .log-ok { color: var(--success); }
+  .log-err { color: var(--danger); }
+  .log-info { color: var(--accent); }
+
+  .progress-bar { width: 100%; height: 8px; background: var(--border); border-radius: 4px;
+                  margin-top: 8px; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--accent); border-radius: 4px;
+                   transition: width 0.3s; }
+
+  .method-list { max-height: 200px; overflow-y: auto; margin-top: 8px; }
+  .method-item { padding: 6px 10px; cursor: pointer; border-radius: 4px; font-size: 12px;
+                 font-family: monospace; transition: background 0.1s; }
+  .method-item:hover { background: rgba(108,142,239,0.15); }
+  .method-item.selected { background: rgba(108,142,239,0.3); color: var(--accent); }
+
+  .device-card { background: var(--bg); border: 1px solid var(--border); border-radius: 4px;
+                 padding: 10px; margin-top: 6px; }
+  .device-card h4 { font-size: 13px; color: var(--accent); margin-bottom: 4px; }
+  .device-info { font-size: 12px; color: var(--muted); }
+
+  .run-table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 12px; }
+  .run-table th, .run-table td { padding: 6px 8px; text-align: left; border-bottom: 1px solid var(--border); }
+  .run-table th { color: var(--muted); font-weight: 600; }
+  .run-table tr:hover { background: rgba(108,142,239,0.08); }
+  .run-table .clickable { cursor: pointer; color: var(--accent); }
+
+  .trace-panel { background: var(--bg); border: 1px solid var(--border); border-radius: 4px;
+                 padding: 10px; font-family: monospace; font-size: 12px; color: var(--text);
+                 min-height: 40px; white-space: pre-wrap; word-break: break-all; }
+
+  .error-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                         background: rgba(0,0,0,0.6); z-index: 1000; display: flex;
+                         align-items: center; justify-content: center; }
+  .error-modal { background: var(--surface); border: 1px solid var(--danger); border-radius: 10px;
+                 padding: 20px 24px; max-width: 460px; width: 90%; }
+  .error-modal h3 { color: var(--danger); margin-bottom: 10px; font-size: 16px; }
+  .error-modal pre { background: var(--bg); border: 1px solid var(--border); border-radius: 4px;
+                     padding: 10px; font-size: 12px; white-space: pre-wrap; word-break: break-word;
+                     max-height: 200px; overflow-y: auto; margin-bottom: 14px; color: var(--text); }
+
+  .sse-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px;
+               font-weight: 700; margin-left: 8px; }
+  .sse-connected { background: #1b5e20; color: #a5d6a7; }
+  .sse-disconnected { background: #b71c1c; color: #ef9a9a; }
+
+  .state-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px;
+                 font-weight: 700; }
+
+  .tab-bar { display: flex; gap: 2px; margin-bottom: 12px; }
+  .tab { padding: 8px 16px; border: 1px solid var(--border); border-radius: 6px 6px 0 0;
+         cursor: pointer; font-size: 13px; color: var(--muted); background: var(--surface); }
+  .tab.active { color: var(--text); border-bottom-color: var(--surface); background: var(--surface);
+                border-top: 2px solid var(--accent); }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" data-type="module">
+const { useState, useEffect, useRef, useCallback } = React;
+
+// -- API Configuration --
+const _urlParts = window.location.pathname.split('/');
+const SILA_HOST = _urlParts[3];
+const SILA_PORT = _urlParts[4];
+const API_BASE = `${window.location.origin}/api`;
+const FEATURE_ID = "VenusMethodExecutor";
+
+// -- API Helpers --
+async function executeCommand(featureId, commandId, params = {}) {
+  const resp = await fetch(`${API_BASE}/command/${SILA_HOST}/${SILA_PORT}/${featureId}/${commandId}`, {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(params),
+  });
+  const data = await resp.json();
+  if (data.status === "error") {
+    const err = new Error(`${data.error_type}: ${data.message}`);
+    err.errorType = data.error_type;
+    throw err;
+  }
+  return data;
+}
+
+async function readProperty(featureId, propertyId) {
+  const resp = await fetch(`${API_BASE}/property/${SILA_HOST}/${SILA_PORT}/${featureId}/${propertyId}`);
+  const data = await resp.json();
+  if (data.error) throw new Error(data.error);
+  return data;
+}
+
+// -- Settings persistence (localStorage) --
+const SETTINGS_KEY = "venus-api-v2-settings";
+function loadSettings() {
+  try { return JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}; }
+  catch { return {}; }
+}
+function saveSettings(s) { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)); }
+
+// -- SSE Hook: subscribes to DeviceStatus observable property --
+function useDeviceStatus() {
+  const [status, setStatus] = useState({
+    isMethodLoaded: false, status: "Undefined", loadedMethod: "",
+    isRunning: false, isPaused: false, venusUrl: "", venusReachable: true,
+    methodDirectory: "", simulationMode: true, progress: 0,
+    elapsed: "", remaining: "", latestTrace: "", activityLog: [],
+  });
+  const [sseConnected, setSseConnected] = useState(false);
+
+  useEffect(() => {
+    const url = `${API_BASE}/sse/${SILA_HOST}/${SILA_PORT}/${FEATURE_ID}/DeviceStatus`;
+    let es = new EventSource(url);
+
+    es.onopen = () => setSseConnected(true);
+    es.onmessage = (event) => {
+      try {
+        const parsed = JSON.parse(event.data);
+        const deviceStatus = typeof parsed === 'string' ? JSON.parse(parsed) : parsed;
+        setStatus(deviceStatus);
+      } catch (e) {
+        console.warn("SSE parse error:", e, event.data);
+      }
+    };
+    es.onerror = () => {
+      setSseConnected(false);
+    };
+
+    return () => { es.close(); };
+  }, []);
+
+  // Fallback: poll if SSE not available
+  useEffect(() => {
+    if (sseConnected) return;
+    const interval = setInterval(async () => {
+      try {
+        const result = await readProperty(FEATURE_ID, "DeviceStatus");
+        if (result.value) {
+          const parsed = JSON.parse(result.value);
+          setStatus(parsed);
+        }
+      } catch { /* ignore poll errors */ }
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [sseConnected]);
+
+  return { status, sseConnected };
+}
+
+// -- StatusBar Component --
+function StatusBar({ status, sseConnected }) {
+  const stateColors = {
+    Undefined: '#888', Initialized: 'var(--accent)', Running: 'var(--success)',
+    Paused: 'var(--warning)', Aborted: 'var(--danger)', Terminated: '#888',
+  };
+  const dotClass = status.venusReachable || status.simulationMode ? "status-dot dot-ok" : "status-dot dot-err";
+  const simBadge = status.simulationMode
+    ? <span className="sse-badge" style={{background:'#e65100',color:'#ffe0b2'}}>SIM</span>
+    : <span className="sse-badge" style={{background:'#1b5e20',color:'#a5d6a7'}}>REAL</span>;
+
+  return (
+    <div className="status-bar">
+      <span className={dotClass}></span>
+      <span className="status-text">
+        {status.simulationMode ? "Simulation" : (status.venusReachable ? "Connected" : "Disconnected")}
+      </span>
+      {simBadge}
+      <span className="state-badge" style={{background: stateColors[status.status] || '#888', color:'#fff'}}>
+        {status.status}
+      </span>
+      {status.isMethodLoaded &&
+        <span style={{fontSize:12,color:'var(--accent)'}}>
+          {status.loadedMethod.split('\\').pop()}
+        </span>
+      }
+      <span className={`sse-badge ${sseConnected ? 'sse-connected' : 'sse-disconnected'}`}>
+        SSE {sseConnected ? 'LIVE' : 'OFF'}
+      </span>
+      <span className="status-info">{status.venusUrl}</span>
+    </div>
+  );
+}
+
+// -- ActivityLog Component --
+function ActivityLog({ entries }) {
+  const logRef = useRef(null);
+  useEffect(() => {
+    if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
+  }, [entries.length]);
+
+  return (
+    <div className="log" ref={logRef}>
+      {entries.map((entry, i) => {
+        let cls = "log-info";
+        if (entry.includes("OK") || entry.includes("complete") || entry.includes("loaded") ||
+            entry.includes("initialized") || entry.includes("Initialized"))
+          cls = "log-ok";
+        else if (entry.includes("failed") || entry.includes("Error") || entry.includes("error") ||
+                 entry.includes("Aborted") || entry.includes("aborted"))
+          cls = "log-err";
+        return <div key={i} className={`log-entry ${cls}`}>{entry}</div>;
+      })}
+      {entries.length === 0 && <div className="log-entry" style={{color:'var(--muted)'}}>No activity yet</div>}
+    </div>
+  );
+}
+
+// -- ErrorModal Component --
+function ErrorModal({ message, onRetry, onIgnore, onAbort }) {
+  if (!message) return null;
+  return (
+    <div className="error-modal-overlay">
+      <div className="error-modal">
+        <h3>Command Error</h3>
+        <pre>{message}</pre>
+        <div className="btn-group">
+          <button className="btn btn-primary" onClick={onRetry}>Retry</button>
+          <button className="btn btn-warning" onClick={onIgnore}>Ignore</button>
+          <button className="btn btn-danger" onClick={onAbort}>Abort</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// -- MethodBrowser Component --
+function MethodBrowser({ status, busy, onBusy }) {
+  const [methodFiles, setMethodFiles] = useState([]);
+  const [selectedFile, setSelectedFile] = useState("");
+  const [simFlag, setSimFlag] = useState(true);
+  const [errorModal, setErrorModal] = useState(null);
+  const [lastAction, setLastAction] = useState(null);
+
+  const refreshFiles = useCallback(async () => {
+    try {
+      const res = await executeCommand(FEATURE_ID, "GetMethodFiles");
+      const files = JSON.parse(res.responses?.MethodFilesJson || "[]");
+      setMethodFiles(files);
+    } catch (e) {
+      setMethodFiles([]);
+    }
+  }, []);
+
+  const doAction = useCallback(async (action) => {
+    setLastAction(action);
+    onBusy(true);
+    try {
+      if (action === "load") {
+        await executeCommand(FEATURE_ID, "LoadMethod", { FilePath: selectedFile, Simulation: simFlag });
+      } else if (action === "unload") {
+        await executeCommand(FEATURE_ID, "UnloadMethod");
+      }
+    } catch (e) {
+      setErrorModal({
+        message: e.message,
+        onRetry: () => { setErrorModal(null); doAction(action); },
+        onIgnore: () => setErrorModal(null),
+        onAbort: () => setErrorModal(null),
+      });
+    } finally {
+      onBusy(false);
+    }
+  }, [selectedFile, simFlag, onBusy]);
+
+  return (
+    <div className="card">
+      <h3>Method Browser</h3>
+      <div className="btn-group">
+        <button className="btn btn-outline btn-sm" onClick={refreshFiles}>Refresh Files</button>
+        <button className="btn btn-primary btn-sm" disabled={busy || !selectedFile || status.isMethodLoaded}
+          onClick={() => doAction("load")}>Load Method</button>
+        <button className="btn btn-danger btn-sm" disabled={busy || !status.isMethodLoaded || status.isRunning}
+          onClick={() => doAction("unload")}>Unload Method</button>
+      </div>
+      <div style={{marginTop:8}}>
+        <label>
+          <input type="checkbox" checked={simFlag} onChange={e => setSimFlag(e.target.checked)}
+                 style={{width:'auto',marginRight:6}} />
+          Run in VENUS simulation mode
+        </label>
+      </div>
+      {methodFiles.length > 0 && (
+        <div className="method-list">
+          {methodFiles.map((f, i) => (
+            <div key={i} className={`method-item${selectedFile === f ? ' selected' : ''}`}
+                 onClick={() => setSelectedFile(f)}>
+              {f.split('\\').pop()}
+              <div style={{fontSize:10,color:'var(--muted)'}}>{f}</div>
+            </div>
+          ))}
+        </div>
+      )}
+      {errorModal && <ErrorModal {...errorModal} />}
+    </div>
+  );
+}
+
+// -- ExecutionControl Component --
+function ExecutionControl({ status, busy, onBusy }) {
+  const [errorModal, setErrorModal] = useState(null);
+
+  const doAction = useCallback(async (action) => {
+    onBusy(true);
+    try {
+      if (action === "start") await executeCommand(FEATURE_ID, "StartMethod");
+      else if (action === "pause") await executeCommand(FEATURE_ID, "PauseMethod");
+      else if (action === "resume") await executeCommand(FEATURE_ID, "ResumeMethod");
+      else if (action === "abort") await executeCommand(FEATURE_ID, "AbortMethod");
+    } catch (e) {
+      setErrorModal({
+        message: e.message,
+        onRetry: () => { setErrorModal(null); doAction(action); },
+        onIgnore: () => setErrorModal(null),
+        onAbort: () => setErrorModal(null),
+      });
+    } finally {
+      onBusy(false);
+    }
+  }, [onBusy]);
+
+  const pct = Math.round(status.progress * 100);
+
+  return (
+    <div className="card">
+      <h3>Execution Control</h3>
+      <div className="btn-group">
+        <button className="btn btn-success btn-sm"
+          disabled={busy || !status.isMethodLoaded || status.isRunning}
+          onClick={() => doAction("start")}>Start</button>
+        <button className="btn btn-warning btn-sm"
+          disabled={busy || !status.isRunning || status.isPaused}
+          onClick={() => doAction("pause")}>Pause</button>
+        <button className="btn btn-primary btn-sm"
+          disabled={busy || !status.isPaused}
+          onClick={() => doAction("resume")}>Resume</button>
+        <button className="btn btn-danger btn-sm"
+          disabled={busy || !status.isRunning}
+          onClick={() => doAction("abort")}>Abort</button>
+      </div>
+      {status.isRunning && (
+        <div style={{marginTop:10}}>
+          <div style={{display:'flex',justifyContent:'space-between',fontSize:12,color:'var(--muted)'}}>
+            <span>Progress: {pct}%</span>
+            <span>{status.elapsed && `Elapsed: ${status.elapsed}`} {status.remaining && `| Remaining: ${status.remaining}`}</span>
+          </div>
+          <div className="progress-bar">
+            <div className="progress-fill" style={{width:`${pct}%`}}></div>
+          </div>
+        </div>
+      )}
+      {errorModal && <ErrorModal {...errorModal} />}
+    </div>
+  );
+}
+
+// -- RuntimeTracePanel Component --
+function RuntimeTracePanel({ status }) {
+  return (
+    <div className="card">
+      <h3>Runtime Trace</h3>
+      <div className="trace-panel">
+        {status.latestTrace || "(no trace messages yet)"}
+      </div>
+    </div>
+  );
+}
+
+// -- DevicePanel Component --
+function DevicePanel({ busy, onBusy }) {
+  const [devices, setDevices] = useState(null);
+  const [deckLayout, setDeckLayout] = useState(null);
+  const [errorModal, setErrorModal] = useState(null);
+
+  const fetchDevices = useCallback(async () => {
+    onBusy(true);
+    try {
+      const res = await executeCommand(FEATURE_ID, "GetDevices");
+      const parsed = JSON.parse(res.responses?.DevicesJson || "[]");
+      setDevices(parsed);
+    } catch (e) {
+      setErrorModal({
+        message: e.message,
+        onRetry: () => { setErrorModal(null); fetchDevices(); },
+        onIgnore: () => setErrorModal(null),
+        onAbort: () => setErrorModal(null),
+      });
+    } finally {
+      onBusy(false);
+    }
+  }, [onBusy]);
+
+  const fetchDeckLayout = useCallback(async (deviceId) => {
+    onBusy(true);
+    try {
+      const res = await executeCommand(FEATURE_ID, "GetDeckLayout", { DeviceId: deviceId });
+      const parsed = JSON.parse(res.responses?.DeckLayoutJson || "{}");
+      setDeckLayout({ deviceId, data: parsed });
+    } catch (e) {
+      setErrorModal({
+        message: e.message,
+        onRetry: () => { setErrorModal(null); fetchDeckLayout(deviceId); },
+        onIgnore: () => setErrorModal(null),
+        onAbort: () => setErrorModal(null),
+      });
+    } finally {
+      onBusy(false);
+    }
+  }, [onBusy]);
+
+  return (
+    <div className="card">
+      <h3>Devices</h3>
+      <button className="btn btn-outline btn-sm" disabled={busy} onClick={fetchDevices}>
+        Get Devices
+      </button>
+      {devices && Array.isArray(devices) && devices.map((d, i) => (
+        <div key={i} className="device-card">
+          <h4>{d.deviceName || d.name || `Device ${i}`}</h4>
+          <div className="device-info">
+            {d.deviceId !== undefined && <span>ID: {d.deviceId} | </span>}
+            {d.simulation !== undefined && <span>Sim: {String(d.simulation)} | </span>}
+            <button className="btn btn-xs btn-outline" style={{marginLeft:4}}
+              disabled={busy || d.deviceId === undefined}
+              onClick={() => fetchDeckLayout(d.deviceId)}>Deck Layout</button>
+          </div>
+        </div>
+      ))}
+      {deckLayout && (
+        <div style={{marginTop:8}}>
+          <h3 style={{margin:'8px 0 4px'}}>Deck Layout (Device {deckLayout.deviceId})</h3>
+          <pre style={{fontSize:11,maxHeight:200,overflow:'auto',background:'var(--bg)',
+                       border:'1px solid var(--border)',borderRadius:4,padding:8,color:'var(--muted)',
+                       whiteSpace:'pre-wrap',wordBreak:'break-all'}}>
+            {JSON.stringify(deckLayout.data, null, 2)}
+          </pre>
+        </div>
+      )}
+      {errorModal && <ErrorModal {...errorModal} />}
+    </div>
+  );
+}
+
+// -- RunHistory Component --
+function RunHistory({ busy, onBusy }) {
+  const [runs, setRuns] = useState(null);
+  const [detailRun, setDetailRun] = useState(null);
+  const [errorModal, setErrorModal] = useState(null);
+
+  const fetchRuns = useCallback(async () => {
+    onBusy(true);
+    try {
+      const res = await executeCommand(FEATURE_ID, "GetRuntimeData");
+      const parsed = JSON.parse(res.responses?.RuntimeDataJson || "[]");
+      setRuns(parsed);
+    } catch (e) {
+      setErrorModal({
+        message: e.message,
+        onRetry: () => { setErrorModal(null); fetchRuns(); },
+        onIgnore: () => setErrorModal(null),
+        onAbort: () => setErrorModal(null),
+      });
+    } finally {
+      onBusy(false);
+    }
+  }, [onBusy]);
+
+  const fetchDetail = useCallback(async (guid) => {
+    onBusy(true);
+    try {
+      const res = await executeCommand(FEATURE_ID, "GetDetailedRunData", { RunGuid: guid });
+      const parsed = JSON.parse(res.responses?.DetailedRunDataJson || "{}");
+      setDetailRun(parsed);
+    } catch (e) {
+      setErrorModal({
+        message: e.message,
+        onRetry: () => { setErrorModal(null); fetchDetail(guid); },
+        onIgnore: () => setErrorModal(null),
+        onAbort: () => setErrorModal(null),
+      });
+    } finally {
+      onBusy(false);
+    }
+  }, [onBusy]);
+
+  return (
+    <div className="card card-full">
+      <h3>Run History</h3>
+      <button className="btn btn-outline btn-sm" disabled={busy} onClick={fetchRuns}>
+        Get Runtime Data
+      </button>
+      {runs && Array.isArray(runs) && runs.length > 0 && (
+        <table className="run-table">
+          <thead><tr><th>GUID</th><th>Method</th><th>Status</th><th>Start</th></tr></thead>
+          <tbody>
+            {runs.slice(0, 20).map((r, i) => (
+              <tr key={i}>
+                <td className="clickable" onClick={() => r.runGuid && fetchDetail(r.runGuid)}>
+                  {(r.runGuid || "").substring(0, 8)}...
+                </td>
+                <td>{(r.methodName || r.method || "").split('\\').pop()}</td>
+                <td>{r.status || r.runState || ""}</td>
+                <td>{r.startTime || r.startDate || ""}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      {detailRun && (
+        <div style={{marginTop:8}}>
+          <h3 style={{margin:'8px 0 4px'}}>Run Details</h3>
+          <pre style={{fontSize:11,maxHeight:200,overflow:'auto',background:'var(--bg)',
+                       border:'1px solid var(--border)',borderRadius:4,padding:8,color:'var(--muted)',
+                       whiteSpace:'pre-wrap',wordBreak:'break-all'}}>
+            {JSON.stringify(detailRun, null, 2)}
+          </pre>
+        </div>
+      )}
+      {errorModal && <ErrorModal {...errorModal} />}
+    </div>
+  );
+}
+
+// -- SettingsPanel Component --
+function SettingsPanel({ status, busy, onBusy }) {
+  const saved = loadSettings();
+  const [methodDir, setMethodDir] = useState(saved.methodDirectory || status.methodDirectory || "");
+  const [errorModal, setErrorModal] = useState(null);
+
+  useEffect(() => {
+    if (status.methodDirectory && !saved.methodDirectory) {
+      setMethodDir(status.methodDirectory);
+    }
+  }, [status.methodDirectory]);
+
+  const applyDir = useCallback(async () => {
+    onBusy(true);
+    try {
+      await executeCommand(FEATURE_ID, "SetMethodDirectory", { Directory: methodDir });
+      saveSettings({ ...loadSettings(), methodDirectory: methodDir });
+    } catch (e) {
+      setErrorModal({
+        message: e.message,
+        onRetry: () => { setErrorModal(null); applyDir(); },
+        onIgnore: () => setErrorModal(null),
+        onAbort: () => setErrorModal(null),
+      });
+    } finally {
+      onBusy(false);
+    }
+  }, [methodDir, onBusy]);
+
+  return (
+    <div className="card">
+      <h3>Settings</h3>
+      <label>Method Directory</label>
+      <div style={{display:'flex',gap:6}}>
+        <input value={methodDir} onChange={e => setMethodDir(e.target.value)}
+               placeholder="C:\Automation\TestMethods" />
+        <button className="btn btn-primary btn-sm" disabled={busy} onClick={applyDir}>Apply</button>
+      </div>
+      <div style={{marginTop:8,fontSize:12,color:'var(--muted)'}}>
+        Venus URL: {status.venusUrl}
+      </div>
+      {errorModal && <ErrorModal {...errorModal} />}
+    </div>
+  );
+}
+
+// -- Main App Component --
+function App() {
+  const { status, sseConnected } = useDeviceStatus();
+  const [busy, setBusy] = useState(false);
+  const [activeTab, setActiveTab] = useState("workflow");
+  const [serverLog, setServerLog] = useState("");
+
+  const refreshLog = useCallback(async () => {
+    try {
+      const res = await readProperty(FEATURE_ID, "ServerLog");
+      setServerLog(res.value || "(empty)");
+    } catch { setServerLog("(failed to load)"); }
+  }, []);
+
+  const displayLog = status.activityLog || [];
+
+  return (
+    <div>
+      <h2>Venus API</h2>
+      <StatusBar status={status} sseConnected={sseConnected} />
+
+      <div className="tab-bar">
+        {["workflow", "data", "log"].map(t => (
+          <div key={t} className={`tab${activeTab === t ? ' active' : ''}`}
+               onClick={() => setActiveTab(t)}>
+            {t === "workflow" ? "Workflow" : t === "data" ? "Data & Devices" : "Logs"}
+          </div>
+        ))}
+      </div>
+
+      {activeTab === "workflow" && (
+        <div className="workflow">
+          <MethodBrowser status={status} busy={busy} onBusy={setBusy} />
+          <ExecutionControl status={status} busy={busy} onBusy={setBusy} />
+          <RuntimeTracePanel status={status} />
+          <SettingsPanel status={status} busy={busy} onBusy={setBusy} />
+          <div className="card card-full">
+            <h3>Activity Log</h3>
+            <ActivityLog entries={displayLog} />
+          </div>
+        </div>
+      )}
+
+      {activeTab === "data" && (
+        <div className="workflow">
+          <DevicePanel busy={busy} onBusy={setBusy} />
+          <div className="card">
+            <h3>State Queries</h3>
+            <QueryButtons busy={busy} onBusy={setBusy} />
+          </div>
+          <RunHistory busy={busy} onBusy={setBusy} />
+        </div>
+      )}
+
+      {activeTab === "log" && (
+        <div className="workflow">
+          <div className="card card-full">
+            <h3>Activity Log</h3>
+            <ActivityLog entries={displayLog} />
+          </div>
+          <div className="card card-full">
+            <h3>Server Log <button className="btn btn-xs btn-outline" onClick={refreshLog}>Refresh</button></h3>
+            <pre style={{maxHeight:400,overflow:'auto',fontSize:11,background:'var(--bg)',border:'1px solid var(--border)',
+                         borderRadius:4,padding:'8px 10px',color:'var(--muted)',whiteSpace:'pre-wrap',wordBreak:'break-all'}}>
+              {serverLog || "Click Refresh to load server log"}
+            </pre>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// -- QueryButtons Component --
+function QueryButtons({ busy, onBusy }) {
+  const [result, setResult] = useState(null);
+
+  const doQuery = useCallback(async (cmd, params = {}) => {
+    onBusy(true);
+    try {
+      const res = await executeCommand(FEATURE_ID, cmd, params);
+      setResult({ cmd, data: res.responses || res });
+    } catch (e) {
+      setResult({ cmd, error: e.message });
+    } finally {
+      onBusy(false);
+    }
+  }, [onBusy]);
+
+  return (
+    <div>
+      <div className="btn-group">
+        <button className="btn btn-outline btn-sm" disabled={busy}
+          onClick={() => doQuery("GetRunState")}>Run State</button>
+        <button className="btn btn-outline btn-sm" disabled={busy}
+          onClick={() => doQuery("GetLoadedMethod")}>Loaded Method</button>
+        <button className="btn btn-outline btn-sm" disabled={busy}
+          onClick={() => doQuery("GetCurrentRunData")}>Current Run Data</button>
+        <button className="btn btn-outline btn-sm" disabled={busy}
+          onClick={() => doQuery("GetRuntimeDevices")}>Runtime Devices</button>
+      </div>
+      {result && (
+        <div style={{marginTop:8}}>
+          <div style={{fontSize:12,color:'var(--accent)',marginBottom:4}}>{result.cmd}</div>
+          {result.error
+            ? <div style={{color:'var(--danger)',fontSize:12}}>{result.error}</div>
+            : <pre style={{fontSize:11,maxHeight:200,overflow:'auto',background:'var(--bg)',
+                           border:'1px solid var(--border)',borderRadius:4,padding:8,color:'var(--muted)',
+                           whiteSpace:'pre-wrap',wordBreak:'break-all'}}>
+                {JSON.stringify(result.data, null, 2)}
+              </pre>
+          }
+        </div>
+      )}
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
+</script>
+</body>
+</html>

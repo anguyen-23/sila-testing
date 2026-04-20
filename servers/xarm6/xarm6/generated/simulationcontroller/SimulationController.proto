@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+import "SiLAFramework.proto";
+
+package sila2.org.silastandard.core.simulationcontroller.v1;
+
+/* Allows a SiLA Client to control the simulation mode of a SiLA Server. In simulation mode, the server simulates device behavior without requiring actual hardware. This is useful for testing, development, and learning. */
+service SimulationController {
+  /* Switches the SiLA Server to simulation mode. All subsequent commands will be simulated rather than executed on real hardware. */
+  rpc StartSimulationMode (sila2.org.silastandard.core.simulationcontroller.v1.StartSimulationMode_Parameters) returns (sila2.org.silastandard.core.simulationcontroller.v1.StartSimulationMode_Responses) {}
+  /* Switches the SiLA Server out of simulation mode back to real mode. All subsequent commands will be executed on real hardware. */
+  rpc StopSimulationMode (sila2.org.silastandard.core.simulationcontroller.v1.StopSimulationMode_Parameters) returns (sila2.org.silastandard.core.simulationcontroller.v1.StopSimulationMode_Responses) {}
+  /* 
+            Indicates whether the SiLA Server is currently in simulation mode.
+            True means the server is simulating, false means real hardware mode.
+         */
+  rpc Subscribe_SimulationMode (sila2.org.silastandard.core.simulationcontroller.v1.Subscribe_SimulationMode_Parameters) returns (stream sila2.org.silastandard.core.simulationcontroller.v1.Subscribe_SimulationMode_Responses) {}
+}
+
+/* Parameters for StartSimulationMode */
+message StartSimulationMode_Parameters {
+}
+
+/* Responses of StartSimulationMode */
+message StartSimulationMode_Responses {
+}
+
+/* Parameters for StopSimulationMode */
+message StopSimulationMode_Parameters {
+}
+
+/* Responses of StopSimulationMode */
+message StopSimulationMode_Responses {
+}
+
+/* Parameters for SimulationMode */
+message Subscribe_SimulationMode_Parameters {
+}
+
+/* Responses of SimulationMode */
+message Subscribe_SimulationMode_Responses {
+  sila2.org.silastandard.Boolean SimulationMode = 1;  /* Indicates whether the SiLA Server is currently in simulation mode. True means the server is simulating, false means real hardware mode. */
+}

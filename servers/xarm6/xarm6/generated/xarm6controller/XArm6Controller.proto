@@ -1,0 +1,179 @@
+syntax = "proto3";
+
+import "SiLAFramework.proto";
+
+package sila2.calico.automation.extended.xarm6controller.v1;
+
+/* Controls a UFACTORY xArm 6 robotic arm via the xArm Python SDK. Supports connecting, enabling, linear and joint motion, gripper control, and reading current position/state. Coordinates use the tool coordinate space: X, Y, Z in mm and Roll, Pitch, Yaw in degrees. */
+service XArm6Controller {
+  /* Connects to the xArm controller at the specified IP address, enables motion, sets position mode, and clears the ready state. */
+  rpc Connect (sila2.calico.automation.extended.xarm6controller.v1.Connect_Parameters) returns (sila2.calico.automation.extended.xarm6controller.v1.Connect_Responses) {}
+  /* Disconnects from the xArm controller. */
+  rpc Disconnect (sila2.calico.automation.extended.xarm6controller.v1.Disconnect_Parameters) returns (sila2.calico.automation.extended.xarm6controller.v1.Disconnect_Responses) {}
+  /* Moves the arm to an absolute Cartesian position using linear motion. Coordinates are in the tool coordinate space. */
+  rpc SetPosition (sila2.calico.automation.extended.xarm6controller.v1.SetPosition_Parameters) returns (sila2.calico.automation.extended.xarm6controller.v1.SetPosition_Responses) {}
+  /* Moves the arm by relative offsets from its current position (jog). All values are deltas added to the current pose. */
+  rpc SetRelativePosition (sila2.calico.automation.extended.xarm6controller.v1.SetRelativePosition_Parameters) returns (sila2.calico.automation.extended.xarm6controller.v1.SetRelativePosition_Responses) {}
+  /* Moves all joints to their home (zero) positions. */
+  rpc GoHome (sila2.calico.automation.extended.xarm6controller.v1.GoHome_Parameters) returns (sila2.calico.automation.extended.xarm6controller.v1.GoHome_Responses) {}
+  /* Sets the xArm gripper to a specific opening position (0-850). 0 is fully closed, 850 is fully open. */
+  rpc SetGripperPosition (sila2.calico.automation.extended.xarm6controller.v1.SetGripperPosition_Parameters) returns (sila2.calico.automation.extended.xarm6controller.v1.SetGripperPosition_Responses) {}
+  /* Clears arm errors and warnings, then re-enables motion. */
+  rpc ClearErrors (sila2.calico.automation.extended.xarm6controller.v1.ClearErrors_Parameters) returns (sila2.calico.automation.extended.xarm6controller.v1.ClearErrors_Responses) {}
+  /* Immediately stops all arm motion by setting state to emergency stop. */
+  rpc EmergencyStop (sila2.calico.automation.extended.xarm6controller.v1.EmergencyStop_Parameters) returns (sila2.calico.automation.extended.xarm6controller.v1.EmergencyStop_Responses) {}
+  /* Whether the arm controller is currently connected. */
+  rpc Get_IsConnected (sila2.calico.automation.extended.xarm6controller.v1.Get_IsConnected_Parameters) returns (sila2.calico.automation.extended.xarm6controller.v1.Get_IsConnected_Responses) {}
+  /* 
+            Current tool position as a JSON string: {"x", "y", "z", "roll", "pitch", "yaw"}.
+            Coordinates in mm, angles in degrees.
+         */
+  rpc Get_CurrentPosition (sila2.calico.automation.extended.xarm6controller.v1.Get_CurrentPosition_Parameters) returns (sila2.calico.automation.extended.xarm6controller.v1.Get_CurrentPosition_Responses) {}
+  /* 
+            Current arm state: 1=moving, 2=ready/idle, 3=paused, 4=error.
+         */
+  rpc Get_ArmState (sila2.calico.automation.extended.xarm6controller.v1.Get_ArmState_Parameters) returns (sila2.calico.automation.extended.xarm6controller.v1.Get_ArmState_Responses) {}
+  /* Current error code (0=no error). */
+  rpc Get_ErrorCode (sila2.calico.automation.extended.xarm6controller.v1.Get_ErrorCode_Parameters) returns (sila2.calico.automation.extended.xarm6controller.v1.Get_ErrorCode_Responses) {}
+  /* PNG icon representing this instrument, for display in client UIs. */
+  rpc Get_DisplayIcon (sila2.calico.automation.extended.xarm6controller.v1.Get_DisplayIcon_Parameters) returns (sila2.calico.automation.extended.xarm6controller.v1.Get_DisplayIcon_Responses) {}
+  /* Rich text description of device capabilities for LLM system prompts. */
+  rpc Get_DeviceDescription (sila2.calico.automation.extended.xarm6controller.v1.Get_DeviceDescription_Parameters) returns (sila2.calico.automation.extended.xarm6controller.v1.Get_DeviceDescription_Responses) {}
+}
+
+/* Parameters for Connect */
+message Connect_Parameters {
+  sila2.org.silastandard.String IpAddress = 1;  /* IP address of the xArm controller (e.g. "192.168.1.185"). */
+}
+
+/* Responses of Connect */
+message Connect_Responses {
+  sila2.org.silastandard.String FirmwareVersion = 1;  /* The firmware version reported by the arm. */
+}
+
+/* Parameters for Disconnect */
+message Disconnect_Parameters {
+}
+
+/* Responses of Disconnect */
+message Disconnect_Responses {
+}
+
+/* Parameters for SetPosition */
+message SetPosition_Parameters {
+  sila2.org.silastandard.Real X = 1;  /* X coordinate in mm. */
+  sila2.org.silastandard.Real Y = 2;  /* Y coordinate in mm. */
+  sila2.org.silastandard.Real Z = 3;  /* Z coordinate in mm. */
+  sila2.org.silastandard.Real Roll = 4;  /* Roll angle in degrees. */
+  sila2.org.silastandard.Real Pitch = 5;  /* Pitch angle in degrees. */
+  sila2.org.silastandard.Real Yaw = 6;  /* Yaw angle in degrees. */
+  sila2.org.silastandard.Real Speed = 7;  /* Motion speed in mm/s. */
+  sila2.org.silastandard.Boolean Wait = 8;  /* Whether to block until the move is complete. */
+}
+
+/* Responses of SetPosition */
+message SetPosition_Responses {
+}
+
+/* Parameters for SetRelativePosition */
+message SetRelativePosition_Parameters {
+  sila2.org.silastandard.Real DeltaX = 1;  /* Relative X offset in mm. */
+  sila2.org.silastandard.Real DeltaY = 2;  /* Relative Y offset in mm. */
+  sila2.org.silastandard.Real DeltaZ = 3;  /* Relative Z offset in mm. */
+  sila2.org.silastandard.Real DeltaRoll = 4;  /* Relative roll offset in degrees. */
+  sila2.org.silastandard.Real DeltaPitch = 5;  /* Relative pitch offset in degrees. */
+  sila2.org.silastandard.Real DeltaYaw = 6;  /* Relative yaw offset in degrees. */
+  sila2.org.silastandard.Real Speed = 7;  /* Motion speed in mm/s. */
+}
+
+/* Responses of SetRelativePosition */
+message SetRelativePosition_Responses {
+}
+
+/* Parameters for GoHome */
+message GoHome_Parameters {
+}
+
+/* Responses of GoHome */
+message GoHome_Responses {
+}
+
+/* Parameters for SetGripperPosition */
+message SetGripperPosition_Parameters {
+  sila2.org.silastandard.Real Position = 1;  /* Gripper position (0=closed, 850=open). */
+  sila2.org.silastandard.Real Speed = 2;  /* Gripper speed (1-5000). */
+}
+
+/* Responses of SetGripperPosition */
+message SetGripperPosition_Responses {
+}
+
+/* Parameters for ClearErrors */
+message ClearErrors_Parameters {
+}
+
+/* Responses of ClearErrors */
+message ClearErrors_Responses {
+}
+
+/* Parameters for EmergencyStop */
+message EmergencyStop_Parameters {
+}
+
+/* Responses of EmergencyStop */
+message EmergencyStop_Responses {
+}
+
+/* Parameters for IsConnected */
+message Get_IsConnected_Parameters {
+}
+
+/* Responses of IsConnected */
+message Get_IsConnected_Responses {
+  sila2.org.silastandard.Boolean IsConnected = 1;  /* Whether the arm controller is currently connected. */
+}
+
+/* Parameters for CurrentPosition */
+message Get_CurrentPosition_Parameters {
+}
+
+/* Responses of CurrentPosition */
+message Get_CurrentPosition_Responses {
+  sila2.org.silastandard.String CurrentPosition = 1;  /* Current tool position as a JSON string: {"x", "y", "z", "roll", "pitch", "yaw"}. Coordinates in mm, angles in degrees. */
+}
+
+/* Parameters for ArmState */
+message Get_ArmState_Parameters {
+}
+
+/* Responses of ArmState */
+message Get_ArmState_Responses {
+  sila2.org.silastandard.Integer ArmState = 1;  /* Current arm state: 1=moving, 2=ready/idle, 3=paused, 4=error. */
+}
+
+/* Parameters for ErrorCode */
+message Get_ErrorCode_Parameters {
+}
+
+/* Responses of ErrorCode */
+message Get_ErrorCode_Responses {
+  sila2.org.silastandard.Integer ErrorCode = 1;  /* Current error code (0=no error). */
+}
+
+/* Parameters for DisplayIcon */
+message Get_DisplayIcon_Parameters {
+}
+
+/* Responses of DisplayIcon */
+message Get_DisplayIcon_Responses {
+  sila2.org.silastandard.Binary DisplayIcon = 1;  /* PNG icon representing this instrument, for display in client UIs. */
+}
+
+/* Parameters for DeviceDescription */
+message Get_DeviceDescription_Parameters {
+}
+
+/* Responses of DeviceDescription */
+message Get_DeviceDescription_Responses {
+  sila2.org.silastandard.String DeviceDescription = 1;  /* Rich text description of device capabilities for LLM system prompts. */
+}

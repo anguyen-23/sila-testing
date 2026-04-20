@@ -1,0 +1,9 @@
+.venv/
+.git/
+__pycache__/
+*.pyc
+servers/
+deployment/
+documentation/
+*.md
+.env

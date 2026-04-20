@@ -1,0 +1,23 @@
+---
+# Per-server Linux status check (included by status.yml)
+
+- name: "{{ sila_package }}: Check if installed"
+  stat:
+    path: "{{ sila_install_dir_linux }}/{{ sila_package }}/{{ sila_venv_dir }}/bin/python"
+  register: linux_venv
+
+- name: "{{ sila_package }}: Check service status"
+  command: >
+    systemctl is-active {{ sila_service_prefix }}-{{ sila_package }}
+  register: linux_service
+  failed_when: false
+  changed_when: false
+
+- name: "{{ sila_package }}: Report"
+  debug:
+    msg: >
+      Host={{ inventory_hostname }}
+      Package={{ sila_package }}
+      Port={{ sila_port }}
+      Installed={{ linux_venv.stat.exists | default(false) }}
+      Service={{ linux_service.stdout | default('not registered') | trim }}

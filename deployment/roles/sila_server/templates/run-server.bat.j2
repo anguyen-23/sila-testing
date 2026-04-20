@@ -1,0 +1,3 @@
+@echo off
+cd /d "{{ sila_install_dir_windows }}\{{ sila_package }}"
+"{{ sila_install_dir_windows }}\{{ sila_package }}\{{ sila_venv_dir }}\Scripts\python.exe" -m {{ sila_package }} {{ sila_default_args }} -a 0.0.0.0 --port {{ sila_port }} --verbose {{ sila_extra_args }}

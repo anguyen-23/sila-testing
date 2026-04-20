@@ -1,0 +1,28 @@
+[project]
+name = "venus_api"
+version = "1.0.0"
+requires-python = ">=3.10"
+dependencies = [
+    "sila2",
+    "typer",
+    "requests",
+    "signalrcore",
+    "pywin32",
+    "opencv-python",
+    "numpy",
+    "Pillow",
+    "sila_server_common",
+]
+
+[build-system]
+requires = ["setuptools>=61.0.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["venus_api*"]
+
+[tool.setuptools.package-data]
+"venus_api.generated" = [
+    "*/*.sila.xml",
+    "*/*.proto",
+]

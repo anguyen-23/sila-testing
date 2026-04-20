@@ -1,0 +1,22 @@
+[project]
+name = "multidrop_combi"
+version = "1.0.0"
+requires-python = ">=3.10"
+dependencies = [
+    "sila2",
+    "typer",
+    "sila_server_common",
+]
+
+[build-system]
+requires = ["setuptools>=61.0.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["multidrop_combi*"]
+
+[tool.setuptools.package-data]
+"multidrop_combi.generated" = [
+    "*/*.sila.xml",
+    "*/*.proto",
+]

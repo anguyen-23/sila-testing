@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+import "SiLAFramework.proto";
+
+package sila2.calico.automation.extended.serverlogprovider.v1;
+
+/* Provides structured server log access with filtering capabilities. Logs are stored in a SQLite database with indexed columns for fast queries by time range, severity level, and feature name. */
+service ServerLogProvider {
+  /* Query structured log entries with optional filters. Returns a JSON array of log objects sorted newest-first. */
+  rpc GetLogs (sila2.calico.automation.extended.serverlogprovider.v1.GetLogs_Parameters) returns (sila2.calico.automation.extended.serverlogprovider.v1.GetLogs_Responses) {}
+  /* Returns the list of distinct feature names present in the log database. */
+  rpc GetLogFeatures (sila2.calico.automation.extended.serverlogprovider.v1.GetLogFeatures_Parameters) returns (sila2.calico.automation.extended.serverlogprovider.v1.GetLogFeatures_Responses) {}
+  /* JSON object with log statistics: total entries, counts by level, oldest/newest timestamp, DB file size in bytes. */
+  rpc Get_LogStats (sila2.calico.automation.extended.serverlogprovider.v1.Get_LogStats_Parameters) returns (sila2.calico.automation.extended.serverlogprovider.v1.Get_LogStats_Responses) {}
+}
+
+/* Parameters for GetLogs */
+message GetLogs_Parameters {
+  sila2.org.silastandard.String StartTime = 1;  /* ISO 8601 timestamp lower bound (empty string = no lower bound). */
+  sila2.org.silastandard.String EndTime = 2;  /* ISO 8601 timestamp upper bound (empty string = no upper bound). */
+  sila2.org.silastandard.String MinSeverity = 3;  /* Minimum log level: DEBUG, INFO, WARNING, ERROR, or CRITICAL (empty string = DEBUG). */
+  sila2.org.silastandard.String Feature = 4;  /* Filter by feature name (empty string = all features). */
+  sila2.org.silastandard.Integer MaxEntries = 5;  /* Maximum number of entries to return (0 = default 500, capped at 2000). */
+}
+
+/* Responses of GetLogs */
+message GetLogs_Responses {
+  sila2.org.silastandard.String LogEntries = 1;  /* JSON array of log entry objects with fields: timestamp, level, feature, message, module, func_name, category, direction, extra. */
+}
+
+/* Parameters for GetLogFeatures */
+message GetLogFeatures_Parameters {
+}
+
+/* Responses of GetLogFeatures */
+message GetLogFeatures_Responses {
+  repeated sila2.org.silastandard.String Features = 1;  /* List of distinct feature names in the log database. */
+}
+
+/* Parameters for LogStats */
+message Get_LogStats_Parameters {
+}
+
+/* Responses of LogStats */
+message Get_LogStats_Responses {
+  sila2.org.silastandard.String LogStats = 1;  /* JSON object with log statistics: total entries, counts by level, oldest/newest timestamp, DB file size in bytes. */
+}

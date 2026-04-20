@@ -1,0 +1,67 @@
+syntax = "proto3";
+
+import "SiLAFramework.proto";
+
+package sila2.org.silalearning.examples.messagingclient.v1;
+
+/* Connects to a lab messaging server via WebSocket to receive operator instructions for this instrument. Messages can be confirmed (acknowledged) once the operator has completed the requested action. */
+service MessagingClient {
+  /* Opens a WebSocket connection to the lab messaging server and begins listening for messages targeting this instrument. */
+  rpc ConnectToMessageServer (sila2.org.silalearning.examples.messagingclient.v1.ConnectToMessageServer_Parameters) returns (sila2.org.silalearning.examples.messagingclient.v1.ConnectToMessageServer_Responses) {}
+  /* Closes the WebSocket connection to the messaging server. */
+  rpc DisconnectFromMessageServer (sila2.org.silalearning.examples.messagingclient.v1.DisconnectFromMessageServer_Parameters) returns (sila2.org.silalearning.examples.messagingclient.v1.DisconnectFromMessageServer_Responses) {}
+  /* Confirms (acknowledges) a pending message by its ID, notifying the server that the operator has completed the requested action. */
+  rpc ConfirmMessage (sila2.org.silalearning.examples.messagingclient.v1.ConfirmMessage_Parameters) returns (sila2.org.silalearning.examples.messagingclient.v1.ConfirmMessage_Responses) {}
+  /* Whether the WebSocket connection is active and listening for messages. */
+  rpc Get_IsListening (sila2.org.silalearning.examples.messagingclient.v1.Get_IsListening_Parameters) returns (sila2.org.silalearning.examples.messagingclient.v1.Get_IsListening_Responses) {}
+  /* 
+            JSON string containing an array of pending (unconfirmed) messages.
+            Each message has id, title, body, and instrument_id fields.
+         */
+  rpc Get_PendingMessages (sila2.org.silalearning.examples.messagingclient.v1.Get_PendingMessages_Parameters) returns (sila2.org.silalearning.examples.messagingclient.v1.Get_PendingMessages_Responses) {}
+}
+
+/* Parameters for ConnectToMessageServer */
+message ConnectToMessageServer_Parameters {
+  sila2.org.silastandard.String ServerUrl = 1;  /* URL of the messaging server (e.g. "http://localhost:8000"). */
+  sila2.org.silastandard.String InstrumentId = 2;  /* Instrument identifier to filter messages for (e.g. "ps-tws-1"). */
+}
+
+/* Responses of ConnectToMessageServer */
+message ConnectToMessageServer_Responses {
+}
+
+/* Parameters for DisconnectFromMessageServer */
+message DisconnectFromMessageServer_Parameters {
+}
+
+/* Responses of DisconnectFromMessageServer */
+message DisconnectFromMessageServer_Responses {
+}
+
+/* Parameters for ConfirmMessage */
+message ConfirmMessage_Parameters {
+  sila2.org.silastandard.String MessageId = 1;  /* The ID of the message to confirm. */
+}
+
+/* Responses of ConfirmMessage */
+message ConfirmMessage_Responses {
+}
+
+/* Parameters for IsListening */
+message Get_IsListening_Parameters {
+}
+
+/* Responses of IsListening */
+message Get_IsListening_Responses {
+  sila2.org.silastandard.Boolean IsListening = 1;  /* Whether the WebSocket connection is active and listening for messages. */
+}
+
+/* Parameters for PendingMessages */
+message Get_PendingMessages_Parameters {
+}
+
+/* Responses of PendingMessages */
+message Get_PendingMessages_Responses {
+  sila2.org.silastandard.String PendingMessages = 1;  /* JSON string containing an array of pending (unconfirmed) messages. Each message has id, title, body, and instrument_id fields. */
+}

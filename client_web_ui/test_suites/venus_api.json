@@ -1,0 +1,1195 @@
+{
+  "name": "Venus API — Production Readiness Test Suite",
+  "description": "Test suite for validating the Venus API SiLA 2 server. Covers simulation mode, method loading, execution, pause/resume, abort, state queries, error handling, lock controller, WebUI, logging, and script runner. Tests can be run in Simulation mode (no VENUS hardware) or Real mode (requires VENUS Web API).",
+  "server": {
+    "default_host": "127.0.0.1",
+    "default_port": 50056,
+    "feature_id": "VenusMethodExecutor",
+    "connection": null,
+    "variables": {
+      "METHOD_PATH": "C:\\Automation\\TestMethods\\test.med"
+    }
+  },
+  "categories": [
+    {
+      "id": "sim",
+      "name": "Simulation Mode",
+      "description": "Verify simulation mode switching and state reset",
+      "tests": [
+        {
+          "id": "sim_start",
+          "name": "Enter simulation mode",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Switch to simulation mode and verify the mode is active.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StartSimulationMode", "params": {}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "sim_stop",
+          "name": "Exit simulation mode",
+          "type": "scripted",
+          "modes": ["real"],
+          "description": "Switch to real mode.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StopSimulationMode", "params": {}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "sim_switch_resets_state",
+          "name": "Mode switch resets executor state",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Load a method, then switch simulation mode. Verify that method is unloaded and status resets.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StartSimulationMode", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "LoadMethod", "params": {"FilePath": "C:\\Automation\\TestMethods\\test.med", "Simulation": true}, "expect": "success"},
+              {"action": "command", "feature": "SimulationController", "command": "StartSimulationMode", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "GetLoadedMethod", "params": {}, "expect": "success"},
+              {"action": "check_response", "field": "MethodPath", "condition": "equals", "value": ""}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "load",
+      "name": "Method Loading",
+      "description": "Load, unload, and validate method loading behavior",
+      "tests": [
+        {
+          "id": "load_method_sim",
+          "name": "Load method (simulation)",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Load a method file in simulation mode.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StartSimulationMode", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "UnloadMethod", "params": {}, "expect": "any"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "LoadMethod", "params": {"FilePath": "C:\\Automation\\TestMethods\\test.med", "Simulation": true}, "expect": "success"},
+              {"action": "check_response", "field": "LoadResult", "condition": "not_empty"}
+            ]
+          }
+        },
+        {
+          "id": "load_method_real",
+          "name": "Load method (real)",
+          "type": "scripted",
+          "modes": ["real"],
+          "description": "Load a method file in real VENUS mode.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StopSimulationMode", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "UnloadMethod", "params": {}, "expect": "any"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "LoadMethod", "params": {"FilePath": "$METHOD_PATH", "Simulation": false}, "expect": "success"},
+              {"action": "check_response", "field": "LoadResult", "condition": "not_empty"}
+            ]
+          }
+        },
+        {
+          "id": "load_verify_state",
+          "name": "Verify IsMethodLoaded after load",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "After loading a method, verify GetLoadedMethod returns the path.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StartSimulationMode", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "UnloadMethod", "params": {}, "expect": "any"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "LoadMethod", "params": {"FilePath": "C:\\Automation\\TestMethods\\test.med", "Simulation": true}, "expect": "success"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "GetLoadedMethod", "params": {}, "expect": "success"},
+              {"action": "check_response", "field": "MethodPath", "condition": "contains", "value": "test.med"}
+            ]
+          }
+        },
+        {
+          "id": "load_double_load",
+          "name": "Double load rejected",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Loading a method when one is already loaded should fail with InvalidState.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StartSimulationMode", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "UnloadMethod", "params": {}, "expect": "any"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "LoadMethod", "params": {"FilePath": "C:\\Automation\\TestMethods\\test.med", "Simulation": true}, "expect": "success"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "LoadMethod", "params": {"FilePath": "C:\\Automation\\TestMethods\\test2.med", "Simulation": true}, "expect": "error", "error_type": "InvalidState"}
+            ]
+          }
+        },
+        {
+          "id": "load_unload",
+          "name": "Unload method",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Load then unload a method, verify state resets.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StartSimulationMode", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "UnloadMethod", "params": {}, "expect": "any"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "LoadMethod", "params": {"FilePath": "C:\\Automation\\TestMethods\\test.med", "Simulation": true}, "expect": "success"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "UnloadMethod", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "GetLoadedMethod", "params": {}, "expect": "success"},
+              {"action": "check_response", "field": "MethodPath", "condition": "equals", "value": ""}
+            ]
+          }
+        },
+        {
+          "id": "load_unload_real",
+          "name": "Load and unload method (real)",
+          "type": "scripted",
+          "modes": ["real"],
+          "description": "Load and unload a method in real mode.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StopSimulationMode", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "UnloadMethod", "params": {}, "expect": "any"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "LoadMethod", "params": {"FilePath": "$METHOD_PATH", "Simulation": false}, "expect": "success"},
+              {"action": "wait", "ms": 1000},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "UnloadMethod", "params": {}, "expect": "success"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "exec",
+      "name": "Method Execution",
+      "description": "Start method execution, verify progress and completion",
+      "tests": [
+        {
+          "id": "exec_start_sim",
+          "name": "Start method execution (simulation)",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Load and start a method in simulation mode, verify execution completes.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StartSimulationMode", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "UnloadMethod", "params": {}, "expect": "any"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "LoadMethod", "params": {"FilePath": "C:\\Automation\\TestMethods\\test.med", "Simulation": true}, "expect": "success"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "StartMethod", "params": {}, "expect": "success"},
+              {"action": "check_response", "field": "FinalStatus", "condition": "contains", "value": "Terminated"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "UnloadMethod", "params": {}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "exec_start_real",
+          "name": "Start method execution (real)",
+          "type": "scripted",
+          "modes": ["real"],
+          "description": "Load and start a method in real mode, verify execution completes.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StopSimulationMode", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "UnloadMethod", "params": {}, "expect": "any"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "LoadMethod", "params": {"FilePath": "$METHOD_PATH", "Simulation": false}, "expect": "success"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "StartMethod", "params": {}, "expect": "success"},
+              {"action": "check_response", "field": "FinalStatus", "condition": "not_empty"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "UnloadMethod", "params": {}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "exec_start_not_loaded",
+          "name": "Start without loaded method (error)",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Attempting to start without a loaded method should fail with MethodNotLoaded.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StartSimulationMode", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "UnloadMethod", "params": {}, "expect": "any"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "StartMethod", "params": {}, "expect": "error", "error_type": "MethodNotLoaded"}
+            ]
+          }
+        },
+        {
+          "id": "exec_start_already_running",
+          "name": "Start while already running (error)",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Note: Simulation methods complete very quickly, so testing 'already running' state is difficult. This test verifies that sequential starts work correctly.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StartSimulationMode", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "UnloadMethod", "params": {}, "expect": "any"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "LoadMethod", "params": {"FilePath": "C:\\Automation\\TestMethods\\test.med", "Simulation": true}, "expect": "success"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "StartMethod", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "UnloadMethod", "params": {}, "expect": "success"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "pause",
+      "name": "Pause & Resume",
+      "description": "Pause and resume running method executions",
+      "tests": [
+        {
+          "id": "pause_not_running",
+          "name": "Pause when not running (error)",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Pausing when no method is running should fail with InvalidState.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StartSimulationMode", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "UnloadMethod", "params": {}, "expect": "any"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "LoadMethod", "params": {"FilePath": "C:\\Automation\\TestMethods\\test.med", "Simulation": true}, "expect": "success"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "PauseMethod", "params": {}, "expect": "error", "error_type": "InvalidState"}
+            ]
+          }
+        },
+        {
+          "id": "resume_not_paused",
+          "name": "Resume when not paused (error)",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Resuming when not paused should fail with InvalidState.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StartSimulationMode", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "UnloadMethod", "params": {}, "expect": "any"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "LoadMethod", "params": {"FilePath": "C:\\Automation\\TestMethods\\test.med", "Simulation": true}, "expect": "success"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "ResumeMethod", "params": {}, "expect": "error", "error_type": "InvalidState"}
+            ]
+          }
+        },
+        {
+          "id": "pause_resume_real",
+          "name": "Pause and resume running method (real)",
+          "type": "guided",
+          "modes": ["real"],
+          "description": "Start a method in real mode, pause it, verify VENUS pauses, then resume and verify completion.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StopSimulationMode", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "UnloadMethod", "params": {}, "expect": "any"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "LoadMethod", "params": {"FilePath": "$METHOD_PATH", "Simulation": false}, "expect": "success"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "StartMethod", "params": {}, "expect": "any"},
+              {"action": "prompt", "message": "The method is now running. Observe the WebUI status. When you see the method running, click Continue."},
+              {"action": "confirm", "message": "Is the method in Running state in the WebUI?"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "PauseMethod", "params": {}, "expect": "success"},
+              {"action": "prompt", "message": "The method should now be paused. Check the WebUI for Paused status."},
+              {"action": "confirm", "message": "Is the method showing as Paused?"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "ResumeMethod", "params": {}, "expect": "success"},
+              {"action": "prompt", "message": "The method should resume execution. Wait for it to complete."},
+              {"action": "confirm", "message": "Did the method resume and complete successfully?"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "UnloadMethod", "params": {}, "expect": "success"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "abort",
+      "name": "Abort",
+      "description": "Abort running method executions",
+      "tests": [
+        {
+          "id": "abort_not_running",
+          "name": "Abort when not running (error)",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Aborting when no method is running should fail with InvalidState.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StartSimulationMode", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "UnloadMethod", "params": {}, "expect": "any"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "LoadMethod", "params": {"FilePath": "C:\\Automation\\TestMethods\\test.med", "Simulation": true}, "expect": "success"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "AbortMethod", "params": {}, "expect": "error", "error_type": "InvalidState"}
+            ]
+          }
+        },
+        {
+          "id": "abort_running_real",
+          "name": "Abort running method (real)",
+          "type": "guided",
+          "modes": ["real"],
+          "description": "Start a method in real mode and abort it mid-execution.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StopSimulationMode", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "UnloadMethod", "params": {}, "expect": "any"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "LoadMethod", "params": {"FilePath": "$METHOD_PATH", "Simulation": false}, "expect": "success"},
+              {"action": "prompt", "message": "About to start the method. Be ready to abort it when it's running. Click Continue when ready."},
+              {"action": "confirm", "message": "Are you ready to start and abort the method?"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "StartMethod", "params": {}, "expect": "any"},
+              {"action": "wait", "ms": 2000},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "AbortMethod", "params": {}, "expect": "success"},
+              {"action": "prompt", "message": "The abort command was sent. Check the WebUI for Aborted status."},
+              {"action": "confirm", "message": "Did the method abort successfully (Aborted state in WebUI)?"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "UnloadMethod", "params": {}, "expect": "success"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "query",
+      "name": "State Queries",
+      "description": "Query commands for devices, run state, and run data",
+      "tests": [
+        {
+          "id": "query_run_state_sim",
+          "name": "GetRunState (simulation)",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Get the current run state in simulation mode.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StartSimulationMode", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "GetRunState", "params": {}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "query_devices_sim",
+          "name": "GetDevices (simulation)",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Get the list of registered devices in simulation mode.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StartSimulationMode", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "GetDevices", "params": {}, "expect": "success"},
+              {"action": "check_response", "field": "DevicesJson", "condition": "not_empty"}
+            ]
+          }
+        },
+        {
+          "id": "query_current_run_data_sim",
+          "name": "GetCurrentRunData (simulation)",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Get current run data in simulation mode.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StartSimulationMode", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "GetCurrentRunData", "params": {}, "expect": "success"},
+              {"action": "check_response", "field": "RunDataJson", "condition": "not_empty"}
+            ]
+          }
+        },
+        {
+          "id": "query_loaded_method_sim",
+          "name": "GetLoadedMethod when none loaded",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "GetLoadedMethod with no method loaded should return empty string.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StartSimulationMode", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "UnloadMethod", "params": {}, "expect": "any"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "GetLoadedMethod", "params": {}, "expect": "success"},
+              {"action": "check_response", "field": "MethodPath", "condition": "equals", "value": ""}
+            ]
+          }
+        },
+        {
+          "id": "query_runtime_devices_not_loaded",
+          "name": "GetRuntimeDevices without loaded method (error)",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "GetRuntimeDevices requires a loaded method; should fail with MethodNotLoaded.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StartSimulationMode", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "UnloadMethod", "params": {}, "expect": "any"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "GetRuntimeDevices", "params": {}, "expect": "error", "error_type": "MethodNotLoaded"}
+            ]
+          }
+        },
+        {
+          "id": "query_runtime_data_sim",
+          "name": "GetRuntimeData (simulation)",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Get historical runtime data in simulation mode.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StartSimulationMode", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "GetRuntimeData", "params": {}, "expect": "success"},
+              {"action": "check_response", "field": "RuntimeDataJson", "condition": "not_empty"}
+            ]
+          }
+        },
+        {
+          "id": "query_devices_real",
+          "name": "GetDevices (real)",
+          "type": "scripted",
+          "modes": ["real"],
+          "description": "Get registered devices from real VENUS Web API.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StopSimulationMode", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "GetDevices", "params": {}, "expect": "success"},
+              {"action": "check_response", "field": "DevicesJson", "condition": "not_empty"}
+            ]
+          }
+        },
+        {
+          "id": "query_run_state_real",
+          "name": "GetRunState (real)",
+          "type": "scripted",
+          "modes": ["real"],
+          "description": "Get run state from real VENUS Web API.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StopSimulationMode", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "GetRunState", "params": {}, "expect": "success"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "dir",
+      "name": "Method Directory",
+      "description": "Method directory management and file listing",
+      "tests": [
+        {
+          "id": "dir_get_files_sim",
+          "name": "GetMethodFiles (simulation)",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "List method files in the configured directory. May return empty array if directory has no .med files.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "GetMethodFiles", "params": {}, "expect": "success"},
+              {"action": "check_response", "field": "MethodFilesJson", "condition": "not_empty"}
+            ]
+          }
+        },
+        {
+          "id": "dir_set_valid",
+          "name": "SetMethodDirectory (valid path)",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Set the method directory to an existing path.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "SetMethodDirectory", "params": {"Directory": "C:\\"}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "dir_set_invalid",
+          "name": "SetMethodDirectory (invalid path)",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Setting a non-existent directory should fail with InvalidState.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "SetMethodDirectory", "params": {"Directory": "Z:\\NonExistent\\Path"}, "expect": "error", "error_type": "InvalidState"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "errors",
+      "name": "Error Handling",
+      "description": "Verify correct error types for invalid operations",
+      "tests": [
+        {
+          "id": "err_start_not_loaded",
+          "name": "StartMethod without loaded method",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "StartMethod with no loaded method should fail with MethodNotLoaded.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StartSimulationMode", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "UnloadMethod", "params": {}, "expect": "any"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "StartMethod", "params": {}, "expect": "error", "error_type": "MethodNotLoaded"}
+            ]
+          }
+        },
+        {
+          "id": "err_pause_not_loaded",
+          "name": "PauseMethod without loaded method",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "PauseMethod with no loaded method should fail with MethodNotLoaded.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StartSimulationMode", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "UnloadMethod", "params": {}, "expect": "any"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "PauseMethod", "params": {}, "expect": "error", "error_type": "MethodNotLoaded"}
+            ]
+          }
+        },
+        {
+          "id": "err_resume_not_loaded",
+          "name": "ResumeMethod without loaded method",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "ResumeMethod with no loaded method should fail with MethodNotLoaded.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StartSimulationMode", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "UnloadMethod", "params": {}, "expect": "any"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "ResumeMethod", "params": {}, "expect": "error", "error_type": "MethodNotLoaded"}
+            ]
+          }
+        },
+        {
+          "id": "err_abort_not_loaded",
+          "name": "AbortMethod without loaded method",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "AbortMethod with no loaded method should fail with MethodNotLoaded.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StartSimulationMode", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "UnloadMethod", "params": {}, "expect": "any"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "AbortMethod", "params": {}, "expect": "error", "error_type": "MethodNotLoaded"}
+            ]
+          }
+        },
+        {
+          "id": "err_unload_while_running",
+          "name": "UnloadMethod while running (error)",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Note: Simulation methods complete very quickly, making it difficult to catch the running state. This test verifies that unload after completion succeeds.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StartSimulationMode", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "UnloadMethod", "params": {}, "expect": "any"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "LoadMethod", "params": {"FilePath": "C:\\Automation\\TestMethods\\test.med", "Simulation": true}, "expect": "success"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "StartMethod", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "UnloadMethod", "params": {}, "expect": "success"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "lock",
+      "name": "LockController",
+      "description": "Device locking functionality",
+      "tests": [
+        {
+          "id": "lock_lock_unlock",
+          "name": "Lock and unlock server",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Lock the server with a token, then unlock it.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "LockController", "command": "LockServer", "params": {"LockIdentifier": "test-token-123", "Timeout": 30}, "expect": "success"},
+              {"action": "command", "feature": "LockController", "command": "UnlockServer", "params": {"LockIdentifier": "test-token-123"}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "lock_already_locked",
+          "name": "Lock when already locked",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Lock the server, then try to lock again with a different token.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "LockController", "command": "LockServer", "params": {"LockIdentifier": "token-A", "Timeout": 30}, "expect": "success"},
+              {"action": "command", "feature": "LockController", "command": "LockServer", "params": {"LockIdentifier": "token-B", "Timeout": 30}, "expect": "error", "error_type": "ServerAlreadyLocked"},
+              {"action": "command", "feature": "LockController", "command": "UnlockServer", "params": {"LockIdentifier": "token-A"}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "lock_wrong_token",
+          "name": "Unlock with wrong token",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Lock the server, then try to unlock with a different token.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "LockController", "command": "LockServer", "params": {"LockIdentifier": "correct-token", "Timeout": 30}, "expect": "success"},
+              {"action": "command", "feature": "LockController", "command": "UnlockServer", "params": {"LockIdentifier": "wrong-token"}, "expect": "error", "error_type": "InvalidLockIdentifier"},
+              {"action": "command", "feature": "LockController", "command": "UnlockServer", "params": {"LockIdentifier": "correct-token"}, "expect": "success"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "webui",
+      "name": "WebUI & SSE",
+      "description": "React WebUI and SSE streaming validation",
+      "tests": [
+        {
+          "id": "webui_loads",
+          "name": "WebUI renders",
+          "type": "guided",
+          "modes": ["simulation", "real"],
+          "description": "Verify the React WebUI loads and renders correctly.",
+          "script": {
+            "steps": [
+              {"action": "prompt", "message": "Navigate to the Venus API custom UI page in the SiLA client. Click Continue when the page is loaded."},
+              {"action": "confirm", "message": "Does the WebUI render correctly with status bar, SSE badge showing LIVE, and tab navigation (Workflow, Data & Devices, Logs)?"},
+              {"action": "confirm", "message": "Does the activity log show entries?"}
+            ]
+          }
+        },
+        {
+          "id": "webui_sse_updates",
+          "name": "SSE real-time updates",
+          "type": "guided",
+          "modes": ["simulation"],
+          "description": "Verify SSE pushes state changes to the WebUI in real-time.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StartSimulationMode", "params": {}, "expect": "success"},
+              {"action": "prompt", "message": "Open the Venus API WebUI in the SiLA client. Click Continue when ready."},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "UnloadMethod", "params": {}, "expect": "any"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "LoadMethod", "params": {"FilePath": "C:\\Automation\\TestMethods\\test.med", "Simulation": true}, "expect": "success"},
+              {"action": "confirm", "message": "Did the status bar update to show Initialized state without refreshing the page?"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "StartMethod", "params": {}, "expect": "success"},
+              {"action": "confirm", "message": "Did you see progress updates and activity log entries appear in real-time?"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "UnloadMethod", "params": {}, "expect": "success"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "logging",
+      "name": "Structured Logging",
+      "description": "ServerLogProvider feature for structured SQLite logging",
+      "tests": [
+        {
+          "id": "log_query_empty",
+          "name": "Query logs returns data",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Query the log database and verify it returns structured JSON.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ServerLogProvider", "command": "QueryLogs", "params": {"Limit": 10}, "expect": "success"},
+              {"action": "check_response", "field": "LogEntriesJson", "condition": "not_empty"}
+            ]
+          }
+        },
+        {
+          "id": "log_query_limit",
+          "name": "Limit parameter works",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Query with limit=1 and verify exactly one entry is returned.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ServerLogProvider", "command": "QueryLogs", "params": {"Limit": 1}, "expect": "success"},
+              {"action": "check_response", "field": "LogEntriesJson", "condition": "not_empty"}
+            ]
+          }
+        },
+        {
+          "id": "log_clear",
+          "name": "Clear logs",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Clear the log database and verify the operation succeeds.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ServerLogProvider", "command": "ClearLogs", "params": {}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "log_get_path",
+          "name": "Get log file path",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Retrieve the path to the SQLite log database file.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ServerLogProvider", "command": "GetLogFilePath", "params": {}, "expect": "success"},
+              {"action": "check_response", "field": "LogFilePath", "condition": "contains", "value": ".db"}
+            ]
+          }
+        },
+        {
+          "id": "log_filter_level",
+          "name": "Filter by log level",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Query logs with a level filter and verify results.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ServerLogProvider", "command": "QueryLogs", "params": {"Level": "INFO", "Limit": 5}, "expect": "success"},
+              {"action": "check_response", "field": "LogEntriesJson", "condition": "not_empty"}
+            ]
+          }
+        },
+        {
+          "id": "log_filter_source",
+          "name": "Filter by source",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Query logs with a source filter and verify results.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ServerLogProvider", "command": "QueryLogs", "params": {"Source": "VenusMethodExecutor", "Limit": 5}, "expect": "success"},
+              {"action": "check_response", "field": "LogEntriesJson", "condition": "not_empty"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "script_exec",
+      "name": "Script Runner — Execution",
+      "description": "ScriptRunner feature execution and output handling",
+      "tests": [
+        {
+          "id": "exec_hello",
+          "name": "Execute simple print script",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Run a script that prints 'Hello, SiLA!' and verify the output.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_hello", "ScriptCode": "print('Hello, SiLA!')"}, "expect": "success"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0},
+              {"action": "check_response", "field": "Output", "condition": "contains", "value": "Hello, SiLA!"}
+            ]
+          }
+        },
+        {
+          "id": "exec_multiline",
+          "name": "Execute multiline script",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Run a script with multiple print statements.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_multi", "ScriptCode": "print('Line 1')\nprint('Line 2')\nprint('Line 3')"}, "expect": "success"},
+              {"action": "check_response", "field": "Output", "condition": "contains", "value": "Line 1"},
+              {"action": "check_response", "field": "Output", "condition": "contains", "value": "Line 3"}
+            ]
+          }
+        },
+        {
+          "id": "exec_observable",
+          "name": "Observable output streaming",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Run a script that produces intermediate output, verify streaming works.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_obs", "ScriptCode": "import time\nfor i in range(3):\n    print(f'Step {i}')\n    time.sleep(0.1)"}, "expect": "success"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "exec_syntax_error",
+          "name": "Syntax error handling",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Run a script with invalid Python syntax, verify error capture.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_syntax", "ScriptCode": "print('unclosed string"}, "expect": "success"},
+              {"action": "check_response", "field": "ExitCode", "condition": "not_equals", "value": 0},
+              {"action": "check_response", "field": "Errors", "condition": "not_empty"}
+            ]
+          }
+        },
+        {
+          "id": "exec_runtime_error",
+          "name": "Runtime error handling",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Run a script that raises an exception, verify error capture.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_runtime", "ScriptCode": "x = 1 / 0"}, "expect": "success"},
+              {"action": "check_response", "field": "ExitCode", "condition": "not_equals", "value": 0},
+              {"action": "check_response", "field": "Errors", "condition": "contains", "value": "ZeroDivisionError"}
+            ]
+          }
+        },
+        {
+          "id": "exec_list_scripts",
+          "name": "List saved scripts",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Save a script, then list all scripts and verify it appears.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "SaveScript", "params": {"ScriptName": "t_saved", "ScriptCode": "print('saved')"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "ListScripts", "params": {}, "expect": "success"},
+              {"action": "check_response", "field": "ScriptNamesJson", "condition": "contains", "value": "t_saved"}
+            ]
+          }
+        },
+        {
+          "id": "exec_get_script",
+          "name": "Get saved script",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Save a script, then retrieve it and verify the code matches.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "SaveScript", "params": {"ScriptName": "t_retrieve", "ScriptCode": "print('retrieve me')"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "GetScript", "params": {"ScriptName": "t_retrieve"}, "expect": "success"},
+              {"action": "check_response", "field": "ScriptCode", "condition": "contains", "value": "retrieve me"}
+            ]
+          }
+        },
+        {
+          "id": "exec_delete_script",
+          "name": "Delete saved script",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Save a script, delete it, then verify it's gone from the list.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "SaveScript", "params": {"ScriptName": "t_delete", "ScriptCode": "print('delete me')"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "DeleteScript", "params": {"ScriptName": "t_delete"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "ListScripts", "params": {}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "exec_save_overwrite",
+          "name": "Overwrite saved script",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Save a script, then save again with the same name and verify it's updated.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "SaveScript", "params": {"ScriptName": "t_overwrite", "ScriptCode": "print('version 1')"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "SaveScript", "params": {"ScriptName": "t_overwrite", "ScriptCode": "print('version 2')"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "GetScript", "params": {"ScriptName": "t_overwrite"}, "expect": "success"},
+              {"action": "check_response", "field": "ScriptCode", "condition": "contains", "value": "version 2"}
+            ]
+          }
+        },
+        {
+          "id": "exec_get_nonexistent",
+          "name": "Get nonexistent script (error)",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Try to get a script that doesn't exist, verify error.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "GetScript", "params": {"ScriptName": "does_not_exist_12345"}, "expect": "error", "error_type": "InvalidCommandExecution"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "script_device",
+      "name": "Script Runner — Device Helper",
+      "description": "DeviceHelper class usage in per-server scripts",
+      "tests": [
+        {
+          "id": "dev_features",
+          "name": "device.features() lists all features",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Use device.features() to list all SiLA features exposed by the server.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_devfeat", "ScriptCode": "import json\nfeats = device.features()\nprint(json.dumps(feats))"}, "expect": "success"},
+              {"action": "check_response", "field": "Output", "condition": "contains", "value": "VenusMethodExecutor"}
+            ]
+          }
+        },
+        {
+          "id": "dev_command_sim",
+          "name": "device.command() calls SiLA command (simulation)",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Use device.command() to call GetRunState and verify the response.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StartSimulationMode", "params": {}, "expect": "any"},
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_devcmd", "ScriptCode": "import json\nresult = device.command('VenusMethodExecutor', 'GetRunState')\nprint(json.dumps(result))"}, "expect": "success"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "dev_command_real",
+          "name": "device.command() calls SiLA command (real)",
+          "type": "scripted",
+          "modes": ["real"],
+          "description": "Use device.command() in real mode to call GetRunState.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StopSimulationMode", "params": {}, "expect": "any"},
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_devcmd_r", "ScriptCode": "import json\nresult = device.command('VenusMethodExecutor', 'GetRunState')\nprint(json.dumps(result))"}, "expect": "success"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "dev_read_property",
+          "name": "device.read_property() reads SiLA property",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Use device.read_property() to read DeviceStatus observable property.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_devprop", "ScriptCode": "import json\nstatus = device.read_property('VenusMethodExecutor', 'DeviceStatus')\nprint(json.dumps(status))"}, "expect": "success"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        },
+        {
+          "id": "dev_status",
+          "name": "device.status() reads DeviceStatus",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Use device.status() convenience method to read the DeviceStatus property.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_devstat", "ScriptCode": "import json\nstatus = device.status()\nprint(json.dumps(status))"}, "expect": "success"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0},
+              {"action": "check_response", "field": "Output", "condition": "not_empty"}
+            ]
+          }
+        },
+        {
+          "id": "dev_command_error",
+          "name": "device.command() handles errors",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Call a command that will fail and verify the error is raised.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StartSimulationMode", "params": {}, "expect": "any"},
+              {"action": "command", "feature": "VenusMethodExecutor", "command": "UnloadMethod", "params": {}, "expect": "any"},
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_deverr", "ScriptCode": "try:\n    device.command('VenusMethodExecutor', 'StartMethod')\nexcept Exception as e:\n    print(f'Error: {e}')"}, "expect": "success"},
+              {"action": "check_response", "field": "Output", "condition": "contains", "value": "Error"}
+            ]
+          }
+        },
+        {
+          "id": "dev_workflow",
+          "name": "Scripted workflow using device helper",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Complete workflow: enter sim mode, load method, get status, unload.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StartSimulationMode", "params": {}, "expect": "any"},
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "t_workflow", "ScriptCode": "import json\ndevice.command('VenusMethodExecutor', 'UnloadMethod')\nload_result = device.command('VenusMethodExecutor', 'LoadMethod', FilePath='C:\\\\Automation\\\\TestMethods\\\\test.med', Simulation=True)\nstatus = device.status()\ndevice.command('VenusMethodExecutor', 'UnloadMethod')\nprint('Workflow complete')"}, "expect": "success"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0},
+              {"action": "check_response", "field": "Output", "condition": "contains", "value": "Workflow complete"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "script_persist",
+      "name": "Script Runner — Persistence",
+      "description": "Script saving, loading, and management",
+      "tests": [
+        {
+          "id": "persist_save",
+          "name": "Save script to disk",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Save a script and verify the operation succeeds.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "SaveScript", "params": {"ScriptName": "p_test", "ScriptCode": "print('persistence test')"}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "persist_load",
+          "name": "Load saved script",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Save a script, then load it back and verify the code matches.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "SaveScript", "params": {"ScriptName": "p_load", "ScriptCode": "print('load test')"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "GetScript", "params": {"ScriptName": "p_load"}, "expect": "success"},
+              {"action": "check_response", "field": "ScriptCode", "condition": "contains", "value": "load test"}
+            ]
+          }
+        },
+        {
+          "id": "persist_list",
+          "name": "List all saved scripts",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Save multiple scripts and verify they all appear in the list.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "SaveScript", "params": {"ScriptName": "p_list1", "ScriptCode": "print('1')"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "SaveScript", "params": {"ScriptName": "p_list2", "ScriptCode": "print('2')"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "ListScripts", "params": {}, "expect": "success"},
+              {"action": "check_response", "field": "ScriptNamesJson", "condition": "contains", "value": "p_list1"}
+            ]
+          }
+        },
+        {
+          "id": "persist_update",
+          "name": "Update existing script",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Save a script, update it with new code, verify the update.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "SaveScript", "params": {"ScriptName": "p_update", "ScriptCode": "print('v1')"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "SaveScript", "params": {"ScriptName": "p_update", "ScriptCode": "print('v2')"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "GetScript", "params": {"ScriptName": "p_update"}, "expect": "success"},
+              {"action": "check_response", "field": "ScriptCode", "condition": "contains", "value": "v2"}
+            ]
+          }
+        },
+        {
+          "id": "persist_delete",
+          "name": "Delete saved script",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Save a script, delete it, verify it's gone.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "SaveScript", "params": {"ScriptName": "p_delete", "ScriptCode": "print('delete')"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "DeleteScript", "params": {"ScriptName": "p_delete"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "GetScript", "params": {"ScriptName": "p_delete"}, "expect": "error"}
+            ]
+          }
+        },
+        {
+          "id": "persist_run_saved",
+          "name": "Run saved script",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Save a script, then run it by name and verify output.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "SaveScript", "params": {"ScriptName": "p_run", "ScriptCode": "print('running saved script')"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "p_run", "ScriptCode": ""}, "expect": "success"},
+              {"action": "check_response", "field": "Output", "condition": "contains", "value": "running saved script"}
+            ]
+          }
+        },
+        {
+          "id": "persist_special_chars",
+          "name": "Script with special characters",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Save and load a script with special characters in the code.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "SaveScript", "params": {"ScriptName": "p_special", "ScriptCode": "print('Special: \\n\\t\\r\"\\'')"}, "expect": "success"},
+              {"action": "command", "feature": "ScriptRunner", "command": "GetScript", "params": {"ScriptName": "p_special"}, "expect": "success"},
+              {"action": "check_response", "field": "ScriptCode", "condition": "contains", "value": "Special"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "script_errors",
+      "name": "Script Runner — Error Handling",
+      "description": "Error conditions and edge cases in script execution",
+      "tests": [
+        {
+          "id": "err_syntax",
+          "name": "Syntax error in script",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Run a script with invalid syntax and verify error reporting.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "e_syntax", "ScriptCode": "print('unclosed"}, "expect": "success"},
+              {"action": "check_response", "field": "ExitCode", "condition": "not_equals", "value": 0},
+              {"action": "check_response", "field": "Errors", "condition": "not_empty"}
+            ]
+          }
+        },
+        {
+          "id": "err_runtime",
+          "name": "Runtime exception in script",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Run a script that raises an exception and verify error capture.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "e_runtime", "ScriptCode": "raise ValueError('test error')"}, "expect": "success"},
+              {"action": "check_response", "field": "ExitCode", "condition": "not_equals", "value": 0},
+              {"action": "check_response", "field": "Errors", "condition": "contains", "value": "ValueError"}
+            ]
+          }
+        },
+        {
+          "id": "err_import",
+          "name": "Import error handling",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Try to import a nonexistent module and verify error capture.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "e_import", "ScriptCode": "import nonexistent_module_12345"}, "expect": "success"},
+              {"action": "check_response", "field": "ExitCode", "condition": "not_equals", "value": 0},
+              {"action": "check_response", "field": "Errors", "condition": "contains", "value": "ModuleNotFoundError"}
+            ]
+          }
+        },
+        {
+          "id": "err_invalid_command",
+          "name": "Invalid SiLA command in script",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Call a nonexistent SiLA command and verify error handling.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "e_cmd", "ScriptCode": "device.command('VenusMethodExecutor', 'NonExistentCommand')"}, "expect": "success"},
+              {"action": "check_response", "field": "ExitCode", "condition": "not_equals", "value": 0},
+              {"action": "check_response", "field": "Errors", "condition": "not_empty"}
+            ]
+          }
+        },
+        {
+          "id": "err_delete_nonexistent",
+          "name": "Delete nonexistent script",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Try to delete a script that doesn't exist.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "DeleteScript", "params": {"ScriptName": "does_not_exist_99999"}, "expect": "error", "error_type": "InvalidCommandExecution"}
+            ]
+          }
+        },
+        {
+          "id": "err_empty_script",
+          "name": "Run empty script",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Run a script with no code and verify it succeeds with no output.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "ScriptRunner", "command": "RunScript", "params": {"ScriptName": "e_empty", "ScriptCode": ""}, "expect": "success"},
+              {"action": "check_response", "field": "ExitCode", "condition": "equals", "value": 0}
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

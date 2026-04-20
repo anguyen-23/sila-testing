@@ -1,0 +1,232 @@
+{% extends "base.html" %}
+{% block title %}Add Host - SiLA 2 Deployment{% endblock %}
+{% block content %}
+
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="/">Dashboard</a></li>
+        <li class="breadcrumb-item active">Add Host</li>
+    </ol>
+</nav>
+
+<h4 class="mb-3"><i class="bi bi-plus-circle"></i> Add a New Host</h4>
+<p class="text-muted">Add a new machine to the Ansible inventory for SiLA server deployment.</p>
+
+<!-- Step Indicator -->
+<div class="step-indicator" id="stepIndicator">
+    <div class="step-dot active" id="step-dot-1">1</div>
+    <div class="step-connector"></div>
+    <div class="step-dot" id="step-dot-2">2</div>
+    <div class="step-connector"></div>
+    <div class="step-dot" id="step-dot-3">3</div>
+</div>
+
+<!-- Step 1: Host Details -->
+<div class="wizard-step active" id="step-1">
+    <div class="card">
+        <div class="card-body">
+            <h5>Step 1: Host Details</h5>
+
+            <div class="mb-3">
+                <label class="form-label">Hostname</label>
+                <input type="text" class="form-control" id="add-hostname"
+                       placeholder="e.g. lab-pc-01 or kl-w11-2272">
+                <div class="form-text">The hostname or DNS name of the target machine.</div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">IP Address (optional)</label>
+                <input type="text" class="form-control" id="add-ip"
+                       placeholder="e.g. 192.168.1.101">
+                <div class="form-text">Only needed if the hostname isn't resolvable via DNS.</div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Platform</label>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="platform" id="plat-windows" value="windows" checked>
+                    <label class="form-check-label" for="plat-windows">
+                        <i class="bi bi-windows"></i> Windows (WinRM)
+                    </label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="platform" id="plat-linux" value="linux">
+                    <label class="form-check-label" for="plat-linux">
+                        <i class="bi bi-ubuntu"></i> Linux (SSH)
+                    </label>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Server Group</label>
+                <select class="form-select" id="add-group">
+                    {% for group in groups %}
+                    <option value="{{ group }}">{{ group }}</option>
+                    {% endfor %}
+                </select>
+                <div class="form-text">Which SiLA server package to deploy on this host.</div>
+            </div>
+
+            <button class="btn btn-primary" onclick="goToStep(2)">Next</button>
+        </div>
+    </div>
+</div>
+
+<!-- Step 2: Connection Setup -->
+<div class="wizard-step" id="step-2">
+    <div class="card">
+        <div class="card-body">
+            <h5>Step 2: Prepare the Target Machine</h5>
+
+            <div id="setup-windows">
+                <p>For <strong>Windows</strong> targets, enable WinRM:</p>
+                <p>Run this in an <strong>elevated PowerShell</strong> on the target machine:</p>
+                <pre class="terminal"># Enable WinRM with Basic auth
+winrm quickconfig -force
+winrm set winrm/config/service/auth '@{Basic="true"}'
+winrm set winrm/config/service '@{AllowUnencrypted="true"}'
+
+# Ensure the automation user exists
+net user automation YOUR_PASSWORD /add
+net localgroup Administrators automation /add</pre>
+
+                <div class="alert alert-warning mt-2">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    Basic auth over HTTP is fine for a local lab network.
+                    For production, use HTTPS + certificate auth.
+                </div>
+            </div>
+
+            <div id="setup-linux" style="display:none">
+                <p>For <strong>Linux</strong> targets, ensure SSH access:</p>
+                <pre class="terminal"># Copy your SSH key to the target
+ssh-copy-id user@TARGET_HOST
+
+# Ensure Python 3.10+ is installed
+python3 --version</pre>
+            </div>
+
+            <div class="form-check mb-3">
+                <input class="form-check-input" type="checkbox" id="chk-ready" onchange="document.getElementById('btn-next-2').disabled = !this.checked">
+                <label class="form-check-label" for="chk-ready">The target machine is prepared</label>
+            </div>
+
+            <button class="btn btn-outline-secondary me-2" onclick="goToStep(1)">Back</button>
+            <button class="btn btn-primary" id="btn-next-2" disabled onclick="goToStep(3)">Next</button>
+        </div>
+    </div>
+</div>
+
+<!-- Step 3: Inventory Entry -->
+<div class="wizard-step" id="step-3">
+    <div class="card">
+        <div class="card-body">
+            <h5>Step 3: Add to Inventory</h5>
+            <p>Add the following entries to <code>deployment/inventory/hosts.yml</code>:</p>
+
+            <pre class="terminal" id="inventory-snippet"></pre>
+
+            <p class="mt-2 text-muted">
+                1. Add the hostname under the server group's <code>hosts:</code> section.<br>
+                2. Add the hostname with its <code>sila_servers</code> list under the platform group (<code>windows</code> or <code>linux</code>).
+            </p>
+
+            <div class="form-check mb-3">
+                <input class="form-check-input" type="checkbox" id="chk-added" onchange="document.getElementById('btn-deploy').disabled = !this.checked">
+                <label class="form-check-label" for="chk-added">I've added the host to the inventory</label>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button class="btn btn-outline-secondary" onclick="goToStep(2)">Back</button>
+                <button class="btn btn-success" id="btn-deploy" disabled onclick="deployHost()">
+                    <i class="bi bi-rocket-takeoff"></i> Deploy to This Host
+                </button>
+            </div>
+
+            <div id="deploy-result" class="mt-3"></div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function goToStep(n) {
+    document.querySelectorAll('.wizard-step').forEach(s => s.classList.remove('active'));
+    document.getElementById(`step-${n}`).classList.add('active');
+    for (let i = 1; i <= 3; i++) {
+        const dot = document.getElementById(`step-dot-${i}`);
+        dot.className = 'step-dot';
+        if (i < n) dot.classList.add('done');
+        if (i === n) dot.classList.add('active');
+    }
+
+    // Update platform-specific instructions
+    const isWindows = document.getElementById('plat-windows').checked;
+    document.getElementById('setup-windows').style.display = isWindows ? 'block' : 'none';
+    document.getElementById('setup-linux').style.display = isWindows ? 'none' : 'block';
+
+    if (n === 3) updateSnippet();
+}
+
+function updateSnippet() {
+    const hostname = document.getElementById('add-hostname').value || 'NEW_HOST';
+    const ip = document.getElementById('add-ip').value;
+    const group = document.getElementById('add-group').value;
+    const platform = document.getElementById('plat-windows').checked ? 'windows' : 'linux';
+
+    // Default ports by server type
+    const defaultPorts = {
+        venus_api: 50056, temperature_controller: 50052, pump_controller: 50053,
+        plate_reader: 50054, multidrop_combi: 50055, barcode_scanner: 50057,
+        phenix_imager: 50058, micronic_tube_scanner: 50059,
+    };
+    const port = defaultPorts[group] || 50052;
+
+    let entry = `# 1. Add to server group:\n    ${group}:\n      hosts:\n        ${hostname}:\n\n`;
+    entry += `# 2. Add to platform group (${platform}):\n    ${platform}:\n      hosts:\n        ${hostname}:\n`;
+    if (ip) entry += `          ansible_host: ${ip}\n`;
+    entry += `          sila_servers:\n            - package: ${group}\n              port: ${port}`;
+
+    document.getElementById('inventory-snippet').textContent = entry;
+}
+
+function deployHost() {
+    const hostname = document.getElementById('add-hostname').value;
+    if (!hostname) { alert('No hostname specified'); return; }
+    if (!confirm(`Run full deploy on ${hostname}?`)) return;
+
+    fetch('/api/action/deploy', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({limit: hostname}),
+    })
+    .then(r => r.json())
+    .then(data => {
+        document.getElementById('deploy-result').innerHTML = `
+            <div class="alert alert-info">
+                <i class="bi bi-gear"></i> Deploy started!
+                <a href="/job/${data.job_id}" class="alert-link">View output</a>
+            </div>
+        `;
+    })
+    .catch(err => {
+        document.getElementById('deploy-result').innerHTML = `
+            <div class="alert alert-danger">Failed: ${err}</div>
+        `;
+    });
+}
+
+// Toggle setup instructions when platform changes
+document.querySelectorAll('input[name="platform"]').forEach(r => {
+    r.addEventListener('change', () => {
+        if (document.getElementById('step-2').classList.contains('active')) {
+            const isWindows = document.getElementById('plat-windows').checked;
+            document.getElementById('setup-windows').style.display = isWindows ? 'block' : 'none';
+            document.getElementById('setup-linux').style.display = isWindows ? 'none' : 'block';
+        }
+    });
+});
+</script>
+{% endblock %}

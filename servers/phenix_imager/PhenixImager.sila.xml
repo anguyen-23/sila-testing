@@ -1,0 +1,326 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Feature xmlns="http://www.sila-standard.org"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         SiLA2Version="1.1"
+         FeatureVersion="1.0"
+         Originator="calico.automation"
+         Category="extended"
+         MaturityLevel="Draft">
+
+    <Identifier>PhenixImager</Identifier>
+    <DisplayName>Phenix Imager</DisplayName>
+    <Description>
+        Controls a PerkinElmer Opera Phenix high-content screening imager
+        via its RCI (Remote Control Interface) protocol. Supports connecting,
+        stage movement, acquisition protocol execution with progress tracking,
+        and device state monitoring. This is a learning feature wrapping the
+        RCI socket-based protocol.
+    </Description>
+
+    <!-- ============================================================ -->
+    <!-- UNOBSERVABLE COMMANDS                                         -->
+    <!-- ============================================================ -->
+
+    <Command>
+        <Identifier>Connect</Identifier>
+        <DisplayName>Connect</DisplayName>
+        <Description>
+            Connects to the Phenix imager via the RCI protocol. Queries device
+            status and retrieves the list of available acquisition protocols.
+        </Description>
+        <Observable>No</Observable>
+        <Parameter>
+            <Identifier>PhenixHost</Identifier>
+            <DisplayName>Phenix Host</DisplayName>
+            <Description>Hostname or IP address of the Phenix instrument.</Description>
+            <DataType><Basic>String</Basic></DataType>
+        </Parameter>
+        <Response>
+            <Identifier>DeviceName</Identifier>
+            <DisplayName>Device Name</DisplayName>
+            <Description>The instrument name reported by the device.</Description>
+            <DataType><Basic>String</Basic></DataType>
+        </Response>
+        <DefinedExecutionErrors>
+            <Identifier>CommunicationError</Identifier>
+        </DefinedExecutionErrors>
+    </Command>
+
+    <Command>
+        <Identifier>Disconnect</Identifier>
+        <DisplayName>Disconnect</DisplayName>
+        <Description>
+            Disconnects from the Phenix imager and releases the RCI connection.
+        </Description>
+        <Observable>No</Observable>
+        <DefinedExecutionErrors>
+            <Identifier>NotConnected</Identifier>
+        </DefinedExecutionErrors>
+    </Command>
+
+    <Command>
+        <Identifier>StageIn</Identifier>
+        <DisplayName>Stage In</DisplayName>
+        <Description>
+            Moves the stage from the Transfer position to the Operate position
+            (LOAD command). The plate must be placed on the stage before calling this.
+        </Description>
+        <Observable>No</Observable>
+        <Parameter>
+            <Identifier>PlateBarcode</Identifier>
+            <DisplayName>Plate Barcode</DisplayName>
+            <Description>Barcode identifier for the plate on the stage.</Description>
+            <DataType><Basic>String</Basic></DataType>
+        </Parameter>
+        <DefinedExecutionErrors>
+            <Identifier>NotConnected</Identifier>
+            <Identifier>DeviceError</Identifier>
+            <Identifier>StageMotionTimeout</Identifier>
+        </DefinedExecutionErrors>
+    </Command>
+
+    <Command>
+        <Identifier>StageOut</Identifier>
+        <DisplayName>Stage Out</DisplayName>
+        <Description>
+            Moves the stage from the Operate position to the Transfer position
+            (EJECT command) so the plate can be removed by a robot or operator.
+        </Description>
+        <Observable>No</Observable>
+        <Parameter>
+            <Identifier>PlateBarcode</Identifier>
+            <DisplayName>Plate Barcode</DisplayName>
+            <Description>Barcode identifier for the plate on the stage.</Description>
+            <DataType><Basic>String</Basic></DataType>
+        </Parameter>
+        <DefinedExecutionErrors>
+            <Identifier>NotConnected</Identifier>
+            <Identifier>DeviceError</Identifier>
+            <Identifier>StageMotionTimeout</Identifier>
+        </DefinedExecutionErrors>
+    </Command>
+
+    <Command>
+        <Identifier>Stop</Identifier>
+        <DisplayName>Stop</DisplayName>
+        <Description>
+            Stops the currently running acquisition protocol.
+        </Description>
+        <Observable>No</Observable>
+        <DefinedExecutionErrors>
+            <Identifier>NotConnected</Identifier>
+            <Identifier>DeviceError</Identifier>
+        </DefinedExecutionErrors>
+    </Command>
+
+    <Command>
+        <Identifier>GoIdle</Identifier>
+        <DisplayName>Go Idle</DisplayName>
+        <Description>
+            Returns the device to the Idle state (IDLE command).
+        </Description>
+        <Observable>No</Observable>
+        <DefinedExecutionErrors>
+            <Identifier>NotConnected</Identifier>
+            <Identifier>DeviceError</Identifier>
+        </DefinedExecutionErrors>
+    </Command>
+
+    <Command>
+        <Identifier>GoStandby</Identifier>
+        <DisplayName>Go Standby</DisplayName>
+        <Description>
+            Puts the device into Standby mode for a specified duration (STANDBY command).
+        </Description>
+        <Observable>No</Observable>
+        <Parameter>
+            <Identifier>DurationSeconds</Identifier>
+            <DisplayName>Duration Seconds</DisplayName>
+            <Description>Duration in seconds to remain in standby before auto-wakeup.</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>Integer</Basic></DataType>
+                    <Constraints>
+                        <MinimalInclusive>60</MinimalInclusive>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <DefinedExecutionErrors>
+            <Identifier>NotConnected</Identifier>
+            <Identifier>DeviceError</Identifier>
+        </DefinedExecutionErrors>
+    </Command>
+
+    <!-- ============================================================ -->
+    <!-- OBSERVABLE COMMANDS                                           -->
+    <!-- ============================================================ -->
+
+    <Command>
+        <Identifier>RunAcquisitionProtocol</Identifier>
+        <DisplayName>Run Acquisition Protocol</DisplayName>
+        <Description>
+            Runs an acquisition protocol on the Phenix imager. The stage must
+            be in the Operate position (will auto-StageIn if needed). Reports
+            progress 0-100% and well-by-well status as intermediate responses.
+            Auto-ejects the stage when complete.
+        </Description>
+        <Observable>Yes</Observable>
+        <Parameter>
+            <Identifier>ProtocolName</Identifier>
+            <DisplayName>Protocol Name</DisplayName>
+            <Description>Name of the acquisition protocol to run (from AvailableProtocols).</Description>
+            <DataType><Basic>String</Basic></DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>PlateBarcode</Identifier>
+            <DisplayName>Plate Barcode</DisplayName>
+            <Description>Barcode identifier for the plate being imaged.</Description>
+            <DataType><Basic>String</Basic></DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>TimeoutMinutes</Identifier>
+            <DisplayName>Timeout Minutes</DisplayName>
+            <Description>Maximum acquisition duration in minutes (default 600).</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>Integer</Basic></DataType>
+                    <Constraints>
+                        <MinimalInclusive>1</MinimalInclusive>
+                        <MaximalInclusive>1440</MaximalInclusive>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <Response>
+            <Identifier>Status</Identifier>
+            <DisplayName>Status</DisplayName>
+            <Description>Final status message after acquisition completes.</Description>
+            <DataType><Basic>String</Basic></DataType>
+        </Response>
+        <IntermediateResponse>
+            <Identifier>ProgressInfo</Identifier>
+            <DisplayName>Progress Info</DisplayName>
+            <Description>Current acquisition progress (e.g. "Well R1C1 - 15%").</Description>
+            <DataType><Basic>String</Basic></DataType>
+        </IntermediateResponse>
+        <DefinedExecutionErrors>
+            <Identifier>NotConnected</Identifier>
+            <Identifier>DeviceError</Identifier>
+            <Identifier>AcquisitionTimeout</Identifier>
+        </DefinedExecutionErrors>
+    </Command>
+
+    <!-- ============================================================ -->
+    <!-- PROPERTIES                                                    -->
+    <!-- ============================================================ -->
+
+    <Property>
+        <Identifier>IsConnected</Identifier>
+        <DisplayName>Is Connected</DisplayName>
+        <Description>Whether the RCI connection to the Phenix is active.</Description>
+        <Observable>No</Observable>
+        <DataType><Basic>Boolean</Basic></DataType>
+    </Property>
+
+    <Property>
+        <Identifier>DeviceState</Identifier>
+        <DisplayName>Device State</DisplayName>
+        <Description>Current device state: Operate, Idle, Standby, Offline, or Service.</Description>
+        <Observable>No</Observable>
+        <DataType><Basic>String</Basic></DataType>
+    </Property>
+
+    <Property>
+        <Identifier>StagePosition</Identifier>
+        <DisplayName>Stage Position</DisplayName>
+        <Description>Current stage position: Transfer, Operate, Service, or Home.</Description>
+        <Observable>No</Observable>
+        <DataType><Basic>String</Basic></DataType>
+    </Property>
+
+    <Property>
+        <Identifier>PlateDetected</Identifier>
+        <DisplayName>Plate Detected</DisplayName>
+        <Description>Whether a plate is currently detected on the stage.</Description>
+        <Observable>No</Observable>
+        <DataType><Basic>Boolean</Basic></DataType>
+    </Property>
+
+    <Property>
+        <Identifier>AvailableProtocols</Identifier>
+        <DisplayName>Available Protocols</DisplayName>
+        <Description>List of acquisition protocol names available on the instrument.</Description>
+        <Observable>No</Observable>
+        <DataType>
+            <List>
+                <DataType><Basic>String</Basic></DataType>
+            </List>
+        </DataType>
+    </Property>
+
+    <Property>
+        <Identifier>DisplayIcon</Identifier>
+        <DisplayName>Display Icon</DisplayName>
+        <Description>PNG icon representing this instrument, for display in client UIs.</Description>
+        <Observable>No</Observable>
+        <DataType><Basic>Binary</Basic></DataType>
+    </Property>
+
+    <Property>
+        <Identifier>DeviceDescription</Identifier>
+        <DisplayName>Device Description</DisplayName>
+        <Description>Rich text description of device capabilities for LLM system prompts.</Description>
+        <Observable>No</Observable>
+        <DataType><Basic>String</Basic></DataType>
+    </Property>
+
+    <!-- ============================================================ -->
+    <!-- DEFINED EXECUTION ERRORS                                      -->
+    <!-- ============================================================ -->
+
+    <DefinedExecutionError>
+        <Identifier>NotConnected</Identifier>
+        <DisplayName>Not Connected</DisplayName>
+        <Description>
+            The Phenix is not connected. Call Connect first to establish
+            an RCI connection.
+        </Description>
+    </DefinedExecutionError>
+
+    <DefinedExecutionError>
+        <Identifier>CommunicationError</Identifier>
+        <DisplayName>Communication Error</DisplayName>
+        <Description>
+            An RCI communication failure occurred (e.g. host unreachable,
+            connection lost, timeout waiting for response).
+        </Description>
+    </DefinedExecutionError>
+
+    <DefinedExecutionError>
+        <Identifier>DeviceError</Identifier>
+        <DisplayName>Device Error</DisplayName>
+        <Description>
+            The device rejected the command or is in an error state.
+            The error message includes the device error number and description.
+        </Description>
+    </DefinedExecutionError>
+
+    <DefinedExecutionError>
+        <Identifier>StageMotionTimeout</Identifier>
+        <DisplayName>Stage Motion Timeout</DisplayName>
+        <Description>
+            Stage movement did not complete within the timeout period (2 minutes).
+        </Description>
+    </DefinedExecutionError>
+
+    <DefinedExecutionError>
+        <Identifier>AcquisitionTimeout</Identifier>
+        <DisplayName>Acquisition Timeout</DisplayName>
+        <Description>
+            The acquisition protocol did not complete within the specified
+            timeout period.
+        </Description>
+    </DefinedExecutionError>
+
+</Feature>

@@ -1,0 +1,63 @@
+---
+# Install and configure Tailscale on Windows targets
+
+- name: Check if Tailscale is installed
+  win_command: tailscale version
+  register: ts_version
+  failed_when: false
+  changed_when: false
+
+- name: Ensure C:\Temp exists
+  win_file:
+    path: C:\Temp
+    state: directory
+  when: ts_version.rc != 0
+
+- name: Copy Tailscale installer to target
+  win_copy:
+    src: "{{ tailscale_installer_path }}"
+    dest: "C:\\Temp\\tailscale-setup.exe"
+  when: ts_version.rc != 0
+
+- name: Install Tailscale from local installer
+  win_command: C:\Temp\tailscale-setup.exe /install /quiet
+  when: ts_version.rc != 0
+  register: ts_install
+
+- name: Wait for Tailscale service to be ready
+  win_command: tailscale version
+  register: ts_version_post
+  retries: 5
+  delay: 5
+  until: ts_version_post.rc == 0
+  when: ts_install is changed
+
+- name: Check Tailscale status
+  win_command: tailscale status --json
+  register: ts_status_raw
+  failed_when: false
+  changed_when: false
+
+- name: Build tailscale up command
+  set_fact:
+    tailscale_up_cmd: >-
+      tailscale up
+      --authkey={{ tailscale_auth_key }}
+      --hostname={{ inventory_hostname }}
+      {% if tailscale_login_server | default('') | length > 0 %}--login-server={{ tailscale_login_server }}{% endif %}
+
+- name: Authenticate Tailscale
+  win_command: "{{ tailscale_up_cmd }}"
+  when: >
+    ts_status_raw.rc != 0 or
+    (ts_status_raw.stdout | from_json).BackendState | default('') != 'Running'
+  no_log: true
+
+- name: Get Tailscale IP
+  win_command: tailscale ip -4
+  register: ts_ip
+  changed_when: false
+
+- name: Report Tailscale IP
+  debug:
+    msg: "Tailscale IP for {{ inventory_hostname }}: {{ ts_ip.stdout | trim }}"

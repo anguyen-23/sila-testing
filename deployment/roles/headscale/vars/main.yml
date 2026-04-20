@@ -1,0 +1,23 @@
+# Headscale configuration
+headscale_version: "0.25.1"
+headscale_arch: "amd64"
+headscale_base_url: "https://github.com/juanfont/headscale/releases/download"
+
+# Where Headscale listens — must be reachable by all Tailscale clients
+headscale_listen_addr: "0.0.0.0"
+headscale_listen_port: 8080
+
+# The URL clients use to reach Headscale (set in inventory or extra vars)
+# For WSL2 this will be http://<WSL2_IP>:8080
+headscale_server_url: "http://{{ ansible_default_ipv4.address }}:{{ headscale_listen_port }}"
+
+# Data paths
+headscale_config_dir: "/etc/headscale"
+headscale_data_dir: "/var/lib/headscale"
+headscale_run_dir: "/var/run/headscale"
+
+# The Headscale user (namespace) for SiLA devices
+headscale_user: "sila"
+
+# DNS settings
+headscale_base_domain: "sila.local"

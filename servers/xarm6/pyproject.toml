@@ -1,0 +1,22 @@
+[project]
+name = "xarm6"
+version = "1.0.0"
+requires-python = ">=3.10"
+dependencies = [
+    "sila2",
+    "typer",
+    "xarm-python-sdk",
+]
+
+[build-system]
+requires = ["setuptools>=61.0.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["xarm6*"]
+
+[tool.setuptools.package-data]
+"xarm6.generated" = [
+    "*/*.sila.xml",
+    "*/*.proto",
+]

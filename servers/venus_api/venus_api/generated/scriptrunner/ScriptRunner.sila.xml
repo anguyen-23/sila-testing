@@ -1,0 +1,182 @@
+<Feature xmlns="http://www.sila-standard.org" Category="extended" FeatureVersion="1.0" MaturityLevel="Draft" Originator="calico.automation" SiLA2Version="1.1">
+  <Identifier>ScriptRunner</Identifier>
+  <DisplayName>Script Runner</DisplayName>
+  <Description>Runs Python automation scripts on the server. Scripts get a pre-built
+        `device` helper for calling commands and reading properties on this server.
+        Only one script can run at a time. Auto-acquires LockController lock during execution.</Description>
+  <!-- ============================================================ -->
+  <!-- COMMANDS                                                      -->
+  <!-- ============================================================ -->
+  <Command>
+    <Identifier>RunScript</Identifier>
+    <DisplayName>Run Script</DisplayName>
+    <Description>Execute a Python script. Output is streamed as intermediate responses.
+            The script gets a `device` helper for calling commands on this server.</Description>
+    <Observable>Yes</Observable>
+    <Parameter>
+      <Identifier>ScriptName</Identifier>
+      <DisplayName>Script Name</DisplayName>
+      <Description>A name for this script execution (for logging).</Description>
+      <DataType>
+        <Basic>String</Basic>
+      </DataType>
+    </Parameter>
+    <Parameter>
+      <Identifier>ScriptCode</Identifier>
+      <DisplayName>Script Code</DisplayName>
+      <Description>Python source code to execute.</Description>
+      <DataType>
+        <Basic>String</Basic>
+      </DataType>
+    </Parameter>
+    <Response>
+      <Identifier>ExitCode</Identifier>
+      <DisplayName>Exit Code</DisplayName>
+      <Description>Process exit code (0 = success).</Description>
+      <DataType>
+        <Basic>Integer</Basic>
+      </DataType>
+    </Response>
+    <Response>
+      <Identifier>FullOutput</Identifier>
+      <DisplayName>Full Output</DisplayName>
+      <Description>Complete script output as a single string.</Description>
+      <DataType>
+        <Basic>String</Basic>
+      </DataType>
+    </Response>
+    <IntermediateResponse>
+      <Identifier>OutputLine</Identifier>
+      <DisplayName>Output Line</DisplayName>
+      <Description>A line of script output (stdout/stderr).</Description>
+      <DataType>
+        <Basic>String</Basic>
+      </DataType>
+    </IntermediateResponse>
+    <DefinedExecutionErrors>
+      <Identifier>ScriptError</Identifier>
+      <Identifier>AlreadyRunning</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <Command>
+    <Identifier>StopScript</Identifier>
+    <DisplayName>Stop Script</DisplayName>
+    <Description>Kill the currently running script.</Description>
+    <Observable>No</Observable>
+    <DefinedExecutionErrors>
+      <Identifier>ScriptError</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <Command>
+    <Identifier>ListScripts</Identifier>
+    <DisplayName>List Scripts</DisplayName>
+    <Description>List all saved script names.</Description>
+    <Observable>No</Observable>
+    <Response>
+      <Identifier>Scripts</Identifier>
+      <DisplayName>Scripts</DisplayName>
+      <Description>List of saved script names.</Description>
+      <DataType>
+        <List>
+          <DataType>
+            <Basic>String</Basic>
+          </DataType>
+        </List>
+      </DataType>
+    </Response>
+  </Command>
+  <Command>
+    <Identifier>SaveScript</Identifier>
+    <DisplayName>Save Script</DisplayName>
+    <Description>Save a script to the server's script storage.</Description>
+    <Observable>No</Observable>
+    <Parameter>
+      <Identifier>ScriptName</Identifier>
+      <DisplayName>Script Name</DisplayName>
+      <Description>Name for the saved script.</Description>
+      <DataType>
+        <Basic>String</Basic>
+      </DataType>
+    </Parameter>
+    <Parameter>
+      <Identifier>ScriptCode</Identifier>
+      <DisplayName>Script Code</DisplayName>
+      <Description>Python source code to save.</Description>
+      <DataType>
+        <Basic>String</Basic>
+      </DataType>
+    </Parameter>
+  </Command>
+  <Command>
+    <Identifier>LoadScript</Identifier>
+    <DisplayName>Load Script</DisplayName>
+    <Description>Load a saved script by name.</Description>
+    <Observable>No</Observable>
+    <Parameter>
+      <Identifier>ScriptName</Identifier>
+      <DisplayName>Script Name</DisplayName>
+      <Description>Name of the script to load.</Description>
+      <DataType>
+        <Basic>String</Basic>
+      </DataType>
+    </Parameter>
+    <Response>
+      <Identifier>ScriptCode</Identifier>
+      <DisplayName>Script Code</DisplayName>
+      <Description>The saved Python source code.</Description>
+      <DataType>
+        <Basic>String</Basic>
+      </DataType>
+    </Response>
+    <DefinedExecutionErrors>
+      <Identifier>ScriptNotFound</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <Command>
+    <Identifier>DeleteScript</Identifier>
+    <DisplayName>Delete Script</DisplayName>
+    <Description>Delete a saved script by name.</Description>
+    <Observable>No</Observable>
+    <Parameter>
+      <Identifier>ScriptName</Identifier>
+      <DisplayName>Script Name</DisplayName>
+      <Description>Name of the script to delete.</Description>
+      <DataType>
+        <Basic>String</Basic>
+      </DataType>
+    </Parameter>
+    <DefinedExecutionErrors>
+      <Identifier>ScriptNotFound</Identifier>
+    </DefinedExecutionErrors>
+  </Command>
+  <!-- ============================================================ -->
+  <!-- PROPERTIES                                                    -->
+  <!-- ============================================================ -->
+  <Property>
+    <Identifier>IsRunning</Identifier>
+    <DisplayName>Is Running</DisplayName>
+    <Description>Whether a script is currently executing.</Description>
+    <Observable>No</Observable>
+    <DataType>
+      <Basic>Boolean</Basic>
+    </DataType>
+  </Property>
+  <!-- ============================================================ -->
+  <!-- DEFINED EXECUTION ERRORS                                      -->
+  <!-- ============================================================ -->
+  <DefinedExecutionError>
+    <Identifier>ScriptError</Identifier>
+    <DisplayName>Script Error</DisplayName>
+    <Description>The script encountered an error during execution.</Description>
+  </DefinedExecutionError>
+  <DefinedExecutionError>
+    <Identifier>AlreadyRunning</Identifier>
+    <DisplayName>Already Running</DisplayName>
+    <Description>A script is already running. Only one script can execute at a time.</Description>
+  </DefinedExecutionError>
+  <DefinedExecutionError>
+    <Identifier>ScriptNotFound</Identifier>
+    <DisplayName>Script Not Found</DisplayName>
+    <Description>No saved script with the given name was found.</Description>
+  </DefinedExecutionError>
+</Feature>
