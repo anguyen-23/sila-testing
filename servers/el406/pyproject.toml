@@ -1,0 +1,28 @@
+[project]
+name = "el406"
+version = "1.0.0"
+description = "BioTek EL406 plate washer + dispenser SiLA 2 server"
+requires-python = ">=3.10"
+dependencies = [
+    "sila2",
+    "typer",
+    "sila_server_common",
+    # pylabrobot v1b1 branch provides the EL406 device + driver.
+    # Hardware-only — the simulation path does not require pylabrobot at runtime,
+    # but the import is attempted lazily inside Connect, so installing it is
+    # recommended for real-mode support.
+    "pylabrobot @ git+https://github.com/PyLabRobot/pylabrobot.git@v1b1",
+]
+
+[build-system]
+requires = ["setuptools>=61.0.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["el406*"]
+
+[tool.setuptools.package-data]
+"el406.generated" = [
+    "*/*.sila.xml",
+    "*/*.proto",
+]

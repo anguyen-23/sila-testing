@@ -1,0 +1,1548 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Feature xmlns="http://www.sila-standard.org"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         SiLA2Version="1.1"
+         FeatureVersion="1.0"
+         Originator="org.silastandard"
+         Category="instruments"
+         MaturityLevel="Draft">
+
+    <Identifier>EL406</Identifier>
+    <DisplayName>BioTek EL406</DisplayName>
+    <Description>SiLA 2 feature for controlling the BioTek EL406 combination washer/dispenser. Wraps the pylabrobot v1b1 EL406 driver and exposes the manifold (wash), syringe-pump, peristaltic-pump, and shaker subsystems plus the low-level driver commands (reset, abort, pause, resume, home motors, set washer manifold, queries).</Description>
+
+    <!-- ════════════════════════════════════════════════════════════════
+         CONNECTION
+         ════════════════════════════════════════════════════════════════ -->
+
+    <Command>
+        <Identifier>Connect</Identifier>
+        <DisplayName>Connect</DisplayName>
+        <Description>Open the FTDI USB connection to the EL406, perform the communication test, and (unless SkipReset is true) issue a full instrument reset. In simulation mode this only flips internal state — no hardware is touched.</Description>
+        <Observable>No</Observable>
+        <Parameter>
+            <Identifier>DeviceId</Identifier>
+            <DisplayName>Device Id</DisplayName>
+            <Description>Optional FTDI device id / serial number. Leave empty to auto-detect the first BioTek EL406 on the USB bus.</Description>
+            <DataType><Basic>String</Basic></DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>SkipReset</Identifier>
+            <DisplayName>Skip Reset</DisplayName>
+            <Description>If true, skip the post-connect full instrument reset. Use false in production; true is helpful when iterating.</Description>
+            <DataType><Basic>Boolean</Basic></DataType>
+        </Parameter>
+        <Response>
+            <Identifier>InstrumentName</Identifier>
+            <DisplayName>Instrument Name</DisplayName>
+            <Description>Human readable instrument name ("BioTek EL406" or "Simulated EL406").</Description>
+            <DataType><Basic>String</Basic></DataType>
+        </Response>
+        <Response>
+            <Identifier>SerialNumber</Identifier>
+            <DisplayName>Serial Number</DisplayName>
+            <Description>Product serial number returned by the device. Empty string in simulation mode.</Description>
+            <DataType><Basic>String</Basic></DataType>
+        </Response>
+        <DefinedExecutionErrors>
+            <Identifier>ConnectionFailed</Identifier>
+            <Identifier>CommunicationError</Identifier>
+        </DefinedExecutionErrors>
+    </Command>
+
+    <Command>
+        <Identifier>Disconnect</Identifier>
+        <DisplayName>Disconnect</DisplayName>
+        <Description>Close the FTDI USB connection. Safe to call when not connected.</Description>
+        <Observable>No</Observable>
+        <Response>
+            <Identifier>Acknowledged</Identifier>
+            <DisplayName>Acknowledged</DisplayName>
+            <Description>Always "OK".</Description>
+            <DataType><Basic>String</Basic></DataType>
+        </Response>
+    </Command>
+
+    <!-- ════════════════════════════════════════════════════════════════
+         PLATE ASSIGNMENT
+         The EL406 driver needs to know the plate type (96 vs 384) to encode
+         every step command on the wire. AssignPlate creates a PLR Plate
+         resource of the requested format and binds it to the device.
+         ════════════════════════════════════════════════════════════════ -->
+
+    <Command>
+        <Identifier>AssignPlate</Identifier>
+        <DisplayName>Assign Plate</DisplayName>
+        <Description>Assign a plate to the EL406's plate holder. The plate type (well count) is encoded into every step command on the wire, so you must call this before running any aspirate/dispense/wash/prime/shake/syringe/peristaltic command.</Description>
+        <Observable>No</Observable>
+        <Parameter>
+            <Identifier>NumWells</Identifier>
+            <DisplayName>Num Wells</DisplayName>
+            <Description>Total wells. Allowed: 96 or 384.</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>Integer</Basic></DataType>
+                    <Constraints>
+                        <Set>
+                            <Value>96</Value>
+                            <Value>384</Value>
+                        </Set>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <Response>
+            <Identifier>PlateName</Identifier>
+            <DisplayName>Plate Name</DisplayName>
+            <Description>Name of the assigned plate resource.</Description>
+            <DataType><Basic>String</Basic></DataType>
+        </Response>
+    </Command>
+
+    <Command>
+        <Identifier>UnassignPlate</Identifier>
+        <DisplayName>Unassign Plate</DisplayName>
+        <Description>Remove the currently assigned plate from the device's plate holder.</Description>
+        <Observable>No</Observable>
+        <Response>
+            <Identifier>Acknowledged</Identifier>
+            <DisplayName>Acknowledged</DisplayName>
+            <Description>Always "OK".</Description>
+            <DataType><Basic>String</Basic></DataType>
+        </Response>
+    </Command>
+
+    <!-- ════════════════════════════════════════════════════════════════
+         LOW-LEVEL DRIVER COMMANDS
+         These mirror the public async methods on pylabrobot's EL406Driver.
+         ════════════════════════════════════════════════════════════════ -->
+
+    <Command>
+        <Identifier>Reset</Identifier>
+        <DisplayName>Reset</DisplayName>
+        <Description>Send the firmware reset command (0x70). Returns when the device reports completion. Can take up to 2 minutes on real hardware.</Description>
+        <Observable>No</Observable>
+        <Response>
+            <Identifier>Acknowledged</Identifier>
+            <DisplayName>Acknowledged</DisplayName>
+            <Description>Always "OK".</Description>
+            <DataType><Basic>String</Basic></DataType>
+        </Response>
+        <DefinedExecutionErrors>
+            <Identifier>NotConnected</Identifier>
+            <Identifier>DeviceError</Identifier>
+        </DefinedExecutionErrors>
+    </Command>
+
+    <Command>
+        <Identifier>Abort</Identifier>
+        <DisplayName>Abort</DisplayName>
+        <Description>Abort a running step. If StepType is "Current", aborts the current operation; otherwise aborts the named step type.</Description>
+        <Observable>No</Observable>
+        <Parameter>
+            <Identifier>StepType</Identifier>
+            <DisplayName>Step Type</DisplayName>
+            <Description>One of: Current, PDispense, PPrime, PPurge, SDispense, SPrime, MWash, MAspirate, MDispense, MPrime, MAutoClean, ShakeSoak.</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>String</Basic></DataType>
+                    <Constraints>
+                        <Set>
+                            <Value>Current</Value>
+                            <Value>PDispense</Value>
+                            <Value>PPrime</Value>
+                            <Value>PPurge</Value>
+                            <Value>SDispense</Value>
+                            <Value>SPrime</Value>
+                            <Value>MWash</Value>
+                            <Value>MAspirate</Value>
+                            <Value>MDispense</Value>
+                            <Value>MPrime</Value>
+                            <Value>MAutoClean</Value>
+                            <Value>ShakeSoak</Value>
+                        </Set>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <Response>
+            <Identifier>Acknowledged</Identifier>
+            <DisplayName>Acknowledged</DisplayName>
+            <Description>Always "OK".</Description>
+            <DataType><Basic>String</Basic></DataType>
+        </Response>
+        <DefinedExecutionErrors>
+            <Identifier>NotConnected</Identifier>
+        </DefinedExecutionErrors>
+    </Command>
+
+    <Command>
+        <Identifier>Pause</Identifier>
+        <DisplayName>Pause</DisplayName>
+        <Description>Pause the currently running operation.</Description>
+        <Observable>No</Observable>
+        <Response>
+            <Identifier>Acknowledged</Identifier>
+            <DisplayName>Acknowledged</DisplayName>
+            <Description>Always "OK".</Description>
+            <DataType><Basic>String</Basic></DataType>
+        </Response>
+        <DefinedExecutionErrors>
+            <Identifier>NotConnected</Identifier>
+        </DefinedExecutionErrors>
+    </Command>
+
+    <Command>
+        <Identifier>Resume</Identifier>
+        <DisplayName>Resume</DisplayName>
+        <Description>Resume a paused operation.</Description>
+        <Observable>No</Observable>
+        <Response>
+            <Identifier>Acknowledged</Identifier>
+            <DisplayName>Acknowledged</DisplayName>
+            <Description>Always "OK".</Description>
+            <DataType><Basic>String</Basic></DataType>
+        </Response>
+        <DefinedExecutionErrors>
+            <Identifier>NotConnected</Identifier>
+        </DefinedExecutionErrors>
+    </Command>
+
+    <Command>
+        <Identifier>HomeMotors</Identifier>
+        <DisplayName>Home Motors</DisplayName>
+        <Description>Home or verify motors. HomeType selects what to do; Motor is only used with HomeMotor / VerifyMotor types.</Description>
+        <Observable>No</Observable>
+        <Parameter>
+            <Identifier>HomeType</Identifier>
+            <DisplayName>Home Type</DisplayName>
+            <Description>One of: InitAllMotors, InitPeriPump, HomeMotor, HomeXyzMotors, VerifyMotor, VerifyXyzMotors.</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>String</Basic></DataType>
+                    <Constraints>
+                        <Set>
+                            <Value>InitAllMotors</Value>
+                            <Value>InitPeriPump</Value>
+                            <Value>HomeMotor</Value>
+                            <Value>HomeXyzMotors</Value>
+                            <Value>VerifyMotor</Value>
+                            <Value>VerifyXyzMotors</Value>
+                        </Set>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>Motor</Identifier>
+            <DisplayName>Motor</DisplayName>
+            <Description>Motor name (ignored for the "all" home types). One of: CarrierX, CarrierY, DispHeadZ, WashHeadZ, SyringeA, SyringeB, PeriPumpPrimary, PeriPumpSecondary, LevelSenseY, WashSyringe, WashAspHeadZ, SingleWellY. Use empty string for default.</Description>
+            <DataType><Basic>String</Basic></DataType>
+        </Parameter>
+        <Response>
+            <Identifier>Acknowledged</Identifier>
+            <DisplayName>Acknowledged</DisplayName>
+            <Description>Always "OK".</Description>
+            <DataType><Basic>String</Basic></DataType>
+        </Response>
+        <DefinedExecutionErrors>
+            <Identifier>NotConnected</Identifier>
+            <Identifier>InvalidParameter</Identifier>
+            <Identifier>DeviceError</Identifier>
+        </DefinedExecutionErrors>
+    </Command>
+
+    <Command>
+        <Identifier>SetWasherManifold</Identifier>
+        <DisplayName>Set Washer Manifold</DisplayName>
+        <Description>Tell the firmware which washer manifold is physically installed.</Description>
+        <Observable>No</Observable>
+        <Parameter>
+            <Identifier>Manifold</Identifier>
+            <DisplayName>Manifold</DisplayName>
+            <Description>One of: Tube96Dual, Tube192, Tube128, Tube96Single, DeepPin96, NotInstalled.</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>String</Basic></DataType>
+                    <Constraints>
+                        <Set>
+                            <Value>Tube96Dual</Value>
+                            <Value>Tube192</Value>
+                            <Value>Tube128</Value>
+                            <Value>Tube96Single</Value>
+                            <Value>DeepPin96</Value>
+                            <Value>NotInstalled</Value>
+                        </Set>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <Response>
+            <Identifier>Acknowledged</Identifier>
+            <DisplayName>Acknowledged</DisplayName>
+            <Description>Always "OK".</Description>
+            <DataType><Basic>String</Basic></DataType>
+        </Response>
+        <DefinedExecutionErrors>
+            <Identifier>NotConnected</Identifier>
+            <Identifier>InvalidParameter</Identifier>
+        </DefinedExecutionErrors>
+    </Command>
+
+    <Command>
+        <Identifier>RunSelfCheck</Identifier>
+        <DisplayName>Run Self Check</DisplayName>
+        <Description>Run the firmware diagnostic self-check (0x95). Returns success/error code/message.</Description>
+        <Observable>No</Observable>
+        <Response>
+            <Identifier>Success</Identifier>
+            <DisplayName>Success</DisplayName>
+            <Description>True if the device reports error_code == 0.</Description>
+            <DataType><Basic>Boolean</Basic></DataType>
+        </Response>
+        <Response>
+            <Identifier>ErrorCode</Identifier>
+            <DisplayName>Error Code</DisplayName>
+            <Description>Numeric error code; 0 means passed.</Description>
+            <DataType><Basic>Integer</Basic></DataType>
+        </Response>
+        <Response>
+            <Identifier>Message</Identifier>
+            <DisplayName>Message</DisplayName>
+            <Description>Human-readable result message.</Description>
+            <DataType><Basic>String</Basic></DataType>
+        </Response>
+        <DefinedExecutionErrors>
+            <Identifier>NotConnected</Identifier>
+            <Identifier>CommunicationError</Identifier>
+        </DefinedExecutionErrors>
+    </Command>
+
+    <Command>
+        <Identifier>RequestSerialNumber</Identifier>
+        <DisplayName>Request Serial Number</DisplayName>
+        <Description>Query the product serial number from the firmware.</Description>
+        <Observable>No</Observable>
+        <Response>
+            <Identifier>SerialNumber</Identifier>
+            <DisplayName>Serial Number</DisplayName>
+            <Description>ASCII serial number.</Description>
+            <DataType><Basic>String</Basic></DataType>
+        </Response>
+        <DefinedExecutionErrors>
+            <Identifier>NotConnected</Identifier>
+            <Identifier>CommunicationError</Identifier>
+        </DefinedExecutionErrors>
+    </Command>
+
+    <Command>
+        <Identifier>RequestInstrumentSettings</Identifier>
+        <DisplayName>Request Instrument Settings</DisplayName>
+        <Description>Query the full hardware configuration: washer manifold, syringe manifold, syringe box info, and peristaltic pump installation status. Returns a JSON blob.</Description>
+        <Observable>No</Observable>
+        <Response>
+            <Identifier>SettingsJson</Identifier>
+            <DisplayName>Settings Json</DisplayName>
+            <Description>JSON object with fields: washer_manifold, syringe_manifold, syringe_box (type, size, installed), peristaltic_pump_1, peristaltic_pump_2.</Description>
+            <DataType><Basic>String</Basic></DataType>
+        </Response>
+        <DefinedExecutionErrors>
+            <Identifier>NotConnected</Identifier>
+            <Identifier>CommunicationError</Identifier>
+        </DefinedExecutionErrors>
+    </Command>
+
+    <!-- ════════════════════════════════════════════════════════════════
+         MANIFOLD (PLATE WASHER) STEPS
+         ════════════════════════════════════════════════════════════════ -->
+
+    <Command>
+        <Identifier>ManifoldAspirate</Identifier>
+        <DisplayName>Manifold Aspirate</DisplayName>
+        <Description>Aspirate from all wells through the wash manifold. Two modes: Normal (uses TravelRate + Delay) and VacuumFiltration (uses VacuumTime; TravelRate is ignored).</Description>
+        <Observable>Yes</Observable>
+        <Parameter>
+            <Identifier>VacuumFiltration</Identifier>
+            <DisplayName>Vacuum Filtration</DisplayName>
+            <Description>If true, vacuum filtration mode; otherwise normal aspirate.</Description>
+            <DataType><Basic>Boolean</Basic></DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>TravelRate</Identifier>
+            <DisplayName>Travel Rate</DisplayName>
+            <Description>Head travel rate. Plate-format: "1".."5"; cell-wash: "1 CW".."4 CW", "6 CW". Default "3".</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>String</Basic></DataType>
+                    <Constraints>
+                        <Set>
+                            <Value>1</Value>
+                            <Value>2</Value>
+                            <Value>3</Value>
+                            <Value>4</Value>
+                            <Value>5</Value>
+                            <Value>1 CW</Value>
+                            <Value>2 CW</Value>
+                            <Value>3 CW</Value>
+                            <Value>4 CW</Value>
+                            <Value>6 CW</Value>
+                        </Set>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>Delay</Identifier>
+            <DisplayName>Delay</DisplayName>
+            <Description>Post-aspirate delay in seconds (0-5). Normal mode only. Wire resolution: 1 ms.</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>Real</Basic></DataType>
+                    <Constraints>
+                        <MinimalInclusive>0</MinimalInclusive>
+                        <MaximalInclusive>5</MaximalInclusive>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>VacuumTime</Identifier>
+            <DisplayName>Vacuum Time</DisplayName>
+            <Description>Vacuum filtration time in seconds (5-999). Vacuum mode only.</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>Real</Basic></DataType>
+                    <Constraints>
+                        <MinimalInclusive>5</MinimalInclusive>
+                        <MaximalInclusive>999</MaximalInclusive>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>OffsetX</Identifier>
+            <DisplayName>Offset X</DisplayName>
+            <Description>X offset in steps (-60 to 60).</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>Integer</Basic></DataType>
+                    <Constraints>
+                        <MinimalInclusive>-60</MinimalInclusive>
+                        <MaximalInclusive>60</MaximalInclusive>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>OffsetY</Identifier>
+            <DisplayName>Offset Y</DisplayName>
+            <Description>Y offset in steps (-40 to 40).</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>Integer</Basic></DataType>
+                    <Constraints>
+                        <MinimalInclusive>-40</MinimalInclusive>
+                        <MaximalInclusive>40</MaximalInclusive>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>OffsetZ</Identifier>
+            <DisplayName>Offset Z</DisplayName>
+            <Description>Z offset in 0.1 mm units (1-210). Use 0 for plate-type default.</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>Integer</Basic></DataType>
+                    <Constraints>
+                        <MinimalInclusive>0</MinimalInclusive>
+                        <MaximalInclusive>210</MaximalInclusive>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <Response>
+            <Identifier>Acknowledged</Identifier>
+            <DisplayName>Acknowledged</DisplayName>
+            <Description>Always "OK" on success.</Description>
+            <DataType><Basic>String</Basic></DataType>
+        </Response>
+        <IntermediateResponse>
+            <Identifier>StatusMessage</Identifier>
+            <DisplayName>Status Message</DisplayName>
+            <Description>Periodic status update.</Description>
+            <DataType><Basic>String</Basic></DataType>
+        </IntermediateResponse>
+        <DefinedExecutionErrors>
+            <Identifier>NotConnected</Identifier>
+            <Identifier>NoPlateAssigned</Identifier>
+            <Identifier>InvalidParameter</Identifier>
+            <Identifier>DeviceError</Identifier>
+        </DefinedExecutionErrors>
+    </Command>
+
+    <Command>
+        <Identifier>ManifoldDispense</Identifier>
+        <DisplayName>Manifold Dispense</DisplayName>
+        <Description>Dispense to all wells through the wash manifold.</Description>
+        <Observable>Yes</Observable>
+        <Parameter>
+            <Identifier>Volume</Identifier>
+            <DisplayName>Volume</DisplayName>
+            <Description>Per-well volume in uL (25-3000).</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>Real</Basic></DataType>
+                    <Constraints>
+                        <MinimalInclusive>25</MinimalInclusive>
+                        <MaximalInclusive>3000</MaximalInclusive>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>Buffer</Identifier>
+            <DisplayName>Buffer</DisplayName>
+            <Description>Buffer valve: A, B, C, or D.</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>String</Basic></DataType>
+                    <Constraints>
+                        <Set>
+                            <Value>A</Value>
+                            <Value>B</Value>
+                            <Value>C</Value>
+                            <Value>D</Value>
+                        </Set>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>FlowRate</Identifier>
+            <DisplayName>Flow Rate</DisplayName>
+            <Description>Dispense flow rate (1-11). 1-2 = cell wash, requires VacuumDelayVolume &gt; 0.</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>Integer</Basic></DataType>
+                    <Constraints>
+                        <MinimalInclusive>1</MinimalInclusive>
+                        <MaximalInclusive>11</MaximalInclusive>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>OffsetX</Identifier>
+            <DisplayName>Offset X</DisplayName>
+            <Description>X offset in steps (-60 to 60).</Description>
+            <DataType><Basic>Integer</Basic></DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>OffsetY</Identifier>
+            <DisplayName>Offset Y</DisplayName>
+            <Description>Y offset in steps (-40 to 40).</Description>
+            <DataType><Basic>Integer</Basic></DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>OffsetZ</Identifier>
+            <DisplayName>Offset Z</DisplayName>
+            <Description>Z offset in 0.1 mm units (1-210). Use 0 for plate-type default.</Description>
+            <DataType><Basic>Integer</Basic></DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>PreDispenseVolume</Identifier>
+            <DisplayName>Pre Dispense Volume</DisplayName>
+            <Description>Pre-dispense volume per tube in uL. 0 disables; otherwise 25-3000.</Description>
+            <DataType><Basic>Real</Basic></DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>PreDispenseFlowRate</Identifier>
+            <DisplayName>Pre Dispense Flow Rate</DisplayName>
+            <Description>Pre-dispense flow rate (3-11).</Description>
+            <DataType><Basic>Integer</Basic></DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>VacuumDelayVolume</Identifier>
+            <DisplayName>Vacuum Delay Volume</DisplayName>
+            <Description>Vacuum delay volume in uL/well (0 disables, otherwise 0-3000).</Description>
+            <DataType><Basic>Real</Basic></DataType>
+        </Parameter>
+        <Response>
+            <Identifier>Acknowledged</Identifier>
+            <DisplayName>Acknowledged</DisplayName>
+            <Description>Always "OK" on success.</Description>
+            <DataType><Basic>String</Basic></DataType>
+        </Response>
+        <IntermediateResponse>
+            <Identifier>StatusMessage</Identifier>
+            <DisplayName>Status Message</DisplayName>
+            <Description>Periodic status update.</Description>
+            <DataType><Basic>String</Basic></DataType>
+        </IntermediateResponse>
+        <DefinedExecutionErrors>
+            <Identifier>NotConnected</Identifier>
+            <Identifier>NoPlateAssigned</Identifier>
+            <Identifier>InvalidParameter</Identifier>
+            <Identifier>DeviceError</Identifier>
+        </DefinedExecutionErrors>
+    </Command>
+
+    <Command>
+        <Identifier>ManifoldWash</Identifier>
+        <DisplayName>Manifold Wash</DisplayName>
+        <Description>Run a multi-cycle manifold wash (dispense-aspirate cycles) with optional shake/soak. Wraps the 102-byte composite MANIFOLD_WASH (0xA4) command. Exposes the most common knobs; advanced offset / secondary-aspirate / bottom-wash / sector settings stay at pylabrobot defaults.</Description>
+        <Observable>Yes</Observable>
+        <Parameter>
+            <Identifier>Cycles</Identifier>
+            <DisplayName>Cycles</DisplayName>
+            <Description>Number of wash cycles (1-250).</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>Integer</Basic></DataType>
+                    <Constraints>
+                        <MinimalInclusive>1</MinimalInclusive>
+                        <MaximalInclusive>250</MaximalInclusive>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>DispenseVolume</Identifier>
+            <DisplayName>Dispense Volume</DisplayName>
+            <Description>Per-cycle dispense volume in uL. Use 0 for plate-type default (300 for 96-well, 100 for 384-well).</Description>
+            <DataType><Basic>Real</Basic></DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>Buffer</Identifier>
+            <DisplayName>Buffer</DisplayName>
+            <Description>Buffer valve: A, B, C, or D.</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>String</Basic></DataType>
+                    <Constraints>
+                        <Set>
+                            <Value>A</Value>
+                            <Value>B</Value>
+                            <Value>C</Value>
+                            <Value>D</Value>
+                        </Set>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>DispenseFlowRate</Identifier>
+            <DisplayName>Dispense Flow Rate</DisplayName>
+            <Description>Dispense flow rate (1-9).</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>Integer</Basic></DataType>
+                    <Constraints>
+                        <MinimalInclusive>1</MinimalInclusive>
+                        <MaximalInclusive>9</MaximalInclusive>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>AspirateTravelRate</Identifier>
+            <DisplayName>Aspirate Travel Rate</DisplayName>
+            <Description>Aspirate travel rate (1-9).</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>Integer</Basic></DataType>
+                    <Constraints>
+                        <MinimalInclusive>1</MinimalInclusive>
+                        <MaximalInclusive>9</MaximalInclusive>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>SoakDuration</Identifier>
+            <DisplayName>Soak Duration</DisplayName>
+            <Description>Soak duration in seconds (0-3599). 0 disables.</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>Integer</Basic></DataType>
+                    <Constraints>
+                        <MinimalInclusive>0</MinimalInclusive>
+                        <MaximalInclusive>3599</MaximalInclusive>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>ShakeDuration</Identifier>
+            <DisplayName>Shake Duration</DisplayName>
+            <Description>Shake duration in seconds (0-3599). 0 disables shake within the wash.</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>Integer</Basic></DataType>
+                    <Constraints>
+                        <MinimalInclusive>0</MinimalInclusive>
+                        <MaximalInclusive>3599</MaximalInclusive>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>ShakeIntensity</Identifier>
+            <DisplayName>Shake Intensity</DisplayName>
+            <Description>Shake intensity: Variable, Slow, Medium, or Fast.</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>String</Basic></DataType>
+                    <Constraints>
+                        <Set>
+                            <Value>Variable</Value>
+                            <Value>Slow</Value>
+                            <Value>Medium</Value>
+                            <Value>Fast</Value>
+                        </Set>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>FinalAspirate</Identifier>
+            <DisplayName>Final Aspirate</DisplayName>
+            <Description>Whether to do a final aspirate after the last cycle.</Description>
+            <DataType><Basic>Boolean</Basic></DataType>
+        </Parameter>
+        <Response>
+            <Identifier>Acknowledged</Identifier>
+            <DisplayName>Acknowledged</DisplayName>
+            <Description>Always "OK" on success.</Description>
+            <DataType><Basic>String</Basic></DataType>
+        </Response>
+        <IntermediateResponse>
+            <Identifier>StatusMessage</Identifier>
+            <DisplayName>Status Message</DisplayName>
+            <Description>Periodic status update.</Description>
+            <DataType><Basic>String</Basic></DataType>
+        </IntermediateResponse>
+        <DefinedExecutionErrors>
+            <Identifier>NotConnected</Identifier>
+            <Identifier>NoPlateAssigned</Identifier>
+            <Identifier>InvalidParameter</Identifier>
+            <Identifier>DeviceError</Identifier>
+        </DefinedExecutionErrors>
+    </Command>
+
+    <Command>
+        <Identifier>ManifoldPrime</Identifier>
+        <DisplayName>Manifold Prime</DisplayName>
+        <Description>Prime the wash manifold fluid lines. Volume is in uL; wire resolution is 1000 uL.</Description>
+        <Observable>Yes</Observable>
+        <Parameter>
+            <Identifier>Volume</Identifier>
+            <DisplayName>Volume</DisplayName>
+            <Description>Prime volume in uL (5000-999000).</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>Real</Basic></DataType>
+                    <Constraints>
+                        <MinimalInclusive>5000</MinimalInclusive>
+                        <MaximalInclusive>999000</MaximalInclusive>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>Buffer</Identifier>
+            <DisplayName>Buffer</DisplayName>
+            <Description>Buffer valve: A, B, C, or D.</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>String</Basic></DataType>
+                    <Constraints>
+                        <Set>
+                            <Value>A</Value>
+                            <Value>B</Value>
+                            <Value>C</Value>
+                            <Value>D</Value>
+                        </Set>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>FlowRate</Identifier>
+            <DisplayName>Flow Rate</DisplayName>
+            <Description>Prime flow rate (3-11).</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>Integer</Basic></DataType>
+                    <Constraints>
+                        <MinimalInclusive>3</MinimalInclusive>
+                        <MaximalInclusive>11</MaximalInclusive>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>LowFlowVolume</Identifier>
+            <DisplayName>Low Flow Volume</DisplayName>
+            <Description>Low-flow-path volume in uL. 0 disables; otherwise 5000-999000.</Description>
+            <DataType><Basic>Real</Basic></DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>SubmergeDuration</Identifier>
+            <DisplayName>Submerge Duration</DisplayName>
+            <Description>Submerge duration in seconds (0 disables, otherwise 60-86340, multiple of 60).</Description>
+            <DataType><Basic>Real</Basic></DataType>
+        </Parameter>
+        <Response>
+            <Identifier>Acknowledged</Identifier>
+            <DisplayName>Acknowledged</DisplayName>
+            <Description>Always "OK" on success.</Description>
+            <DataType><Basic>String</Basic></DataType>
+        </Response>
+        <IntermediateResponse>
+            <Identifier>StatusMessage</Identifier>
+            <DisplayName>Status Message</DisplayName>
+            <Description>Periodic status update.</Description>
+            <DataType><Basic>String</Basic></DataType>
+        </IntermediateResponse>
+        <DefinedExecutionErrors>
+            <Identifier>NotConnected</Identifier>
+            <Identifier>NoPlateAssigned</Identifier>
+            <Identifier>InvalidParameter</Identifier>
+            <Identifier>DeviceError</Identifier>
+        </DefinedExecutionErrors>
+    </Command>
+
+    <Command>
+        <Identifier>ManifoldAutoClean</Identifier>
+        <DisplayName>Manifold Auto Clean</DisplayName>
+        <Description>Run an auto-clean cycle. Duration on the wire is in minutes (multiple of 60 seconds).</Description>
+        <Observable>Yes</Observable>
+        <Parameter>
+            <Identifier>Buffer</Identifier>
+            <DisplayName>Buffer</DisplayName>
+            <Description>Buffer valve: A, B, C, or D.</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>String</Basic></DataType>
+                    <Constraints>
+                        <Set>
+                            <Value>A</Value>
+                            <Value>B</Value>
+                            <Value>C</Value>
+                            <Value>D</Value>
+                        </Set>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>Duration</Identifier>
+            <DisplayName>Duration</DisplayName>
+            <Description>Cleaning duration in seconds (60-14340, multiple of 60).</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>Real</Basic></DataType>
+                    <Constraints>
+                        <MinimalInclusive>60</MinimalInclusive>
+                        <MaximalInclusive>14340</MaximalInclusive>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <Response>
+            <Identifier>Acknowledged</Identifier>
+            <DisplayName>Acknowledged</DisplayName>
+            <Description>Always "OK" on success.</Description>
+            <DataType><Basic>String</Basic></DataType>
+        </Response>
+        <IntermediateResponse>
+            <Identifier>StatusMessage</Identifier>
+            <DisplayName>Status Message</DisplayName>
+            <Description>Periodic status update.</Description>
+            <DataType><Basic>String</Basic></DataType>
+        </IntermediateResponse>
+        <DefinedExecutionErrors>
+            <Identifier>NotConnected</Identifier>
+            <Identifier>NoPlateAssigned</Identifier>
+            <Identifier>InvalidParameter</Identifier>
+            <Identifier>DeviceError</Identifier>
+        </DefinedExecutionErrors>
+    </Command>
+
+    <!-- ════════════════════════════════════════════════════════════════
+         SYRINGE PUMPS
+         ════════════════════════════════════════════════════════════════ -->
+
+    <Command>
+        <Identifier>SyringeDispense</Identifier>
+        <DisplayName>Syringe Dispense</DisplayName>
+        <Description>Dispense a uniform volume to all columns of the assigned plate from a syringe pump.</Description>
+        <Observable>Yes</Observable>
+        <Parameter>
+            <Identifier>Volume</Identifier>
+            <DisplayName>Volume</DisplayName>
+            <Description>Per-well volume in uL (positive).</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>Real</Basic></DataType>
+                    <Constraints>
+                        <MinimalExclusive>0</MinimalExclusive>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>Syringe</Identifier>
+            <DisplayName>Syringe</DisplayName>
+            <Description>Syringe selection: A, B, or Both.</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>String</Basic></DataType>
+                    <Constraints>
+                        <Set>
+                            <Value>A</Value>
+                            <Value>B</Value>
+                            <Value>Both</Value>
+                        </Set>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>FlowRate</Identifier>
+            <DisplayName>Flow Rate</DisplayName>
+            <Description>Flow rate (1-5).</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>Integer</Basic></DataType>
+                    <Constraints>
+                        <MinimalInclusive>1</MinimalInclusive>
+                        <MaximalInclusive>5</MaximalInclusive>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>OffsetX</Identifier>
+            <DisplayName>Offset X</DisplayName>
+            <Description>X offset in mm.</Description>
+            <DataType><Basic>Real</Basic></DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>OffsetY</Identifier>
+            <DisplayName>Offset Y</DisplayName>
+            <Description>Y offset in mm.</Description>
+            <DataType><Basic>Real</Basic></DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>OffsetZ</Identifier>
+            <DisplayName>Offset Z</DisplayName>
+            <Description>Z offset in mm (default 33.6 for 96-well).</Description>
+            <DataType><Basic>Real</Basic></DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>PumpDelay</Identifier>
+            <DisplayName>Pump Delay</DisplayName>
+            <Description>Post-dispense delay in seconds (0-5).</Description>
+            <DataType><Basic>Real</Basic></DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>PreDispense</Identifier>
+            <DisplayName>Pre Dispense</DisplayName>
+            <Description>Enable pre-dispense mode.</Description>
+            <DataType><Basic>Boolean</Basic></DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>PreDispenseVolume</Identifier>
+            <DisplayName>Pre Dispense Volume</DisplayName>
+            <Description>Pre-dispense volume per tube in uL (only used when PreDispense is true).</Description>
+            <DataType><Basic>Real</Basic></DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>NumPreDispenses</Identifier>
+            <DisplayName>Num Pre Dispenses</DisplayName>
+            <Description>Number of pre-dispenses (default 2).</Description>
+            <DataType><Basic>Integer</Basic></DataType>
+        </Parameter>
+        <Response>
+            <Identifier>Acknowledged</Identifier>
+            <DisplayName>Acknowledged</DisplayName>
+            <Description>Always "OK" on success.</Description>
+            <DataType><Basic>String</Basic></DataType>
+        </Response>
+        <IntermediateResponse>
+            <Identifier>StatusMessage</Identifier>
+            <DisplayName>Status Message</DisplayName>
+            <Description>Periodic status update.</Description>
+            <DataType><Basic>String</Basic></DataType>
+        </IntermediateResponse>
+        <DefinedExecutionErrors>
+            <Identifier>NotConnected</Identifier>
+            <Identifier>NoPlateAssigned</Identifier>
+            <Identifier>InvalidParameter</Identifier>
+            <Identifier>DeviceError</Identifier>
+        </DefinedExecutionErrors>
+    </Command>
+
+    <Command>
+        <Identifier>SyringePrime</Identifier>
+        <DisplayName>Syringe Prime</DisplayName>
+        <Description>Prime a syringe pump by performing aspirate-dispense refills.</Description>
+        <Observable>Yes</Observable>
+        <Parameter>
+            <Identifier>Volume</Identifier>
+            <DisplayName>Volume</DisplayName>
+            <Description>Prime volume per refill in uL (80-9999).</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>Real</Basic></DataType>
+                    <Constraints>
+                        <MinimalInclusive>80</MinimalInclusive>
+                        <MaximalInclusive>9999</MaximalInclusive>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>Syringe</Identifier>
+            <DisplayName>Syringe</DisplayName>
+            <Description>Syringe to prime: A or B.</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>String</Basic></DataType>
+                    <Constraints>
+                        <Set>
+                            <Value>A</Value>
+                            <Value>B</Value>
+                        </Set>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>FlowRate</Identifier>
+            <DisplayName>Flow Rate</DisplayName>
+            <Description>Flow rate (1-5).</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>Integer</Basic></DataType>
+                    <Constraints>
+                        <MinimalInclusive>1</MinimalInclusive>
+                        <MaximalInclusive>5</MaximalInclusive>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>Refills</Identifier>
+            <DisplayName>Refills</DisplayName>
+            <Description>Number of refill cycles (1-255).</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>Integer</Basic></DataType>
+                    <Constraints>
+                        <MinimalInclusive>1</MinimalInclusive>
+                        <MaximalInclusive>255</MaximalInclusive>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>PumpDelay</Identifier>
+            <DisplayName>Pump Delay</DisplayName>
+            <Description>Delay between cycles in seconds (0-5).</Description>
+            <DataType><Basic>Real</Basic></DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>SubmergeTips</Identifier>
+            <DisplayName>Submerge Tips</DisplayName>
+            <Description>Submerge tips in fluid after priming.</Description>
+            <DataType><Basic>Boolean</Basic></DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>SubmergeDuration</Identifier>
+            <DisplayName>Submerge Duration</DisplayName>
+            <Description>Submerge duration in seconds (0 disables, otherwise multiple of 60, max 86340).</Description>
+            <DataType><Basic>Real</Basic></DataType>
+        </Parameter>
+        <Response>
+            <Identifier>Acknowledged</Identifier>
+            <DisplayName>Acknowledged</DisplayName>
+            <Description>Always "OK" on success.</Description>
+            <DataType><Basic>String</Basic></DataType>
+        </Response>
+        <IntermediateResponse>
+            <Identifier>StatusMessage</Identifier>
+            <DisplayName>Status Message</DisplayName>
+            <Description>Periodic status update.</Description>
+            <DataType><Basic>String</Basic></DataType>
+        </IntermediateResponse>
+        <DefinedExecutionErrors>
+            <Identifier>NotConnected</Identifier>
+            <Identifier>NoPlateAssigned</Identifier>
+            <Identifier>InvalidParameter</Identifier>
+            <Identifier>DeviceError</Identifier>
+        </DefinedExecutionErrors>
+    </Command>
+
+    <!-- ════════════════════════════════════════════════════════════════
+         PERISTALTIC PUMPS
+         ════════════════════════════════════════════════════════════════ -->
+
+    <Command>
+        <Identifier>PeristalticDispense</Identifier>
+        <DisplayName>Peristaltic Dispense</DisplayName>
+        <Description>Dispense a uniform volume to all columns of the assigned plate from the primary peristaltic pump.</Description>
+        <Observable>Yes</Observable>
+        <Parameter>
+            <Identifier>Volume</Identifier>
+            <DisplayName>Volume</DisplayName>
+            <Description>Per-well volume in uL.</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>Real</Basic></DataType>
+                    <Constraints>
+                        <MinimalExclusive>0</MinimalExclusive>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>FlowRate</Identifier>
+            <DisplayName>Flow Rate</DisplayName>
+            <Description>Flow rate: Low, Medium, or High.</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>String</Basic></DataType>
+                    <Constraints>
+                        <Set>
+                            <Value>Low</Value>
+                            <Value>Medium</Value>
+                            <Value>High</Value>
+                        </Set>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>Cassette</Identifier>
+            <DisplayName>Cassette</DisplayName>
+            <Description>Cassette type: Any, 1uL, 5uL, or 10uL.</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>String</Basic></DataType>
+                    <Constraints>
+                        <Set>
+                            <Value>Any</Value>
+                            <Value>1uL</Value>
+                            <Value>5uL</Value>
+                            <Value>10uL</Value>
+                        </Set>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>OffsetX</Identifier>
+            <DisplayName>Offset X</DisplayName>
+            <Description>X offset in mm (-12.5 to 12.5).</Description>
+            <DataType><Basic>Real</Basic></DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>OffsetY</Identifier>
+            <DisplayName>Offset Y</DisplayName>
+            <Description>Y offset in mm (-4.0 to 4.0).</Description>
+            <DataType><Basic>Real</Basic></DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>OffsetZ</Identifier>
+            <DisplayName>Offset Z</DisplayName>
+            <Description>Z offset in mm (0.1-150). Use 0 for plate default.</Description>
+            <DataType><Basic>Real</Basic></DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>PreDispenseVolume</Identifier>
+            <DisplayName>Pre Dispense Volume</DisplayName>
+            <Description>Pre-dispense volume in uL. 0 to disable.</Description>
+            <DataType><Basic>Real</Basic></DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>NumPreDispenses</Identifier>
+            <DisplayName>Num Pre Dispenses</DisplayName>
+            <Description>Number of pre-dispenses (default 2).</Description>
+            <DataType><Basic>Integer</Basic></DataType>
+        </Parameter>
+        <Response>
+            <Identifier>Acknowledged</Identifier>
+            <DisplayName>Acknowledged</DisplayName>
+            <Description>Always "OK" on success.</Description>
+            <DataType><Basic>String</Basic></DataType>
+        </Response>
+        <IntermediateResponse>
+            <Identifier>StatusMessage</Identifier>
+            <DisplayName>Status Message</DisplayName>
+            <Description>Periodic status update.</Description>
+            <DataType><Basic>String</Basic></DataType>
+        </IntermediateResponse>
+        <DefinedExecutionErrors>
+            <Identifier>NotConnected</Identifier>
+            <Identifier>NoPlateAssigned</Identifier>
+            <Identifier>InvalidParameter</Identifier>
+            <Identifier>DeviceError</Identifier>
+        </DefinedExecutionErrors>
+    </Command>
+
+    <Command>
+        <Identifier>PeristalticPrime</Identifier>
+        <DisplayName>Peristaltic Prime</DisplayName>
+        <Description>Prime the peristaltic pump fluid lines. Specify either Volume (1-3000 uL) or Duration (1-300 s), not both. Set the unused one to 0.</Description>
+        <Observable>Yes</Observable>
+        <Parameter>
+            <Identifier>Volume</Identifier>
+            <DisplayName>Volume</DisplayName>
+            <Description>Prime volume in uL (1-3000). Set to 0 to use Duration instead.</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>Real</Basic></DataType>
+                    <Constraints>
+                        <MinimalInclusive>0</MinimalInclusive>
+                        <MaximalInclusive>3000</MaximalInclusive>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>Duration</Identifier>
+            <DisplayName>Duration</DisplayName>
+            <Description>Prime duration in seconds (1-300). Set to 0 to use Volume instead.</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>Integer</Basic></DataType>
+                    <Constraints>
+                        <MinimalInclusive>0</MinimalInclusive>
+                        <MaximalInclusive>300</MaximalInclusive>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>FlowRate</Identifier>
+            <DisplayName>Flow Rate</DisplayName>
+            <Description>Flow rate: Low, Medium, or High.</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>String</Basic></DataType>
+                    <Constraints>
+                        <Set>
+                            <Value>Low</Value>
+                            <Value>Medium</Value>
+                            <Value>High</Value>
+                        </Set>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>Cassette</Identifier>
+            <DisplayName>Cassette</DisplayName>
+            <Description>Cassette type: Any, 1uL, 5uL, or 10uL.</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>String</Basic></DataType>
+                    <Constraints>
+                        <Set>
+                            <Value>Any</Value>
+                            <Value>1uL</Value>
+                            <Value>5uL</Value>
+                            <Value>10uL</Value>
+                        </Set>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <Response>
+            <Identifier>Acknowledged</Identifier>
+            <DisplayName>Acknowledged</DisplayName>
+            <Description>Always "OK" on success.</Description>
+            <DataType><Basic>String</Basic></DataType>
+        </Response>
+        <IntermediateResponse>
+            <Identifier>StatusMessage</Identifier>
+            <DisplayName>Status Message</DisplayName>
+            <Description>Periodic status update.</Description>
+            <DataType><Basic>String</Basic></DataType>
+        </IntermediateResponse>
+        <DefinedExecutionErrors>
+            <Identifier>NotConnected</Identifier>
+            <Identifier>NoPlateAssigned</Identifier>
+            <Identifier>InvalidParameter</Identifier>
+            <Identifier>DeviceError</Identifier>
+        </DefinedExecutionErrors>
+    </Command>
+
+    <Command>
+        <Identifier>PeristalticPurge</Identifier>
+        <DisplayName>Peristaltic Purge</DisplayName>
+        <Description>Purge the peristaltic pump fluid lines. Specify either Volume (1-3000 uL) or Duration (1-300 s), not both.</Description>
+        <Observable>Yes</Observable>
+        <Parameter>
+            <Identifier>Volume</Identifier>
+            <DisplayName>Volume</DisplayName>
+            <Description>Purge volume in uL (1-3000). Set to 0 to use Duration instead.</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>Real</Basic></DataType>
+                    <Constraints>
+                        <MinimalInclusive>0</MinimalInclusive>
+                        <MaximalInclusive>3000</MaximalInclusive>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>Duration</Identifier>
+            <DisplayName>Duration</DisplayName>
+            <Description>Purge duration in seconds (1-300). Set to 0 to use Volume instead.</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>Integer</Basic></DataType>
+                    <Constraints>
+                        <MinimalInclusive>0</MinimalInclusive>
+                        <MaximalInclusive>300</MaximalInclusive>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>FlowRate</Identifier>
+            <DisplayName>Flow Rate</DisplayName>
+            <Description>Flow rate: Low, Medium, or High.</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>String</Basic></DataType>
+                    <Constraints>
+                        <Set>
+                            <Value>Low</Value>
+                            <Value>Medium</Value>
+                            <Value>High</Value>
+                        </Set>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>Cassette</Identifier>
+            <DisplayName>Cassette</DisplayName>
+            <Description>Cassette type: Any, 1uL, 5uL, or 10uL.</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>String</Basic></DataType>
+                    <Constraints>
+                        <Set>
+                            <Value>Any</Value>
+                            <Value>1uL</Value>
+                            <Value>5uL</Value>
+                            <Value>10uL</Value>
+                        </Set>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <Response>
+            <Identifier>Acknowledged</Identifier>
+            <DisplayName>Acknowledged</DisplayName>
+            <Description>Always "OK" on success.</Description>
+            <DataType><Basic>String</Basic></DataType>
+        </Response>
+        <IntermediateResponse>
+            <Identifier>StatusMessage</Identifier>
+            <DisplayName>Status Message</DisplayName>
+            <Description>Periodic status update.</Description>
+            <DataType><Basic>String</Basic></DataType>
+        </IntermediateResponse>
+        <DefinedExecutionErrors>
+            <Identifier>NotConnected</Identifier>
+            <Identifier>NoPlateAssigned</Identifier>
+            <Identifier>InvalidParameter</Identifier>
+            <Identifier>DeviceError</Identifier>
+        </DefinedExecutionErrors>
+    </Command>
+
+    <!-- ════════════════════════════════════════════════════════════════
+         SHAKER
+         ════════════════════════════════════════════════════════════════ -->
+
+    <Command>
+        <Identifier>Shake</Identifier>
+        <DisplayName>Shake</DisplayName>
+        <Description>Shake the plate with optional soak period. At least one of Duration or SoakDuration must be greater than 0.</Description>
+        <Observable>Yes</Observable>
+        <Parameter>
+            <Identifier>Duration</Identifier>
+            <DisplayName>Duration</DisplayName>
+            <Description>Shake duration in seconds (0-3599). 0 disables shake.</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>Integer</Basic></DataType>
+                    <Constraints>
+                        <MinimalInclusive>0</MinimalInclusive>
+                        <MaximalInclusive>3599</MaximalInclusive>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>Intensity</Identifier>
+            <DisplayName>Intensity</DisplayName>
+            <Description>Shake intensity: Variable, Slow (3.5 Hz), Medium (5 Hz), or Fast (8 Hz).</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>String</Basic></DataType>
+                    <Constraints>
+                        <Set>
+                            <Value>Variable</Value>
+                            <Value>Slow</Value>
+                            <Value>Medium</Value>
+                            <Value>Fast</Value>
+                        </Set>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>SoakDuration</Identifier>
+            <DisplayName>Soak Duration</DisplayName>
+            <Description>Soak duration in seconds (0-3599). 0 disables soak.</Description>
+            <DataType>
+                <Constrained>
+                    <DataType><Basic>Integer</Basic></DataType>
+                    <Constraints>
+                        <MinimalInclusive>0</MinimalInclusive>
+                        <MaximalInclusive>3599</MaximalInclusive>
+                    </Constraints>
+                </Constrained>
+            </DataType>
+        </Parameter>
+        <Parameter>
+            <Identifier>MoveHomeFirst</Identifier>
+            <DisplayName>Move Home First</DisplayName>
+            <Description>Move the carrier to the home position before shaking (recommended for runs over 60 s to prevent manifold drip contamination).</Description>
+            <DataType><Basic>Boolean</Basic></DataType>
+        </Parameter>
+        <Response>
+            <Identifier>Acknowledged</Identifier>
+            <DisplayName>Acknowledged</DisplayName>
+            <Description>Always "OK" on success.</Description>
+            <DataType><Basic>String</Basic></DataType>
+        </Response>
+        <IntermediateResponse>
+            <Identifier>StatusMessage</Identifier>
+            <DisplayName>Status Message</DisplayName>
+            <Description>Periodic status update.</Description>
+            <DataType><Basic>String</Basic></DataType>
+        </IntermediateResponse>
+        <DefinedExecutionErrors>
+            <Identifier>NotConnected</Identifier>
+            <Identifier>NoPlateAssigned</Identifier>
+            <Identifier>InvalidParameter</Identifier>
+            <Identifier>DeviceError</Identifier>
+        </DefinedExecutionErrors>
+    </Command>
+
+    <!-- ════════════════════════════════════════════════════════════════
+         OBSERVABLE PROPERTIES
+         ════════════════════════════════════════════════════════════════ -->
+
+    <Property>
+        <Identifier>IsConnected</Identifier>
+        <DisplayName>Is Connected</DisplayName>
+        <Description>Whether the instrument is connected (FTDI USB open + comm test passed).</Description>
+        <Observable>Yes</Observable>
+        <DataType><Basic>Boolean</Basic></DataType>
+    </Property>
+
+    <Property>
+        <Identifier>SerialNumber</Identifier>
+        <DisplayName>Serial Number</DisplayName>
+        <Description>Cached product serial number (populated after Connect or RequestSerialNumber).</Description>
+        <Observable>Yes</Observable>
+        <DataType><Basic>String</Basic></DataType>
+    </Property>
+
+    <Property>
+        <Identifier>AssignedPlate</Identifier>
+        <DisplayName>Assigned Plate</DisplayName>
+        <Description>Name of the currently assigned plate, or empty string if none.</Description>
+        <Observable>Yes</Observable>
+        <DataType><Basic>String</Basic></DataType>
+    </Property>
+
+    <!-- ── DeviceStatus (REQUIRED — drives the WebUI via SSE) ──────── -->
+    <Property>
+        <Identifier>DeviceStatus</Identifier>
+        <DisplayName>Device Status</DisplayName>
+        <Description>Current device status as a JSON string with all state fields (for SSE streaming to WebUI).</Description>
+        <Observable>Yes</Observable>
+        <DataType><Basic>String</Basic></DataType>
+    </Property>
+
+    <!-- ── Standard Properties (REQUIRED for all servers) ─────────── -->
+    <Property>
+        <Identifier>DisplayIcon</Identifier>
+        <DisplayName>Display Icon</DisplayName>
+        <Description>Icon for the device, displayed in clients and dashboards.</Description>
+        <Observable>No</Observable>
+        <DataType><Basic>Binary</Basic></DataType>
+    </Property>
+
+    <Property>
+        <Identifier>DeviceDescription</Identifier>
+        <DisplayName>Device Description</DisplayName>
+        <Description>Rich text description of the device, used as system prompt context for LLM/MCP integrations.</Description>
+        <Observable>No</Observable>
+        <DataType><Basic>String</Basic></DataType>
+    </Property>
+
+    <!-- ════════════════════════════════════════════════════════════════
+         DEFINED EXECUTION ERRORS
+         ════════════════════════════════════════════════════════════════ -->
+
+    <DefinedExecutionError>
+        <Identifier>ConnectionFailed</Identifier>
+        <DisplayName>Connection Failed</DisplayName>
+        <Description>Failed to open the FTDI USB connection or run the post-open communication test.</Description>
+    </DefinedExecutionError>
+
+    <DefinedExecutionError>
+        <Identifier>NotConnected</Identifier>
+        <DisplayName>Not Connected</DisplayName>
+        <Description>The command requires an open connection, but the instrument is not connected.</Description>
+    </DefinedExecutionError>
+
+    <DefinedExecutionError>
+        <Identifier>NoPlateAssigned</Identifier>
+        <DisplayName>No Plate Assigned</DisplayName>
+        <Description>The command needs a plate (so the driver can encode plate-type on the wire) but none is assigned. Call AssignPlate first.</Description>
+    </DefinedExecutionError>
+
+    <DefinedExecutionError>
+        <Identifier>CommunicationError</Identifier>
+        <DisplayName>Communication Error</DisplayName>
+        <Description>Failure communicating with the EL406 (USB write/read failure, NAK, timeout waiting for ACK or response frame).</Description>
+    </DefinedExecutionError>
+
+    <DefinedExecutionError>
+        <Identifier>DeviceError</Identifier>
+        <DisplayName>Device Error</DisplayName>
+        <Description>The device reported an error (non-zero validity in a status poll) during the step.</Description>
+    </DefinedExecutionError>
+
+    <DefinedExecutionError>
+        <Identifier>InvalidParameter</Identifier>
+        <DisplayName>Invalid Parameter</DisplayName>
+        <Description>One of the supplied parameters failed pylabrobot's range/format validation.</Description>
+    </DefinedExecutionError>
+
+</Feature>

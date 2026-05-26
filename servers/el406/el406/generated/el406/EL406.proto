@@ -1,0 +1,539 @@
+syntax = "proto3";
+
+import "SiLAFramework.proto";
+
+package sila2.org.silastandard.instruments.el406.v1;
+
+/* SiLA 2 feature for controlling the BioTek EL406 combination washer/dispenser. Wraps the pylabrobot v1b1 EL406 driver and exposes the manifold (wash), syringe-pump, peristaltic-pump, and shaker subsystems plus the low-level driver commands (reset, abort, pause, resume, home motors, set washer manifold, queries). */
+service EL406 {
+  /* Open the FTDI USB connection to the EL406, perform the communication test, and (unless SkipReset is true) issue a full instrument reset. In simulation mode this only flips internal state — no hardware is touched. */
+  rpc Connect (sila2.org.silastandard.instruments.el406.v1.Connect_Parameters) returns (sila2.org.silastandard.instruments.el406.v1.Connect_Responses) {}
+  /* Close the FTDI USB connection. Safe to call when not connected. */
+  rpc Disconnect (sila2.org.silastandard.instruments.el406.v1.Disconnect_Parameters) returns (sila2.org.silastandard.instruments.el406.v1.Disconnect_Responses) {}
+  /* Assign a plate to the EL406's plate holder. The plate type (well count) is encoded into every step command on the wire, so you must call this before running any aspirate/dispense/wash/prime/shake/syringe/peristaltic command. */
+  rpc AssignPlate (sila2.org.silastandard.instruments.el406.v1.AssignPlate_Parameters) returns (sila2.org.silastandard.instruments.el406.v1.AssignPlate_Responses) {}
+  /* Remove the currently assigned plate from the device's plate holder. */
+  rpc UnassignPlate (sila2.org.silastandard.instruments.el406.v1.UnassignPlate_Parameters) returns (sila2.org.silastandard.instruments.el406.v1.UnassignPlate_Responses) {}
+  /* Send the firmware reset command (0x70). Returns when the device reports completion. Can take up to 2 minutes on real hardware. */
+  rpc Reset (sila2.org.silastandard.instruments.el406.v1.Reset_Parameters) returns (sila2.org.silastandard.instruments.el406.v1.Reset_Responses) {}
+  /* Abort a running step. If StepType is "Current", aborts the current operation; otherwise aborts the named step type. */
+  rpc Abort (sila2.org.silastandard.instruments.el406.v1.Abort_Parameters) returns (sila2.org.silastandard.instruments.el406.v1.Abort_Responses) {}
+  /* Pause the currently running operation. */
+  rpc Pause (sila2.org.silastandard.instruments.el406.v1.Pause_Parameters) returns (sila2.org.silastandard.instruments.el406.v1.Pause_Responses) {}
+  /* Resume a paused operation. */
+  rpc Resume (sila2.org.silastandard.instruments.el406.v1.Resume_Parameters) returns (sila2.org.silastandard.instruments.el406.v1.Resume_Responses) {}
+  /* Home or verify motors. HomeType selects what to do; Motor is only used with HomeMotor / VerifyMotor types. */
+  rpc HomeMotors (sila2.org.silastandard.instruments.el406.v1.HomeMotors_Parameters) returns (sila2.org.silastandard.instruments.el406.v1.HomeMotors_Responses) {}
+  /* Tell the firmware which washer manifold is physically installed. */
+  rpc SetWasherManifold (sila2.org.silastandard.instruments.el406.v1.SetWasherManifold_Parameters) returns (sila2.org.silastandard.instruments.el406.v1.SetWasherManifold_Responses) {}
+  /* Run the firmware diagnostic self-check (0x95). Returns success/error code/message. */
+  rpc RunSelfCheck (sila2.org.silastandard.instruments.el406.v1.RunSelfCheck_Parameters) returns (sila2.org.silastandard.instruments.el406.v1.RunSelfCheck_Responses) {}
+  /* Query the product serial number from the firmware. */
+  rpc RequestSerialNumber (sila2.org.silastandard.instruments.el406.v1.RequestSerialNumber_Parameters) returns (sila2.org.silastandard.instruments.el406.v1.RequestSerialNumber_Responses) {}
+  /* Query the full hardware configuration: washer manifold, syringe manifold, syringe box info, and peristaltic pump installation status. Returns a JSON blob. */
+  rpc RequestInstrumentSettings (sila2.org.silastandard.instruments.el406.v1.RequestInstrumentSettings_Parameters) returns (sila2.org.silastandard.instruments.el406.v1.RequestInstrumentSettings_Responses) {}
+  /* Aspirate from all wells through the wash manifold. Two modes: Normal (uses TravelRate + Delay) and VacuumFiltration (uses VacuumTime; TravelRate is ignored). */
+  rpc ManifoldAspirate (sila2.org.silastandard.instruments.el406.v1.ManifoldAspirate_Parameters) returns (sila2.org.silastandard.CommandConfirmation) {}
+  /* Monitor the state of ManifoldAspirate */
+  rpc ManifoldAspirate_Info (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.org.silastandard.ExecutionInfo) {}
+  /* Retrieve intermediate responses of ManifoldAspirate */
+  rpc ManifoldAspirate_Intermediate (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.org.silastandard.instruments.el406.v1.ManifoldAspirate_IntermediateResponses) {}
+  /* Retrieve result of ManifoldAspirate */
+  rpc ManifoldAspirate_Result(sila2.org.silastandard.CommandExecutionUUID) returns (sila2.org.silastandard.instruments.el406.v1.ManifoldAspirate_Responses) {}
+  /* Dispense to all wells through the wash manifold. */
+  rpc ManifoldDispense (sila2.org.silastandard.instruments.el406.v1.ManifoldDispense_Parameters) returns (sila2.org.silastandard.CommandConfirmation) {}
+  /* Monitor the state of ManifoldDispense */
+  rpc ManifoldDispense_Info (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.org.silastandard.ExecutionInfo) {}
+  /* Retrieve intermediate responses of ManifoldDispense */
+  rpc ManifoldDispense_Intermediate (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.org.silastandard.instruments.el406.v1.ManifoldDispense_IntermediateResponses) {}
+  /* Retrieve result of ManifoldDispense */
+  rpc ManifoldDispense_Result(sila2.org.silastandard.CommandExecutionUUID) returns (sila2.org.silastandard.instruments.el406.v1.ManifoldDispense_Responses) {}
+  /* Run a multi-cycle manifold wash (dispense-aspirate cycles) with optional shake/soak. Wraps the 102-byte composite MANIFOLD_WASH (0xA4) command. Exposes the most common knobs; advanced offset / secondary-aspirate / bottom-wash / sector settings stay at pylabrobot defaults. */
+  rpc ManifoldWash (sila2.org.silastandard.instruments.el406.v1.ManifoldWash_Parameters) returns (sila2.org.silastandard.CommandConfirmation) {}
+  /* Monitor the state of ManifoldWash */
+  rpc ManifoldWash_Info (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.org.silastandard.ExecutionInfo) {}
+  /* Retrieve intermediate responses of ManifoldWash */
+  rpc ManifoldWash_Intermediate (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.org.silastandard.instruments.el406.v1.ManifoldWash_IntermediateResponses) {}
+  /* Retrieve result of ManifoldWash */
+  rpc ManifoldWash_Result(sila2.org.silastandard.CommandExecutionUUID) returns (sila2.org.silastandard.instruments.el406.v1.ManifoldWash_Responses) {}
+  /* Prime the wash manifold fluid lines. Volume is in uL; wire resolution is 1000 uL. */
+  rpc ManifoldPrime (sila2.org.silastandard.instruments.el406.v1.ManifoldPrime_Parameters) returns (sila2.org.silastandard.CommandConfirmation) {}
+  /* Monitor the state of ManifoldPrime */
+  rpc ManifoldPrime_Info (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.org.silastandard.ExecutionInfo) {}
+  /* Retrieve intermediate responses of ManifoldPrime */
+  rpc ManifoldPrime_Intermediate (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.org.silastandard.instruments.el406.v1.ManifoldPrime_IntermediateResponses) {}
+  /* Retrieve result of ManifoldPrime */
+  rpc ManifoldPrime_Result(sila2.org.silastandard.CommandExecutionUUID) returns (sila2.org.silastandard.instruments.el406.v1.ManifoldPrime_Responses) {}
+  /* Run an auto-clean cycle. Duration on the wire is in minutes (multiple of 60 seconds). */
+  rpc ManifoldAutoClean (sila2.org.silastandard.instruments.el406.v1.ManifoldAutoClean_Parameters) returns (sila2.org.silastandard.CommandConfirmation) {}
+  /* Monitor the state of ManifoldAutoClean */
+  rpc ManifoldAutoClean_Info (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.org.silastandard.ExecutionInfo) {}
+  /* Retrieve intermediate responses of ManifoldAutoClean */
+  rpc ManifoldAutoClean_Intermediate (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.org.silastandard.instruments.el406.v1.ManifoldAutoClean_IntermediateResponses) {}
+  /* Retrieve result of ManifoldAutoClean */
+  rpc ManifoldAutoClean_Result(sila2.org.silastandard.CommandExecutionUUID) returns (sila2.org.silastandard.instruments.el406.v1.ManifoldAutoClean_Responses) {}
+  /* Dispense a uniform volume to all columns of the assigned plate from a syringe pump. */
+  rpc SyringeDispense (sila2.org.silastandard.instruments.el406.v1.SyringeDispense_Parameters) returns (sila2.org.silastandard.CommandConfirmation) {}
+  /* Monitor the state of SyringeDispense */
+  rpc SyringeDispense_Info (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.org.silastandard.ExecutionInfo) {}
+  /* Retrieve intermediate responses of SyringeDispense */
+  rpc SyringeDispense_Intermediate (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.org.silastandard.instruments.el406.v1.SyringeDispense_IntermediateResponses) {}
+  /* Retrieve result of SyringeDispense */
+  rpc SyringeDispense_Result(sila2.org.silastandard.CommandExecutionUUID) returns (sila2.org.silastandard.instruments.el406.v1.SyringeDispense_Responses) {}
+  /* Prime a syringe pump by performing aspirate-dispense refills. */
+  rpc SyringePrime (sila2.org.silastandard.instruments.el406.v1.SyringePrime_Parameters) returns (sila2.org.silastandard.CommandConfirmation) {}
+  /* Monitor the state of SyringePrime */
+  rpc SyringePrime_Info (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.org.silastandard.ExecutionInfo) {}
+  /* Retrieve intermediate responses of SyringePrime */
+  rpc SyringePrime_Intermediate (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.org.silastandard.instruments.el406.v1.SyringePrime_IntermediateResponses) {}
+  /* Retrieve result of SyringePrime */
+  rpc SyringePrime_Result(sila2.org.silastandard.CommandExecutionUUID) returns (sila2.org.silastandard.instruments.el406.v1.SyringePrime_Responses) {}
+  /* Dispense a uniform volume to all columns of the assigned plate from the primary peristaltic pump. */
+  rpc PeristalticDispense (sila2.org.silastandard.instruments.el406.v1.PeristalticDispense_Parameters) returns (sila2.org.silastandard.CommandConfirmation) {}
+  /* Monitor the state of PeristalticDispense */
+  rpc PeristalticDispense_Info (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.org.silastandard.ExecutionInfo) {}
+  /* Retrieve intermediate responses of PeristalticDispense */
+  rpc PeristalticDispense_Intermediate (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.org.silastandard.instruments.el406.v1.PeristalticDispense_IntermediateResponses) {}
+  /* Retrieve result of PeristalticDispense */
+  rpc PeristalticDispense_Result(sila2.org.silastandard.CommandExecutionUUID) returns (sila2.org.silastandard.instruments.el406.v1.PeristalticDispense_Responses) {}
+  /* Prime the peristaltic pump fluid lines. Specify either Volume (1-3000 uL) or Duration (1-300 s), not both. Set the unused one to 0. */
+  rpc PeristalticPrime (sila2.org.silastandard.instruments.el406.v1.PeristalticPrime_Parameters) returns (sila2.org.silastandard.CommandConfirmation) {}
+  /* Monitor the state of PeristalticPrime */
+  rpc PeristalticPrime_Info (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.org.silastandard.ExecutionInfo) {}
+  /* Retrieve intermediate responses of PeristalticPrime */
+  rpc PeristalticPrime_Intermediate (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.org.silastandard.instruments.el406.v1.PeristalticPrime_IntermediateResponses) {}
+  /* Retrieve result of PeristalticPrime */
+  rpc PeristalticPrime_Result(sila2.org.silastandard.CommandExecutionUUID) returns (sila2.org.silastandard.instruments.el406.v1.PeristalticPrime_Responses) {}
+  /* Purge the peristaltic pump fluid lines. Specify either Volume (1-3000 uL) or Duration (1-300 s), not both. */
+  rpc PeristalticPurge (sila2.org.silastandard.instruments.el406.v1.PeristalticPurge_Parameters) returns (sila2.org.silastandard.CommandConfirmation) {}
+  /* Monitor the state of PeristalticPurge */
+  rpc PeristalticPurge_Info (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.org.silastandard.ExecutionInfo) {}
+  /* Retrieve intermediate responses of PeristalticPurge */
+  rpc PeristalticPurge_Intermediate (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.org.silastandard.instruments.el406.v1.PeristalticPurge_IntermediateResponses) {}
+  /* Retrieve result of PeristalticPurge */
+  rpc PeristalticPurge_Result(sila2.org.silastandard.CommandExecutionUUID) returns (sila2.org.silastandard.instruments.el406.v1.PeristalticPurge_Responses) {}
+  /* Shake the plate with optional soak period. At least one of Duration or SoakDuration must be greater than 0. */
+  rpc Shake (sila2.org.silastandard.instruments.el406.v1.Shake_Parameters) returns (sila2.org.silastandard.CommandConfirmation) {}
+  /* Monitor the state of Shake */
+  rpc Shake_Info (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.org.silastandard.ExecutionInfo) {}
+  /* Retrieve intermediate responses of Shake */
+  rpc Shake_Intermediate (sila2.org.silastandard.CommandExecutionUUID) returns (stream sila2.org.silastandard.instruments.el406.v1.Shake_IntermediateResponses) {}
+  /* Retrieve result of Shake */
+  rpc Shake_Result(sila2.org.silastandard.CommandExecutionUUID) returns (sila2.org.silastandard.instruments.el406.v1.Shake_Responses) {}
+  /* Whether the instrument is connected (FTDI USB open + comm test passed). */
+  rpc Subscribe_IsConnected (sila2.org.silastandard.instruments.el406.v1.Subscribe_IsConnected_Parameters) returns (stream sila2.org.silastandard.instruments.el406.v1.Subscribe_IsConnected_Responses) {}
+  /* Cached product serial number (populated after Connect or RequestSerialNumber). */
+  rpc Subscribe_SerialNumber (sila2.org.silastandard.instruments.el406.v1.Subscribe_SerialNumber_Parameters) returns (stream sila2.org.silastandard.instruments.el406.v1.Subscribe_SerialNumber_Responses) {}
+  /* Name of the currently assigned plate, or empty string if none. */
+  rpc Subscribe_AssignedPlate (sila2.org.silastandard.instruments.el406.v1.Subscribe_AssignedPlate_Parameters) returns (stream sila2.org.silastandard.instruments.el406.v1.Subscribe_AssignedPlate_Responses) {}
+  /* Current device status as a JSON string with all state fields (for SSE streaming to WebUI). */
+  rpc Subscribe_DeviceStatus (sila2.org.silastandard.instruments.el406.v1.Subscribe_DeviceStatus_Parameters) returns (stream sila2.org.silastandard.instruments.el406.v1.Subscribe_DeviceStatus_Responses) {}
+  /* Icon for the device, displayed in clients and dashboards. */
+  rpc Get_DisplayIcon (sila2.org.silastandard.instruments.el406.v1.Get_DisplayIcon_Parameters) returns (sila2.org.silastandard.instruments.el406.v1.Get_DisplayIcon_Responses) {}
+  /* Rich text description of the device, used as system prompt context for LLM/MCP integrations. */
+  rpc Get_DeviceDescription (sila2.org.silastandard.instruments.el406.v1.Get_DeviceDescription_Parameters) returns (sila2.org.silastandard.instruments.el406.v1.Get_DeviceDescription_Responses) {}
+}
+
+/* Parameters for Connect */
+message Connect_Parameters {
+  sila2.org.silastandard.String DeviceId = 1;  /* Optional FTDI device id / serial number. Leave empty to auto-detect the first BioTek EL406 on the USB bus. */
+  sila2.org.silastandard.Boolean SkipReset = 2;  /* If true, skip the post-connect full instrument reset. Use false in production; true is helpful when iterating. */
+}
+
+/* Responses of Connect */
+message Connect_Responses {
+  sila2.org.silastandard.String InstrumentName = 1;  /* Human readable instrument name ("BioTek EL406" or "Simulated EL406"). */
+  sila2.org.silastandard.String SerialNumber = 2;  /* Product serial number returned by the device. Empty string in simulation mode. */
+}
+
+/* Parameters for Disconnect */
+message Disconnect_Parameters {
+}
+
+/* Responses of Disconnect */
+message Disconnect_Responses {
+  sila2.org.silastandard.String Acknowledged = 1;  /* Always "OK". */
+}
+
+/* Parameters for AssignPlate */
+message AssignPlate_Parameters {
+  sila2.org.silastandard.Integer NumWells = 1;  /* Total wells. Allowed: 96 or 384. */
+}
+
+/* Responses of AssignPlate */
+message AssignPlate_Responses {
+  sila2.org.silastandard.String PlateName = 1;  /* Name of the assigned plate resource. */
+}
+
+/* Parameters for UnassignPlate */
+message UnassignPlate_Parameters {
+}
+
+/* Responses of UnassignPlate */
+message UnassignPlate_Responses {
+  sila2.org.silastandard.String Acknowledged = 1;  /* Always "OK". */
+}
+
+/* Parameters for Reset */
+message Reset_Parameters {
+}
+
+/* Responses of Reset */
+message Reset_Responses {
+  sila2.org.silastandard.String Acknowledged = 1;  /* Always "OK". */
+}
+
+/* Parameters for Abort */
+message Abort_Parameters {
+  sila2.org.silastandard.String StepType = 1;  /* One of: Current, PDispense, PPrime, PPurge, SDispense, SPrime, MWash, MAspirate, MDispense, MPrime, MAutoClean, ShakeSoak. */
+}
+
+/* Responses of Abort */
+message Abort_Responses {
+  sila2.org.silastandard.String Acknowledged = 1;  /* Always "OK". */
+}
+
+/* Parameters for Pause */
+message Pause_Parameters {
+}
+
+/* Responses of Pause */
+message Pause_Responses {
+  sila2.org.silastandard.String Acknowledged = 1;  /* Always "OK". */
+}
+
+/* Parameters for Resume */
+message Resume_Parameters {
+}
+
+/* Responses of Resume */
+message Resume_Responses {
+  sila2.org.silastandard.String Acknowledged = 1;  /* Always "OK". */
+}
+
+/* Parameters for HomeMotors */
+message HomeMotors_Parameters {
+  sila2.org.silastandard.String HomeType = 1;  /* One of: InitAllMotors, InitPeriPump, HomeMotor, HomeXyzMotors, VerifyMotor, VerifyXyzMotors. */
+  sila2.org.silastandard.String Motor = 2;  /* Motor name (ignored for the "all" home types). One of: CarrierX, CarrierY, DispHeadZ, WashHeadZ, SyringeA, SyringeB, PeriPumpPrimary, PeriPumpSecondary, LevelSenseY, WashSyringe, WashAspHeadZ, SingleWellY. Use empty string for default. */
+}
+
+/* Responses of HomeMotors */
+message HomeMotors_Responses {
+  sila2.org.silastandard.String Acknowledged = 1;  /* Always "OK". */
+}
+
+/* Parameters for SetWasherManifold */
+message SetWasherManifold_Parameters {
+  sila2.org.silastandard.String Manifold = 1;  /* One of: Tube96Dual, Tube192, Tube128, Tube96Single, DeepPin96, NotInstalled. */
+}
+
+/* Responses of SetWasherManifold */
+message SetWasherManifold_Responses {
+  sila2.org.silastandard.String Acknowledged = 1;  /* Always "OK". */
+}
+
+/* Parameters for RunSelfCheck */
+message RunSelfCheck_Parameters {
+}
+
+/* Responses of RunSelfCheck */
+message RunSelfCheck_Responses {
+  sila2.org.silastandard.Boolean Success = 1;  /* True if the device reports error_code == 0. */
+  sila2.org.silastandard.Integer ErrorCode = 2;  /* Numeric error code; 0 means passed. */
+  sila2.org.silastandard.String Message = 3;  /* Human-readable result message. */
+}
+
+/* Parameters for RequestSerialNumber */
+message RequestSerialNumber_Parameters {
+}
+
+/* Responses of RequestSerialNumber */
+message RequestSerialNumber_Responses {
+  sila2.org.silastandard.String SerialNumber = 1;  /* ASCII serial number. */
+}
+
+/* Parameters for RequestInstrumentSettings */
+message RequestInstrumentSettings_Parameters {
+}
+
+/* Responses of RequestInstrumentSettings */
+message RequestInstrumentSettings_Responses {
+  sila2.org.silastandard.String SettingsJson = 1;  /* JSON object with fields: washer_manifold, syringe_manifold, syringe_box (type, size, installed), peristaltic_pump_1, peristaltic_pump_2. */
+}
+
+/* Parameters for ManifoldAspirate */
+message ManifoldAspirate_Parameters {
+  sila2.org.silastandard.Boolean VacuumFiltration = 1;  /* If true, vacuum filtration mode; otherwise normal aspirate. */
+  sila2.org.silastandard.String TravelRate = 2;  /* Head travel rate. Plate-format: "1".."5"; cell-wash: "1 CW".."4 CW", "6 CW". Default "3". */
+  sila2.org.silastandard.Real Delay = 3;  /* Post-aspirate delay in seconds (0-5). Normal mode only. Wire resolution: 1 ms. */
+  sila2.org.silastandard.Real VacuumTime = 4;  /* Vacuum filtration time in seconds (5-999). Vacuum mode only. */
+  sila2.org.silastandard.Integer OffsetX = 5;  /* X offset in steps (-60 to 60). */
+  sila2.org.silastandard.Integer OffsetY = 6;  /* Y offset in steps (-40 to 40). */
+  sila2.org.silastandard.Integer OffsetZ = 7;  /* Z offset in 0.1 mm units (1-210). Use 0 for plate-type default. */
+}
+
+/* Responses of ManifoldAspirate */
+message ManifoldAspirate_Responses {
+  sila2.org.silastandard.String Acknowledged = 1;  /* Always "OK" on success. */
+}
+
+/* Intermediate responses of ManifoldAspirate */
+message ManifoldAspirate_IntermediateResponses {
+  sila2.org.silastandard.String StatusMessage = 1;  /* Periodic status update. */
+}
+
+/* Parameters for ManifoldDispense */
+message ManifoldDispense_Parameters {
+  sila2.org.silastandard.Real Volume = 1;  /* Per-well volume in uL (25-3000). */
+  sila2.org.silastandard.String Buffer = 2;  /* Buffer valve: A, B, C, or D. */
+  sila2.org.silastandard.Integer FlowRate = 3;  /* Dispense flow rate (1-11). 1-2 = cell wash, requires VacuumDelayVolume > 0. */
+  sila2.org.silastandard.Integer OffsetX = 4;  /* X offset in steps (-60 to 60). */
+  sila2.org.silastandard.Integer OffsetY = 5;  /* Y offset in steps (-40 to 40). */
+  sila2.org.silastandard.Integer OffsetZ = 6;  /* Z offset in 0.1 mm units (1-210). Use 0 for plate-type default. */
+  sila2.org.silastandard.Real PreDispenseVolume = 7;  /* Pre-dispense volume per tube in uL. 0 disables; otherwise 25-3000. */
+  sila2.org.silastandard.Integer PreDispenseFlowRate = 8;  /* Pre-dispense flow rate (3-11). */
+  sila2.org.silastandard.Real VacuumDelayVolume = 9;  /* Vacuum delay volume in uL/well (0 disables, otherwise 0-3000). */
+}
+
+/* Responses of ManifoldDispense */
+message ManifoldDispense_Responses {
+  sila2.org.silastandard.String Acknowledged = 1;  /* Always "OK" on success. */
+}
+
+/* Intermediate responses of ManifoldDispense */
+message ManifoldDispense_IntermediateResponses {
+  sila2.org.silastandard.String StatusMessage = 1;  /* Periodic status update. */
+}
+
+/* Parameters for ManifoldWash */
+message ManifoldWash_Parameters {
+  sila2.org.silastandard.Integer Cycles = 1;  /* Number of wash cycles (1-250). */
+  sila2.org.silastandard.Real DispenseVolume = 2;  /* Per-cycle dispense volume in uL. Use 0 for plate-type default (300 for 96-well, 100 for 384-well). */
+  sila2.org.silastandard.String Buffer = 3;  /* Buffer valve: A, B, C, or D. */
+  sila2.org.silastandard.Integer DispenseFlowRate = 4;  /* Dispense flow rate (1-9). */
+  sila2.org.silastandard.Integer AspirateTravelRate = 5;  /* Aspirate travel rate (1-9). */
+  sila2.org.silastandard.Integer SoakDuration = 6;  /* Soak duration in seconds (0-3599). 0 disables. */
+  sila2.org.silastandard.Integer ShakeDuration = 7;  /* Shake duration in seconds (0-3599). 0 disables shake within the wash. */
+  sila2.org.silastandard.String ShakeIntensity = 8;  /* Shake intensity: Variable, Slow, Medium, or Fast. */
+  sila2.org.silastandard.Boolean FinalAspirate = 9;  /* Whether to do a final aspirate after the last cycle. */
+}
+
+/* Responses of ManifoldWash */
+message ManifoldWash_Responses {
+  sila2.org.silastandard.String Acknowledged = 1;  /* Always "OK" on success. */
+}
+
+/* Intermediate responses of ManifoldWash */
+message ManifoldWash_IntermediateResponses {
+  sila2.org.silastandard.String StatusMessage = 1;  /* Periodic status update. */
+}
+
+/* Parameters for ManifoldPrime */
+message ManifoldPrime_Parameters {
+  sila2.org.silastandard.Real Volume = 1;  /* Prime volume in uL (5000-999000). */
+  sila2.org.silastandard.String Buffer = 2;  /* Buffer valve: A, B, C, or D. */
+  sila2.org.silastandard.Integer FlowRate = 3;  /* Prime flow rate (3-11). */
+  sila2.org.silastandard.Real LowFlowVolume = 4;  /* Low-flow-path volume in uL. 0 disables; otherwise 5000-999000. */
+  sila2.org.silastandard.Real SubmergeDuration = 5;  /* Submerge duration in seconds (0 disables, otherwise 60-86340, multiple of 60). */
+}
+
+/* Responses of ManifoldPrime */
+message ManifoldPrime_Responses {
+  sila2.org.silastandard.String Acknowledged = 1;  /* Always "OK" on success. */
+}
+
+/* Intermediate responses of ManifoldPrime */
+message ManifoldPrime_IntermediateResponses {
+  sila2.org.silastandard.String StatusMessage = 1;  /* Periodic status update. */
+}
+
+/* Parameters for ManifoldAutoClean */
+message ManifoldAutoClean_Parameters {
+  sila2.org.silastandard.String Buffer = 1;  /* Buffer valve: A, B, C, or D. */
+  sila2.org.silastandard.Real Duration = 2;  /* Cleaning duration in seconds (60-14340, multiple of 60). */
+}
+
+/* Responses of ManifoldAutoClean */
+message ManifoldAutoClean_Responses {
+  sila2.org.silastandard.String Acknowledged = 1;  /* Always "OK" on success. */
+}
+
+/* Intermediate responses of ManifoldAutoClean */
+message ManifoldAutoClean_IntermediateResponses {
+  sila2.org.silastandard.String StatusMessage = 1;  /* Periodic status update. */
+}
+
+/* Parameters for SyringeDispense */
+message SyringeDispense_Parameters {
+  sila2.org.silastandard.Real Volume = 1;  /* Per-well volume in uL (positive). */
+  sila2.org.silastandard.String Syringe = 2;  /* Syringe selection: A, B, or Both. */
+  sila2.org.silastandard.Integer FlowRate = 3;  /* Flow rate (1-5). */
+  sila2.org.silastandard.Real OffsetX = 4;  /* X offset in mm. */
+  sila2.org.silastandard.Real OffsetY = 5;  /* Y offset in mm. */
+  sila2.org.silastandard.Real OffsetZ = 6;  /* Z offset in mm (default 33.6 for 96-well). */
+  sila2.org.silastandard.Real PumpDelay = 7;  /* Post-dispense delay in seconds (0-5). */
+  sila2.org.silastandard.Boolean PreDispense = 8;  /* Enable pre-dispense mode. */
+  sila2.org.silastandard.Real PreDispenseVolume = 9;  /* Pre-dispense volume per tube in uL (only used when PreDispense is true). */
+  sila2.org.silastandard.Integer NumPreDispenses = 10;  /* Number of pre-dispenses (default 2). */
+}
+
+/* Responses of SyringeDispense */
+message SyringeDispense_Responses {
+  sila2.org.silastandard.String Acknowledged = 1;  /* Always "OK" on success. */
+}
+
+/* Intermediate responses of SyringeDispense */
+message SyringeDispense_IntermediateResponses {
+  sila2.org.silastandard.String StatusMessage = 1;  /* Periodic status update. */
+}
+
+/* Parameters for SyringePrime */
+message SyringePrime_Parameters {
+  sila2.org.silastandard.Real Volume = 1;  /* Prime volume per refill in uL (80-9999). */
+  sila2.org.silastandard.String Syringe = 2;  /* Syringe to prime: A or B. */
+  sila2.org.silastandard.Integer FlowRate = 3;  /* Flow rate (1-5). */
+  sila2.org.silastandard.Integer Refills = 4;  /* Number of refill cycles (1-255). */
+  sila2.org.silastandard.Real PumpDelay = 5;  /* Delay between cycles in seconds (0-5). */
+  sila2.org.silastandard.Boolean SubmergeTips = 6;  /* Submerge tips in fluid after priming. */
+  sila2.org.silastandard.Real SubmergeDuration = 7;  /* Submerge duration in seconds (0 disables, otherwise multiple of 60, max 86340). */
+}
+
+/* Responses of SyringePrime */
+message SyringePrime_Responses {
+  sila2.org.silastandard.String Acknowledged = 1;  /* Always "OK" on success. */
+}
+
+/* Intermediate responses of SyringePrime */
+message SyringePrime_IntermediateResponses {
+  sila2.org.silastandard.String StatusMessage = 1;  /* Periodic status update. */
+}
+
+/* Parameters for PeristalticDispense */
+message PeristalticDispense_Parameters {
+  sila2.org.silastandard.Real Volume = 1;  /* Per-well volume in uL. */
+  sila2.org.silastandard.String FlowRate = 2;  /* Flow rate: Low, Medium, or High. */
+  sila2.org.silastandard.String Cassette = 3;  /* Cassette type: Any, 1uL, 5uL, or 10uL. */
+  sila2.org.silastandard.Real OffsetX = 4;  /* X offset in mm (-12.5 to 12.5). */
+  sila2.org.silastandard.Real OffsetY = 5;  /* Y offset in mm (-4.0 to 4.0). */
+  sila2.org.silastandard.Real OffsetZ = 6;  /* Z offset in mm (0.1-150). Use 0 for plate default. */
+  sila2.org.silastandard.Real PreDispenseVolume = 7;  /* Pre-dispense volume in uL. 0 to disable. */
+  sila2.org.silastandard.Integer NumPreDispenses = 8;  /* Number of pre-dispenses (default 2). */
+}
+
+/* Responses of PeristalticDispense */
+message PeristalticDispense_Responses {
+  sila2.org.silastandard.String Acknowledged = 1;  /* Always "OK" on success. */
+}
+
+/* Intermediate responses of PeristalticDispense */
+message PeristalticDispense_IntermediateResponses {
+  sila2.org.silastandard.String StatusMessage = 1;  /* Periodic status update. */
+}
+
+/* Parameters for PeristalticPrime */
+message PeristalticPrime_Parameters {
+  sila2.org.silastandard.Real Volume = 1;  /* Prime volume in uL (1-3000). Set to 0 to use Duration instead. */
+  sila2.org.silastandard.Integer Duration = 2;  /* Prime duration in seconds (1-300). Set to 0 to use Volume instead. */
+  sila2.org.silastandard.String FlowRate = 3;  /* Flow rate: Low, Medium, or High. */
+  sila2.org.silastandard.String Cassette = 4;  /* Cassette type: Any, 1uL, 5uL, or 10uL. */
+}
+
+/* Responses of PeristalticPrime */
+message PeristalticPrime_Responses {
+  sila2.org.silastandard.String Acknowledged = 1;  /* Always "OK" on success. */
+}
+
+/* Intermediate responses of PeristalticPrime */
+message PeristalticPrime_IntermediateResponses {
+  sila2.org.silastandard.String StatusMessage = 1;  /* Periodic status update. */
+}
+
+/* Parameters for PeristalticPurge */
+message PeristalticPurge_Parameters {
+  sila2.org.silastandard.Real Volume = 1;  /* Purge volume in uL (1-3000). Set to 0 to use Duration instead. */
+  sila2.org.silastandard.Integer Duration = 2;  /* Purge duration in seconds (1-300). Set to 0 to use Volume instead. */
+  sila2.org.silastandard.String FlowRate = 3;  /* Flow rate: Low, Medium, or High. */
+  sila2.org.silastandard.String Cassette = 4;  /* Cassette type: Any, 1uL, 5uL, or 10uL. */
+}
+
+/* Responses of PeristalticPurge */
+message PeristalticPurge_Responses {
+  sila2.org.silastandard.String Acknowledged = 1;  /* Always "OK" on success. */
+}
+
+/* Intermediate responses of PeristalticPurge */
+message PeristalticPurge_IntermediateResponses {
+  sila2.org.silastandard.String StatusMessage = 1;  /* Periodic status update. */
+}
+
+/* Parameters for Shake */
+message Shake_Parameters {
+  sila2.org.silastandard.Integer Duration = 1;  /* Shake duration in seconds (0-3599). 0 disables shake. */
+  sila2.org.silastandard.String Intensity = 2;  /* Shake intensity: Variable, Slow (3.5 Hz), Medium (5 Hz), or Fast (8 Hz). */
+  sila2.org.silastandard.Integer SoakDuration = 3;  /* Soak duration in seconds (0-3599). 0 disables soak. */
+  sila2.org.silastandard.Boolean MoveHomeFirst = 4;  /* Move the carrier to the home position before shaking (recommended for runs over 60 s to prevent manifold drip contamination). */
+}
+
+/* Responses of Shake */
+message Shake_Responses {
+  sila2.org.silastandard.String Acknowledged = 1;  /* Always "OK" on success. */
+}
+
+/* Intermediate responses of Shake */
+message Shake_IntermediateResponses {
+  sila2.org.silastandard.String StatusMessage = 1;  /* Periodic status update. */
+}
+
+/* Parameters for IsConnected */
+message Subscribe_IsConnected_Parameters {
+}
+
+/* Responses of IsConnected */
+message Subscribe_IsConnected_Responses {
+  sila2.org.silastandard.Boolean IsConnected = 1;  /* Whether the instrument is connected (FTDI USB open + comm test passed). */
+}
+
+/* Parameters for SerialNumber */
+message Subscribe_SerialNumber_Parameters {
+}
+
+/* Responses of SerialNumber */
+message Subscribe_SerialNumber_Responses {
+  sila2.org.silastandard.String SerialNumber = 1;  /* Cached product serial number (populated after Connect or RequestSerialNumber). */
+}
+
+/* Parameters for AssignedPlate */
+message Subscribe_AssignedPlate_Parameters {
+}
+
+/* Responses of AssignedPlate */
+message Subscribe_AssignedPlate_Responses {
+  sila2.org.silastandard.String AssignedPlate = 1;  /* Name of the currently assigned plate, or empty string if none. */
+}
+
+/* Parameters for DeviceStatus */
+message Subscribe_DeviceStatus_Parameters {
+}
+
+/* Responses of DeviceStatus */
+message Subscribe_DeviceStatus_Responses {
+  sila2.org.silastandard.String DeviceStatus = 1;  /* Current device status as a JSON string with all state fields (for SSE streaming to WebUI). */
+}
+
+/* Parameters for DisplayIcon */
+message Get_DisplayIcon_Parameters {
+}
+
+/* Responses of DisplayIcon */
+message Get_DisplayIcon_Responses {
+  sila2.org.silastandard.Binary DisplayIcon = 1;  /* Icon for the device, displayed in clients and dashboards. */
+}
+
+/* Parameters for DeviceDescription */
+message Get_DeviceDescription_Parameters {
+}
+
+/* Responses of DeviceDescription */
+message Get_DeviceDescription_Responses {
+  sila2.org.silastandard.String DeviceDescription = 1;  /* Rich text description of the device, used as system prompt context for LLM/MCP integrations. */
+}

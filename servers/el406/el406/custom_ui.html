@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BioTek EL406 WebUI</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #1a1a2e; color: #e0e0e0; min-height: 100vh; }
+        .container { max-width: 1280px; margin: 0 auto; padding: 20px; }
+        .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; padding: 16px; background: #16213e; border-radius: 8px; }
+        .header h1 { font-size: 1.4em; }
+        .header .subtitle { font-size: 0.85em; color: #8aa; margin-top: 2px; }
+        .status-badge { padding: 4px 12px; border-radius: 12px; font-size: 0.8em; font-weight: 600; margin-left: 8px; }
+        .status-badge.connected { background: #2d6a4f; color: #b7e4c7; }
+        .status-badge.disconnected { background: #6b2c2c; color: #f4a6a6; }
+        .status-badge.sim { background: #6b4c1f; color: #f4d196; }
+        .status-badge.real { background: #1a3d6a; color: #a7c5e6; }
+        .status-badge.sse { background: #1a535c; color: #a7d8de; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .card { background: #16213e; border-radius: 8px; padding: 16px; }
+        .card h2 { font-size: 1em; margin-bottom: 12px; color: #7ec8e3; border-bottom: 1px solid #243657; padding-bottom: 6px; }
+        .card h3 { font-size: 0.9em; margin: 12px 0 6px 0; color: #9bb; }
+        .row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+        label { font-size: 0.85em; color: #9aa; min-width: 80px; }
+        input, select { background: #0f0f23; color: #e0e0e0; border: 1px solid #243657; border-radius: 4px; padding: 6px 8px; font-size: 0.9em; min-width: 70px; }
+        input[type=number] { width: 90px; }
+        button { background: #2d6a8f; color: #fff; border: none; border-radius: 4px; padding: 6px 14px; font-size: 0.85em; cursor: pointer; font-weight: 500; }
+        button:hover:not(:disabled) { background: #3d7aa0; }
+        button:disabled { background: #2a2a3e; color: #555; cursor: not-allowed; }
+        button.primary { background: #2d6a4f; }
+        button.primary:hover:not(:disabled) { background: #3a8060; }
+        button.danger { background: #6b2c2c; }
+        button.danger:hover:not(:disabled) { background: #803838; }
+        .activity-log { font-family: 'SF Mono', Consolas, monospace; font-size: 0.78em; max-height: 240px; overflow-y: auto; padding: 10px; background: #0f0f23; border-radius: 4px; }
+        .activity-log div { padding: 1px 0; color: #a0a0a0; }
+        .info-grid { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; font-size: 0.85em; }
+        .info-grid .k { color: #88a; }
+        .info-grid .v { color: #ddd; font-family: 'SF Mono', Consolas, monospace; }
+        .error-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 100; }
+        .error-modal .body { background: #2a1a1a; border: 1px solid #803838; padding: 20px; border-radius: 8px; max-width: 500px; }
+        .error-modal h3 { color: #f4a6a6; margin-bottom: 8px; }
+        .error-modal pre { background: #0f0f23; padding: 10px; border-radius: 4px; margin: 10px 0; white-space: pre-wrap; font-size: 0.85em; }
+        .tabs { display: flex; gap: 4px; margin-bottom: 12px; border-bottom: 1px solid #243657; }
+        .tab { padding: 8px 16px; cursor: pointer; background: transparent; color: #88a; border: none; border-bottom: 2px solid transparent; font-size: 0.9em; }
+        .tab.active { color: #7ec8e3; border-bottom-color: #7ec8e3; }
+        .small { font-size: 0.8em; color: #88a; }
+        @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-type="module">
+const { useState, useEffect, useCallback } = React;
+
+const _urlParts = window.location.pathname.split('/');
+const SILA_HOST = _urlParts[3] || 'localhost';
+const SILA_PORT = _urlParts[4] || '50061';
+const API_BASE = `${window.location.origin}/api`;
+const FEATURE_ID = 'EL406';
+
+function useDeviceStatus() {
+    const [status, setStatus] = useState({ simulationMode: true, isConnected: false, activityLog: [] });
+    const [sseConnected, setSseConnected] = useState(false);
+
+    useEffect(() => {
+        const url = `${API_BASE}/sse/${SILA_HOST}/${SILA_PORT}/${FEATURE_ID}/DeviceStatus`;
+        const es = new EventSource(url);
+        es.onopen = () => setSseConnected(true);
+        es.onmessage = (event) => {
+            try {
+                const parsed = JSON.parse(event.data);
+                const ds = typeof parsed === 'string' ? JSON.parse(parsed) : parsed;
+                setStatus(ds);
+            } catch {}
+        };
+        es.onerror = () => setSseConnected(false);
+        return () => es.close();
+    }, []);
+
+    return { status, sseConnected };
+}
+
+async function execCommand(feature, command, params, setErrorModal) {
+    const resp = await fetch(`${API_BASE}/command/${SILA_HOST}/${SILA_PORT}/${feature}/${command}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params || {}),
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok || data.status === 'error') {
+        const msg = data.message || `HTTP ${resp.status}`;
+        setErrorModal({ command, message: msg, errorType: data.error_type });
+        throw new Error(msg);
+    }
+    return data;
+}
+
+function ConnectionPanel({ status, setErrorModal }) {
+    const [deviceId, setDeviceId] = useState(() => localStorage.getItem('el406_device_id') || '');
+    const [skipReset, setSkipReset] = useState(false);
+    const [busy, setBusy] = useState(false);
+
+    useEffect(() => localStorage.setItem('el406_device_id', deviceId), [deviceId]);
+
+    const onConnect = async () => {
+        setBusy(true);
+        try { await execCommand('EL406', 'Connect', { DeviceId: deviceId, SkipReset: skipReset }, setErrorModal); }
+        finally { setBusy(false); }
+    };
+    const onDisconnect = async () => {
+        setBusy(true);
+        try { await execCommand('EL406', 'Disconnect', {}, setErrorModal); }
+        finally { setBusy(false); }
+    };
+
+    return (
+        <div className="card">
+            <h2>Connection</h2>
+            <div className="row">
+                <label>Device Id</label>
+                <input value={deviceId} onChange={e => setDeviceId(e.target.value)} placeholder="auto-detect" style={{width:'180px'}} disabled={status.isConnected}/>
+                <label style={{minWidth:'auto'}}>Skip Reset</label>
+                <input type="checkbox" checked={skipReset} onChange={e => setSkipReset(e.target.checked)} disabled={status.isConnected}/>
+            </div>
+            <div className="row">
+                {!status.isConnected && <button className="primary" onClick={onConnect} disabled={busy}>Connect</button>}
+                {status.isConnected && <button className="danger" onClick={onDisconnect} disabled={busy}>Disconnect</button>}
+            </div>
+            <div className="info-grid" style={{marginTop:'10px'}}>
+                <div className="k">Instrument</div><div className="v">{status.instrumentName || '—'}</div>
+                <div className="k">Serial</div><div className="v">{status.serialNumber || '—'}</div>
+                <div className="k">Plate</div><div className="v">{status.assignedPlate || '—'} {status.numWells ? `(${status.numWells} wells)` : ''}</div>
+                <div className="k">Manifold</div><div className="v">{status.washerManifold || '—'}</div>
+            </div>
+        </div>
+    );
+}
+
+function PlatePanel({ status, setErrorModal }) {
+    const [numWells, setNumWells] = useState(96);
+    const [busy, setBusy] = useState(false);
+
+    const onAssign = async () => {
+        setBusy(true);
+        try { await execCommand('EL406', 'AssignPlate', { NumWells: Number(numWells) }, setErrorModal); }
+        finally { setBusy(false); }
+    };
+    const onUnassign = async () => {
+        setBusy(true);
+        try { await execCommand('EL406', 'UnassignPlate', {}, setErrorModal); }
+        finally { setBusy(false); }
+    };
+    return (
+        <div className="card">
+            <h2>Plate</h2>
+            <div className="row">
+                <label>Wells</label>
+                <select value={numWells} onChange={e => setNumWells(e.target.value)}>
+                    <option value={96}>96</option>
+                    <option value={384}>384</option>
+                </select>
+                <button onClick={onAssign} disabled={busy || !status.isConnected}>Assign</button>
+                <button onClick={onUnassign} disabled={busy || !status.assignedPlate}>Unassign</button>
+            </div>
+        </div>
+    );
+}
+
+function DriverPanel({ status, setErrorModal }) {
+    const [busy, setBusy] = useState(false);
+    const [homeType, setHomeType] = useState('HomeXyzMotors');
+    const [motor, setMotor] = useState('');
+    const [manifold, setManifold] = useState('Tube96Dual');
+
+    const run = async (cmd, params={}) => {
+        setBusy(true);
+        try { await execCommand('EL406', cmd, params, setErrorModal); }
+        finally { setBusy(false); }
+    };
+
+    return (
+        <div className="card">
+            <h2>Driver Commands</h2>
+            <div className="row">
+                <button onClick={() => run('Reset')} disabled={busy || !status.isConnected}>Reset</button>
+                <button onClick={() => run('Pause')} disabled={busy || !status.isConnected}>Pause</button>
+                <button onClick={() => run('Resume')} disabled={busy || !status.isConnected}>Resume</button>
+                <button onClick={() => run('Abort', { StepType: 'Current' })} disabled={busy || !status.isConnected} className="danger">Abort</button>
+                <button onClick={() => run('RunSelfCheck')} disabled={busy || !status.isConnected}>Self-Check</button>
+                <button onClick={() => run('RequestSerialNumber')} disabled={busy || !status.isConnected}>Get Serial</button>
+                <button onClick={() => run('RequestInstrumentSettings')} disabled={busy || !status.isConnected}>Get Settings</button>
+            </div>
+            <h3>Home Motors</h3>
+            <div className="row">
+                <select value={homeType} onChange={e => setHomeType(e.target.value)}>
+                    {['InitAllMotors','InitPeriPump','HomeMotor','HomeXyzMotors','VerifyMotor','VerifyXyzMotors'].map(o => <option key={o} value={o}>{o}</option>)}
+                </select>
+                <select value={motor} onChange={e => setMotor(e.target.value)}>
+                    <option value="">— default —</option>
+                    {['CarrierX','CarrierY','DispHeadZ','WashHeadZ','SyringeA','SyringeB','PeriPumpPrimary','PeriPumpSecondary','LevelSenseY','WashSyringe','WashAspHeadZ','SingleWellY'].map(o => <option key={o} value={o}>{o}</option>)}
+                </select>
+                <button onClick={() => run('HomeMotors', { HomeType: homeType, Motor: motor })} disabled={busy || !status.isConnected}>Home</button>
+            </div>
+            <h3>Washer Manifold</h3>
+            <div className="row">
+                <select value={manifold} onChange={e => setManifold(e.target.value)}>
+                    {['Tube96Dual','Tube192','Tube128','Tube96Single','DeepPin96','NotInstalled'].map(o => <option key={o} value={o}>{o}</option>)}
+                </select>
+                <button onClick={() => run('SetWasherManifold', { Manifold: manifold })} disabled={busy || !status.isConnected}>Set Manifold</button>
+            </div>
+        </div>
+    );
+}
+
+function WasherPanel({ status, setErrorModal }) {
+    const [cycles, setCycles] = useState(3);
+    const [vol, setVol] = useState(300);
+    const [buf, setBuf] = useState('A');
+    const [flow, setFlow] = useState(7);
+    const [primeVol, setPrimeVol] = useState(10000);
+    const [cleanDur, setCleanDur] = useState(60);
+    const [busy, setBusy] = useState(false);
+    const ready = status.isConnected && status.assignedPlate;
+
+    const run = async (cmd, params) => {
+        setBusy(true);
+        try { await execCommand('EL406', cmd, params, setErrorModal); }
+        finally { setBusy(false); }
+    };
+
+    return (
+        <div className="card">
+            <h2>Manifold (Plate Washer)</h2>
+            <h3>Wash</h3>
+            <div className="row">
+                <label>Cycles</label><input type="number" value={cycles} onChange={e => setCycles(Number(e.target.value))}/>
+                <label>Volume uL</label><input type="number" value={vol} onChange={e => setVol(Number(e.target.value))}/>
+                <label>Buffer</label>
+                <select value={buf} onChange={e => setBuf(e.target.value)}>{['A','B','C','D'].map(b => <option key={b}>{b}</option>)}</select>
+                <label>Flow</label><input type="number" value={flow} onChange={e => setFlow(Number(e.target.value))} min="1" max="9"/>
+                <button onClick={() => run('ManifoldWash', { Cycles: cycles, DispenseVolume: vol, Buffer: buf, DispenseFlowRate: flow, AspirateTravelRate: 3, SoakDuration: 0, ShakeDuration: 0, ShakeIntensity: 'Medium', FinalAspirate: true })} disabled={busy || !ready}>Wash</button>
+            </div>
+            <h3>Aspirate / Dispense</h3>
+            <div className="row">
+                <button onClick={() => run('ManifoldAspirate', { VacuumFiltration: false, TravelRate: '3', Delay: 0.0, VacuumTime: 30.0, OffsetX: 0, OffsetY: 0, OffsetZ: 0 })} disabled={busy || !ready}>Aspirate</button>
+                <button onClick={() => run('ManifoldDispense', { Volume: vol, Buffer: buf, FlowRate: flow, OffsetX: 0, OffsetY: 0, OffsetZ: 0, PreDispenseVolume: 0, PreDispenseFlowRate: 9, VacuumDelayVolume: 0 })} disabled={busy || !ready}>Dispense</button>
+            </div>
+            <h3>Prime / Clean</h3>
+            <div className="row">
+                <label>Prime uL</label><input type="number" value={primeVol} onChange={e => setPrimeVol(Number(e.target.value))}/>
+                <button onClick={() => run('ManifoldPrime', { Volume: primeVol, Buffer: buf, FlowRate: 9, LowFlowVolume: 0, SubmergeDuration: 0 })} disabled={busy || !ready}>Prime</button>
+                <label>Clean s</label><input type="number" value={cleanDur} onChange={e => setCleanDur(Number(e.target.value))}/>
+                <button onClick={() => run('ManifoldAutoClean', { Buffer: buf, Duration: cleanDur })} disabled={busy || !ready}>Auto-Clean</button>
+            </div>
+        </div>
+    );
+}
+
+function SyringePanel({ status, setErrorModal }) {
+    const [vol, setVol] = useState(100);
+    const [syringe, setSyringe] = useState('A');
+    const [flow, setFlow] = useState(2);
+    const [primeVol, setPrimeVol] = useState(500);
+    const [refills, setRefills] = useState(2);
+    const [busy, setBusy] = useState(false);
+    const ready = status.isConnected && status.assignedPlate;
+    const run = async (cmd, params) => {
+        setBusy(true);
+        try { await execCommand('EL406', cmd, params, setErrorModal); }
+        finally { setBusy(false); }
+    };
+
+    return (
+        <div className="card">
+            <h2>Syringe Pumps</h2>
+            <div className="row">
+                <label>Volume uL</label><input type="number" value={vol} onChange={e => setVol(Number(e.target.value))}/>
+                <label>Syringe</label>
+                <select value={syringe} onChange={e => setSyringe(e.target.value)}>{['A','B','Both'].map(s => <option key={s}>{s}</option>)}</select>
+                <label>Flow</label><input type="number" value={flow} onChange={e => setFlow(Number(e.target.value))} min="1" max="5"/>
+                <button onClick={() => run('SyringeDispense', { Volume: vol, Syringe: syringe, FlowRate: flow, OffsetX: 0, OffsetY: 0, OffsetZ: 33.6, PumpDelay: 0, PreDispense: false, PreDispenseVolume: 0, NumPreDispenses: 2 })} disabled={busy || !ready}>Dispense</button>
+            </div>
+            <div className="row">
+                <label>Prime uL</label><input type="number" value={primeVol} onChange={e => setPrimeVol(Number(e.target.value))}/>
+                <label>Refills</label><input type="number" value={refills} onChange={e => setRefills(Number(e.target.value))} min="1" max="255"/>
+                <button onClick={() => run('SyringePrime', { Volume: primeVol, Syringe: syringe === 'Both' ? 'A' : syringe, FlowRate: flow, Refills: refills, PumpDelay: 0, SubmergeTips: false, SubmergeDuration: 0 })} disabled={busy || !ready}>Prime</button>
+            </div>
+        </div>
+    );
+}
+
+function PeristalticPanel({ status, setErrorModal }) {
+    const [vol, setVol] = useState(50);
+    const [flow, setFlow] = useState('High');
+    const [cassette, setCassette] = useState('Any');
+    const [primeVol, setPrimeVol] = useState(1000);
+    const [busy, setBusy] = useState(false);
+    const ready = status.isConnected && status.assignedPlate;
+    const run = async (cmd, params) => {
+        setBusy(true);
+        try { await execCommand('EL406', cmd, params, setErrorModal); }
+        finally { setBusy(false); }
+    };
+
+    return (
+        <div className="card">
+            <h2>Peristaltic Pumps</h2>
+            <div className="row">
+                <label>Volume uL</label><input type="number" value={vol} onChange={e => setVol(Number(e.target.value))}/>
+                <label>Flow</label>
+                <select value={flow} onChange={e => setFlow(e.target.value)}>{['Low','Medium','High'].map(f => <option key={f}>{f}</option>)}</select>
+                <label>Cassette</label>
+                <select value={cassette} onChange={e => setCassette(e.target.value)}>{['Any','1uL','5uL','10uL'].map(c => <option key={c}>{c}</option>)}</select>
+                <button onClick={() => run('PeristalticDispense', { Volume: vol, FlowRate: flow, Cassette: cassette, OffsetX: 0, OffsetY: 0, OffsetZ: 0, PreDispenseVolume: 10, NumPreDispenses: 2 })} disabled={busy || !ready}>Dispense</button>
+            </div>
+            <div className="row">
+                <label>Prime uL</label><input type="number" value={primeVol} onChange={e => setPrimeVol(Number(e.target.value))}/>
+                <button onClick={() => run('PeristalticPrime', { Volume: primeVol, Duration: 0, FlowRate: flow, Cassette: cassette })} disabled={busy || !ready}>Prime</button>
+                <button onClick={() => run('PeristalticPurge', { Volume: primeVol, Duration: 0, FlowRate: flow, Cassette: cassette })} disabled={busy || !ready}>Purge</button>
+            </div>
+        </div>
+    );
+}
+
+function ShakerPanel({ status, setErrorModal }) {
+    const [duration, setDuration] = useState(30);
+    const [intensity, setIntensity] = useState('Medium');
+    const [soak, setSoak] = useState(0);
+    const [moveHome, setMoveHome] = useState(true);
+    const [busy, setBusy] = useState(false);
+    const ready = status.isConnected && status.assignedPlate;
+    const onShake = async () => {
+        setBusy(true);
+        try {
+            await execCommand('EL406', 'Shake', { Duration: duration, Intensity: intensity, SoakDuration: soak, MoveHomeFirst: moveHome }, setErrorModal);
+        } finally { setBusy(false); }
+    };
+    return (
+        <div className="card">
+            <h2>Shaker</h2>
+            <div className="row">
+                <label>Duration s</label><input type="number" value={duration} onChange={e => setDuration(Number(e.target.value))} min="0" max="3599"/>
+                <label>Intensity</label>
+                <select value={intensity} onChange={e => setIntensity(e.target.value)}>{['Variable','Slow','Medium','Fast'].map(i => <option key={i}>{i}</option>)}</select>
+                <label>Soak s</label><input type="number" value={soak} onChange={e => setSoak(Number(e.target.value))} min="0" max="3599"/>
+                <label>Move Home</label><input type="checkbox" checked={moveHome} onChange={e => setMoveHome(e.target.checked)}/>
+                <button onClick={onShake} disabled={busy || !ready}>Shake</button>
+            </div>
+        </div>
+    );
+}
+
+function App() {
+    const { status, sseConnected } = useDeviceStatus();
+    const [errorModal, setErrorModal] = useState(null);
+    const [tab, setTab] = useState('manifold');
+
+    return (
+        <div className="container">
+            <div className="header">
+                <div>
+                    <h1>BioTek EL406</h1>
+                    <div className="subtitle">Plate washer + dispenser · pylabrobot v1b1 wrapper</div>
+                </div>
+                <div>
+                    <span className={`status-badge ${status.simulationMode ? 'sim' : 'real'}`}>{status.simulationMode ? 'SIMULATION' : 'REAL'}</span>
+                    <span className={`status-badge ${status.isConnected ? 'connected' : 'disconnected'}`}>{status.isConnected ? 'CONNECTED' : 'DISCONNECTED'}</span>
+                    <span className="status-badge sse">SSE {sseConnected ? 'LIVE' : 'OFF'}</span>
+                </div>
+            </div>
+
+            <div className="grid">
+                <ConnectionPanel status={status} setErrorModal={setErrorModal}/>
+                <PlatePanel status={status} setErrorModal={setErrorModal}/>
+            </div>
+
+            <div className="tabs" style={{marginTop:'16px'}}>
+                <button className={`tab ${tab==='manifold'?'active':''}`} onClick={() => setTab('manifold')}>Manifold (Wash)</button>
+                <button className={`tab ${tab==='syringe'?'active':''}`} onClick={() => setTab('syringe')}>Syringe</button>
+                <button className={`tab ${tab==='peri'?'active':''}`} onClick={() => setTab('peri')}>Peristaltic</button>
+                <button className={`tab ${tab==='shake'?'active':''}`} onClick={() => setTab('shake')}>Shake</button>
+                <button className={`tab ${tab==='driver'?'active':''}`} onClick={() => setTab('driver')}>Driver / Low-level</button>
+            </div>
+
+            {tab === 'manifold' && <WasherPanel status={status} setErrorModal={setErrorModal}/>}
+            {tab === 'syringe' && <SyringePanel status={status} setErrorModal={setErrorModal}/>}
+            {tab === 'peri' && <PeristalticPanel status={status} setErrorModal={setErrorModal}/>}
+            {tab === 'shake' && <ShakerPanel status={status} setErrorModal={setErrorModal}/>}
+            {tab === 'driver' && <DriverPanel status={status} setErrorModal={setErrorModal}/>}
+
+            <div className="card" style={{marginTop:'16px'}}>
+                <h2>Activity Log</h2>
+                <div className="activity-log">
+                    {(status.activityLog || []).slice().reverse().map((line, i) => <div key={i}>{line}</div>)}
+                    {(!status.activityLog || status.activityLog.length === 0) && <div className="small">No activity yet — connect first.</div>}
+                </div>
+            </div>
+
+            {errorModal && (
+                <div className="error-modal" onClick={() => setErrorModal(null)}>
+                    <div className="body" onClick={e => e.stopPropagation()}>
+                        <h3>Error: {errorModal.command}</h3>
+                        {errorModal.errorType && <div className="small">Type: {errorModal.errorType}</div>}
+                        <pre>{errorModal.message}</pre>
+                        <button onClick={() => setErrorModal(null)}>Dismiss</button>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
+</script>
+</body>
+</html>

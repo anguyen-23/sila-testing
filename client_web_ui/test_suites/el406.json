@@ -1,0 +1,514 @@
+{
+  "name": "BioTek EL406 — Test Suite",
+  "description": "Test suite for the BioTek EL406 plate washer + dispenser SiLA 2 server. Wraps the pylabrobot v1b1 EL406 driver. Simulation tests run with no hardware; real tests require a connected EL406 over FTDI USB.",
+  "server": {
+    "default_host": "127.0.0.1",
+    "default_port": 50061,
+    "feature_id": "EL406",
+    "connection": {
+      "feature": "EL406",
+      "command": "Connect",
+      "sim_params": {"DeviceId": "", "SkipReset": true},
+      "real_params": {"DeviceId": "$DEVICE_ID", "SkipReset": false}
+    },
+    "variables": {"DEVICE_ID": ""}
+  },
+  "categories": [
+    {
+      "id": "connection",
+      "name": "Connection",
+      "description": "Connect/disconnect lifecycle in simulation and on real hardware.",
+      "tests": [
+        {
+          "id": "conn_sim",
+          "name": "Connect in simulation mode",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Switch to simulation, disconnect any stale session, then connect.",
+          "expected": "Connect succeeds, InstrumentName contains 'Simulated'.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StartSimulationMode", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "EL406", "command": "Disconnect", "params": {}, "expect": "any"},
+              {"action": "wait", "ms": 200},
+              {"action": "command", "feature": "EL406", "command": "Connect", "params": {"DeviceId": "", "SkipReset": true}, "expect": "success"},
+              {"action": "check_response", "field": "InstrumentName", "condition": "contains", "value": "Simulated"}
+            ]
+          }
+        },
+        {
+          "id": "conn_real",
+          "name": "Connect to real EL406",
+          "type": "scripted",
+          "modes": ["real"],
+          "description": "Open FTDI USB connection, run communication test, fetch serial number.",
+          "expected": "Connect succeeds, SerialNumber is non-empty.",
+          "script": {
+            "steps": [
+              {"action": "command", "feature": "SimulationController", "command": "StopSimulationMode", "params": {}, "expect": "any"},
+              {"action": "command", "feature": "EL406", "command": "Disconnect", "params": {}, "expect": "any"},
+              {"action": "wait", "ms": 500},
+              {"action": "command", "feature": "EL406", "command": "Connect", "params": {"DeviceId": "", "SkipReset": false}, "expect": "success"},
+              {"action": "check_response", "field": "SerialNumber", "condition": "not_empty"}
+            ]
+          }
+        },
+        {
+          "id": "conn_disconnect_idempotent",
+          "name": "Disconnect is idempotent",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Calling Disconnect twice in a row returns OK both times.",
+          "expected": "Both Disconnect calls succeed.",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "EL406", "command": "Disconnect", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "EL406", "command": "Disconnect", "params": {}, "expect": "success"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "plate",
+      "name": "Plate Assignment",
+      "description": "AssignPlate / UnassignPlate. Required before any step command.",
+      "tests": [
+        {
+          "id": "plate_assign_96",
+          "name": "Assign 96-well plate",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "AssignPlate with 96 wells should succeed and return a plate name.",
+          "expected": "PlateName starts with 'el406_plate_96_'.",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "EL406", "command": "AssignPlate", "params": {"NumWells": 96}, "expect": "success"},
+              {"action": "check_response", "field": "PlateName", "condition": "contains", "value": "el406_plate_96_"}
+            ]
+          }
+        },
+        {
+          "id": "plate_assign_384",
+          "name": "Assign 384-well plate",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "AssignPlate with 384 wells should succeed.",
+          "expected": "PlateName starts with 'el406_plate_384_'.",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "EL406", "command": "AssignPlate", "params": {"NumWells": 384}, "expect": "success"},
+              {"action": "check_response", "field": "PlateName", "condition": "contains", "value": "el406_plate_384_"}
+            ]
+          }
+        },
+        {
+          "id": "plate_command_without_assignment",
+          "name": "Aspirate without plate raises NoPlateAssigned",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Calling a step command before AssignPlate should fail with NoPlateAssigned.",
+          "expected": "ManifoldAspirate fails with NoPlateAssigned.",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "EL406", "command": "UnassignPlate", "params": {}, "expect": "any"},
+              {"action": "command", "feature": "EL406", "command": "ManifoldAspirate", "params": {"VacuumFiltration": false, "TravelRate": "3", "Delay": 0.0, "VacuumTime": 30.0, "OffsetX": 0, "OffsetY": 0, "OffsetZ": 0}, "expect": "error", "error_type": "NoPlateAssigned"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "driver",
+      "name": "Driver Commands",
+      "description": "Low-level driver commands: Reset, Pause, Resume, Abort, HomeMotors, SetWasherManifold, queries.",
+      "tests": [
+        {
+          "id": "driver_reset_sim",
+          "name": "Reset (simulation)",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Reset is a no-op in simulation mode.",
+          "expected": "Reset returns Acknowledged='OK'.",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "EL406", "command": "Reset", "params": {}, "expect": "success"},
+              {"action": "check_response", "field": "Acknowledged", "condition": "equals", "value": "OK"}
+            ]
+          }
+        },
+        {
+          "id": "driver_pause_resume",
+          "name": "Pause / Resume",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "Pause then Resume should both succeed.",
+          "expected": "Both return OK.",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "EL406", "command": "Pause", "params": {}, "expect": "success"},
+              {"action": "command", "feature": "EL406", "command": "Resume", "params": {}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "driver_abort_current",
+          "name": "Abort current operation",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Abort with StepType=Current returns OK.",
+          "expected": "Acknowledged='OK'.",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "EL406", "command": "Abort", "params": {"StepType": "Current"}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "driver_home_xyz",
+          "name": "Home XYZ motors",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "HomeMotors with HomeXyzMotors.",
+          "expected": "Acknowledged='OK'.",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "EL406", "command": "HomeMotors", "params": {"HomeType": "HomeXyzMotors", "Motor": ""}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "driver_set_manifold",
+          "name": "Set washer manifold",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "SetWasherManifold to Tube96Dual.",
+          "expected": "Acknowledged='OK'.",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "EL406", "command": "SetWasherManifold", "params": {"Manifold": "Tube96Dual"}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "driver_self_check",
+          "name": "Run self-check",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "RunSelfCheck reports success in simulation; behavior on real depends on hardware state.",
+          "expected": "Returns Success/ErrorCode/Message.",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "EL406", "command": "RunSelfCheck", "params": {}, "expect": "success"},
+              {"action": "check_response", "field": "Message", "condition": "not_empty"}
+            ]
+          }
+        },
+        {
+          "id": "driver_serial_number",
+          "name": "Request serial number",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "RequestSerialNumber returns the cached/queried serial number.",
+          "expected": "SerialNumber field present.",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "EL406", "command": "RequestSerialNumber", "params": {}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "driver_instrument_settings",
+          "name": "Request instrument settings",
+          "type": "scripted",
+          "modes": ["simulation", "real"],
+          "description": "RequestInstrumentSettings returns a JSON blob.",
+          "expected": "SettingsJson contains washer_manifold.",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "EL406", "command": "RequestInstrumentSettings", "params": {}, "expect": "success"},
+              {"action": "check_response", "field": "SettingsJson", "condition": "contains", "value": "washer_manifold"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "manifold",
+      "name": "Manifold Steps",
+      "description": "Wash, aspirate, dispense, prime, auto-clean — through the wash head.",
+      "tests": [
+        {
+          "id": "manifold_aspirate_sim",
+          "name": "Manifold aspirate (sim)",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Aspirate from 96-well plate.",
+          "expected": "Acknowledged='OK'.",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "EL406", "command": "AssignPlate", "params": {"NumWells": 96}, "expect": "success"},
+              {"action": "command", "feature": "EL406", "command": "ManifoldAspirate", "params": {"VacuumFiltration": false, "TravelRate": "3", "Delay": 0.0, "VacuumTime": 30.0, "OffsetX": 0, "OffsetY": 0, "OffsetZ": 0}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "manifold_dispense_sim",
+          "name": "Manifold dispense (sim)",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Dispense 100 uL from buffer A.",
+          "expected": "Acknowledged='OK'.",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "EL406", "command": "AssignPlate", "params": {"NumWells": 96}, "expect": "success"},
+              {"action": "command", "feature": "EL406", "command": "ManifoldDispense", "params": {"Volume": 100.0, "Buffer": "A", "FlowRate": 7, "OffsetX": 0, "OffsetY": 0, "OffsetZ": 0, "PreDispenseVolume": 0.0, "PreDispenseFlowRate": 9, "VacuumDelayVolume": 0.0}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "manifold_wash_3_cycles_sim",
+          "name": "Manifold wash 3 cycles (sim)",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Standard 3-cycle wash with buffer A.",
+          "expected": "Acknowledged='OK'.",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "EL406", "command": "AssignPlate", "params": {"NumWells": 96}, "expect": "success"},
+              {"action": "command", "feature": "EL406", "command": "ManifoldWash", "params": {"Cycles": 3, "DispenseVolume": 300.0, "Buffer": "A", "DispenseFlowRate": 7, "AspirateTravelRate": 3, "SoakDuration": 0, "ShakeDuration": 0, "ShakeIntensity": "Medium", "FinalAspirate": true}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "manifold_prime_sim",
+          "name": "Manifold prime (sim)",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Prime with 10 mL from buffer A.",
+          "expected": "Acknowledged='OK'.",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "EL406", "command": "AssignPlate", "params": {"NumWells": 96}, "expect": "success"},
+              {"action": "command", "feature": "EL406", "command": "ManifoldPrime", "params": {"Volume": 10000.0, "Buffer": "A", "FlowRate": 9, "LowFlowVolume": 0.0, "SubmergeDuration": 0.0}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "manifold_auto_clean_sim",
+          "name": "Manifold auto-clean 60 s (sim)",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "60-second auto-clean with buffer A.",
+          "expected": "Acknowledged='OK'.",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "EL406", "command": "AssignPlate", "params": {"NumWells": 96}, "expect": "success"},
+              {"action": "command", "feature": "EL406", "command": "ManifoldAutoClean", "params": {"Buffer": "A", "Duration": 60.0}, "expect": "success"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "syringe",
+      "name": "Syringe Pump",
+      "description": "Syringe dispense and prime.",
+      "tests": [
+        {
+          "id": "syringe_dispense_sim",
+          "name": "Syringe dispense 100 uL (sim)",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Dispense 100 uL from syringe A to all columns.",
+          "expected": "Acknowledged='OK'.",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "EL406", "command": "AssignPlate", "params": {"NumWells": 96}, "expect": "success"},
+              {"action": "command", "feature": "EL406", "command": "SyringeDispense", "params": {"Volume": 100.0, "Syringe": "A", "FlowRate": 3, "OffsetX": 0.0, "OffsetY": 0.0, "OffsetZ": 33.6, "PumpDelay": 0.0, "PreDispense": false, "PreDispenseVolume": 0.0, "NumPreDispenses": 2}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "syringe_prime_sim",
+          "name": "Syringe prime 500 uL × 2 (sim)",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Prime syringe A with 500 uL × 2 refills.",
+          "expected": "Acknowledged='OK'.",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "EL406", "command": "AssignPlate", "params": {"NumWells": 96}, "expect": "success"},
+              {"action": "command", "feature": "EL406", "command": "SyringePrime", "params": {"Volume": 500.0, "Syringe": "A", "FlowRate": 5, "Refills": 2, "PumpDelay": 0.0, "SubmergeTips": false, "SubmergeDuration": 0.0}, "expect": "success"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "peristaltic",
+      "name": "Peristaltic Pump",
+      "description": "Peristaltic dispense, prime, and purge.",
+      "tests": [
+        {
+          "id": "peri_dispense_sim",
+          "name": "Peristaltic dispense 50 uL (sim)",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Dispense 50 uL on High flow.",
+          "expected": "Acknowledged='OK'.",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "EL406", "command": "AssignPlate", "params": {"NumWells": 96}, "expect": "success"},
+              {"action": "command", "feature": "EL406", "command": "PeristalticDispense", "params": {"Volume": 50.0, "FlowRate": "High", "Cassette": "Any", "OffsetX": 0.0, "OffsetY": 0.0, "OffsetZ": 0.0, "PreDispenseVolume": 10.0, "NumPreDispenses": 2}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "peri_prime_volume_sim",
+          "name": "Peristaltic prime by volume (sim)",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Prime with 1000 uL volume, duration=0.",
+          "expected": "Acknowledged='OK'.",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "EL406", "command": "AssignPlate", "params": {"NumWells": 96}, "expect": "success"},
+              {"action": "command", "feature": "EL406", "command": "PeristalticPrime", "params": {"Volume": 1000.0, "Duration": 0, "FlowRate": "High", "Cassette": "Any"}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "peri_purge_duration_sim",
+          "name": "Peristaltic purge by duration (sim)",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Purge for 5 seconds, volume=0.",
+          "expected": "Acknowledged='OK'.",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "EL406", "command": "AssignPlate", "params": {"NumWells": 96}, "expect": "success"},
+              {"action": "command", "feature": "EL406", "command": "PeristalticPurge", "params": {"Volume": 0.0, "Duration": 5, "FlowRate": "Medium", "Cassette": "Any"}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "peri_both_args_error",
+          "name": "Peristaltic prime with both args fails",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Supplying both Volume and Duration > 0 must raise InvalidParameter.",
+          "expected": "PeristalticPrime fails with InvalidParameter.",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "EL406", "command": "AssignPlate", "params": {"NumWells": 96}, "expect": "success"},
+              {"action": "command", "feature": "EL406", "command": "PeristalticPrime", "params": {"Volume": 100.0, "Duration": 10, "FlowRate": "High", "Cassette": "Any"}, "expect": "error", "error_type": "InvalidParameter"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "shaker",
+      "name": "Shaker",
+      "description": "Plate shake with optional soak.",
+      "tests": [
+        {
+          "id": "shake_5s_medium_sim",
+          "name": "Shake 5 s Medium (sim)",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Shake at Medium intensity for 5 seconds.",
+          "expected": "Acknowledged='OK'.",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "EL406", "command": "AssignPlate", "params": {"NumWells": 96}, "expect": "success"},
+              {"action": "command", "feature": "EL406", "command": "Shake", "params": {"Duration": 5, "Intensity": "Medium", "SoakDuration": 0, "MoveHomeFirst": true}, "expect": "success"}
+            ]
+          }
+        },
+        {
+          "id": "shake_zero_zero_error",
+          "name": "Shake with zero duration AND zero soak fails",
+          "type": "scripted",
+          "modes": ["simulation"],
+          "description": "Both Duration and SoakDuration of 0 must raise InvalidParameter.",
+          "expected": "Shake fails with InvalidParameter.",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "EL406", "command": "AssignPlate", "params": {"NumWells": 96}, "expect": "success"},
+              {"action": "command", "feature": "EL406", "command": "Shake", "params": {"Duration": 0, "Intensity": "Medium", "SoakDuration": 0, "MoveHomeFirst": true}, "expect": "error", "error_type": "InvalidParameter"}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "real_hardware",
+      "name": "Real Hardware (guided)",
+      "description": "Physical tests requiring a connected EL406 plate washer.",
+      "tests": [
+        {
+          "id": "real_full_wash_plate",
+          "name": "Full wash with a real 96-well plate",
+          "type": "guided",
+          "modes": ["real"],
+          "description": "Place a plate, prime, run a 3-cycle wash, verify the plate is washed.",
+          "expected": "All 96 wells are washed evenly and the plate looks clean.",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "EL406", "command": "AssignPlate", "params": {"NumWells": 96}, "expect": "success"},
+              {"action": "prompt", "message": "Place a sample-filled 96-well plate on the EL406 carrier and confirm buffer A is connected to wash solution."},
+              {"action": "command", "feature": "EL406", "command": "ManifoldPrime", "params": {"Volume": 10000.0, "Buffer": "A", "FlowRate": 9, "LowFlowVolume": 0.0, "SubmergeDuration": 0.0}, "expect": "success"},
+              {"action": "command", "feature": "EL406", "command": "ManifoldWash", "params": {"Cycles": 3, "DispenseVolume": 300.0, "Buffer": "A", "DispenseFlowRate": 7, "AspirateTravelRate": 3, "SoakDuration": 0, "ShakeDuration": 0, "ShakeIntensity": "Medium", "FinalAspirate": true}, "expect": "success"},
+              {"action": "confirm", "message": "Is the plate washed evenly and looking clean?", "pass_label": "Yes", "fail_label": "No / uneven"}
+            ]
+          }
+        },
+        {
+          "id": "real_shake_30s_medium",
+          "name": "Shake 30 s Medium with real plate",
+          "type": "guided",
+          "modes": ["real"],
+          "description": "Place a plate, run a 30 s Medium shake, verify motion.",
+          "expected": "Carrier moves to home and shakes audibly for 30 s.",
+          "script": {
+            "steps": [
+              {"action": "ensure_connected"},
+              {"action": "command", "feature": "EL406", "command": "AssignPlate", "params": {"NumWells": 96}, "expect": "success"},
+              {"action": "prompt", "message": "Place a sample plate on the carrier."},
+              {"action": "command", "feature": "EL406", "command": "Shake", "params": {"Duration": 30, "Intensity": "Medium", "SoakDuration": 0, "MoveHomeFirst": true}, "expect": "success"},
+              {"action": "confirm", "message": "Did the carrier shake for ~30 s at Medium intensity?", "pass_label": "Yes", "fail_label": "No"}
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
