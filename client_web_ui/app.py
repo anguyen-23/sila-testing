@@ -505,9 +505,13 @@ def create_app() -> Flask:
                     pid = p._identifier
                     if pid in params:
                         val = params[pid]
-                        # Only JSON-parse non-String parameters (avoid "0" -> 0 coercion)
+                        # Only JSON-parse non-String parameters (avoid "0" -> 0 coercion).
+                        # Unwrap Constrained<T> to look at T — otherwise Constrained<String>
+                        # parameters like the EL406 TravelRate set get json.loads'd and
+                        # numeric-looking strings get coerced into ints, failing Set checks.
                         dt = getattr(p, "data_type", None)
-                        type_name = type(dt).__name__ if dt else "String"
+                        effective_dt = dt.base_type if isinstance(dt, Constrained) else dt
+                        type_name = type(effective_dt).__name__ if effective_dt else "String"
                         if isinstance(val, str) and type_name not in ("String", "Binary"):
                             try:
                                 val = json.loads(val)
